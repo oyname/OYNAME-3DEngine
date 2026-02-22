@@ -16,3 +16,11 @@ obj/
 .vscode/
 
 # Keep source + assets (default: everything else is tracked)
+
+# GitHub Pages / Jekyll
+_site/
+.sass-cache/
+.jekyll-cache/
+.jekyll-metadata
+.DS_Store
+Thumbs.db
