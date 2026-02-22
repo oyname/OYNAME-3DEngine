@@ -13,6 +13,7 @@ struct VS_INPUT
 struct VS_OUTPUT
 {
     float4 position : SV_POSITION;
+    float3 worldPos : TEXCOORD0;
 };
 
 VS_OUTPUT main(VS_INPUT input)
@@ -21,11 +22,15 @@ VS_OUTPUT main(VS_INPUT input)
 
     float4 p = float4(input.position, 1.0f);
     p = mul(p, worldMatrix);
+
+    o.worldPos = p.xyz; // Weltposition fuer den Pixel Shader merken
+
     p = mul(p, viewMatrix);
     p = mul(p, projectionMatrix);
-
     o.position = p;
+
     return o;
 }
+
 
 

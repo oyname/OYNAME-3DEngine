@@ -20,8 +20,8 @@ public:
 
 private:
     RenderQueue m_opaque;
-    std::vector<DrawEntry> m_transCandidates; // registriert, aber nicht sortiert
-    std::vector<std::pair<float, DrawEntry>> m_transFrame; // pro Frame sortiert
+    // Transparent-Queue: vorbereitet, noch nicht aktiv
+    std::vector<std::pair<float, DrawEntry>> m_transFrame;
 
     // Objekte im 3D Raum
     LPENTITY m_currentCam;
@@ -33,6 +33,8 @@ private:
     GDXDevice&     m_device;
 
     // Helper Functions
+    void BuildRenderQueue();   // Phase 1: Szene traversieren, Queue befüllen
+    void FlushRenderQueue();   // Phase 2: Queue abarbeiten (Draw Calls)
     void UpdateShadowMatrixBuffer(const DirectX::XMMATRIX& viewMatrix, const DirectX::XMMATRIX& projMatrix);
 
     // Default-Konstruktor gelöscht

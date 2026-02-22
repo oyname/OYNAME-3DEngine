@@ -18,13 +18,13 @@ int main()
 
     // Texturen
     LPTEXTURE brick = nullptr;
-    Engine::LoadTexture(&brick, L"..\\media\\dx.bmp");
+    Engine::LoadTexture(&brick, L"..\\media\\color1.png");
 
     LPTEXTURE dxlogo = nullptr;
     Engine::LoadTexture(&dxlogo, L"..\\media\\bricks.bmp");
 
     LPTEXTURE face = nullptr;
-    Engine::LoadTexture(&face, L"..\\media\\face.bmp");
+    Engine::LoadTexture(&face, L"..\\media\\color3.png");
 
     // Kamera
     Engine::CreateCamera(&g_camera);
@@ -75,7 +75,7 @@ int main()
 
     // Dieses Licht wirft Schatten (muss nach CreateLight aufgerufen werden)
     Engine::SetDirectionalLight(g_directionalLight);
-    Engine::SetAmbientColor(0.1f, 0.1f, 0.1f);
+    Engine::SetAmbientColor(0.5f, 0.5f, 0.7f);
 
     Engine::SetVSync(1);
 

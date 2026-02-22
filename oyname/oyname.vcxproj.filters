@@ -70,6 +70,9 @@
     <Filter Include="03 Engine\03 Manager\08 InputLayoutManager">
       <UniqueIdentifier>{b12912a0-da6c-40b7-a781-9dec879f936e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="05 Example\MultiShader">
+      <UniqueIdentifier>{3022191d-48bc-4207-b23e-8df35bf97e9b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\Camera.cpp">
@@ -153,9 +156,6 @@
     <ClCompile Include="..\examples\LightExamplescene.cpp">
       <Filter>05 Example</Filter>
     </ClCompile>
-    <ClCompile Include="..\examples\Multitextur.cpp">
-      <Filter>05 Example</Filter>
-    </ClCompile>
     <ClCompile Include="..\examples\Performance.cpp">
       <Filter>05 Example</Filter>
     </ClCompile>
@@ -176,6 +176,24 @@
     </ClCompile>
     <ClCompile Include="..\src\gdxutil.cpp">
       <Filter>03 Engine\00 Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="..\examples\Multitextur.cpp">
+      <Filter>05 Example</Filter>
+    </ClCompile>
+    <ClCompile Include="..\examples\Multisurfaceexample.cpp">
+      <Filter>05 Example</Filter>
+    </ClCompile>
+    <ClCompile Include="..\examples\MultitexturExample.cpp">
+      <Filter>05 Example</Filter>
+    </ClCompile>
+    <ClCompile Include="..\examples\Speculartest.cpp">
+      <Filter>05 Example</Filter>
+    </ClCompile>
+    <ClCompile Include="..\examples\Multishaderexample.cpp">
+      <Filter>05 Example\MultiShader</Filter>
+    </ClCompile>
+    <ClCompile Include="..\examples\Neontimebuffer.cpp">
+      <Filter>05 Example\MultiShader</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -263,6 +281,9 @@
     <ClInclude Include="..\include\gidx.h">
       <Filter>03 Engine</Filter>
     </ClInclude>
+    <ClInclude Include="..\examples\Neontimebuffer.h">
+      <Filter>05 Example\MultiShader</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\shaders\VertexShader.hlsl">
@@ -271,10 +292,10 @@
     <Text Include="..\shaders\PixelShader.hlsl">
       <Filter>04 Shader</Filter>
     </Text>
-    <Text Include="..\shaders\PixelShaderRot.hlsl">
+    <Text Include="..\shaders\PixelShaderNeon.hlsl">
       <Filter>04 Shader</Filter>
     </Text>
-    <Text Include="..\shaders\VertexShaderRot.hlsl">
+    <Text Include="..\shaders\VertexShaderNeon.hlsl">
       <Filter>04 Shader</Filter>
     </Text>
   </ItemGroup>

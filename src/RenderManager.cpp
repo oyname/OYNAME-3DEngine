@@ -113,36 +113,28 @@ void RenderManager::RenderShadowPass()
         ctx->VSSetConstantBuffers(3, 1, &shadowMatrixBuffer);
 
     // ---- Draw depth into shadow map ----
-    for (Shader* shader : m_objectManager.GetShaders())
+    for (Mesh* mesh : m_objectManager.GetMeshes())
     {
-        if (!shader || shader->materials.empty())
-            continue;
+        if (!mesh || mesh->surfaces.empty()) continue;
 
-        shader->UpdateShader(&m_device, ShaderBindMode::VS_ONLY);
+        MatrixSet ms = m_currentCam->matrixSet;
+        ms.viewMatrix = lightViewMatrix;
+        ms.projectionMatrix = lightProjMatrix;
+        ms.worldMatrix = mesh->transform.GetLocalTransformationMatrix();
+        mesh->Update(&m_device, &ms);
 
-        for (Material* material : shader->materials)
+        for (Surface* s : mesh->surfaces)
         {
-            if (!material || material->meshes.empty())
-                continue;
+            if (!s) continue;
 
-            // CPU-side Filter: dieses Material wirft keinen Schatten
-            if (!material->castShadows)
-                continue;
+            Material* mat = s->pMaterial ? s->pMaterial : mesh->pMaterial;
+            if (!mat || !mat->castShadows) continue;
 
-            for (Mesh* mesh : material->meshes)
-            {
-                if (!mesh) continue;
+            Shader* shader = mat->pRenderShader;
+            if (!shader) continue;
 
-                MatrixSet ms = m_currentCam->matrixSet; // nur als Container
-                ms.viewMatrix = lightViewMatrix;
-                ms.projectionMatrix = lightProjMatrix;
-                ms.worldMatrix = mesh->transform.GetLocalTransformationMatrix();
-
-                mesh->Update(&m_device, &ms);
-
-                for (Surface* s : mesh->surfaces)
-                    if (s) s->Draw(&m_device, shader->flagsVertex);
-            }
+            shader->UpdateShader(&m_device, ShaderBindMode::VS_ONLY);
+            s->Draw(&m_device, shader->flagsVertex);
         }
     }
 }
@@ -194,202 +186,115 @@ void RenderManager::RenderNormalPass()
     }
 }
 
-void RenderManager::RenderScene()
+void RenderManager::BuildRenderQueue()
 {
-    Debug::LogOnce("RenderScene_BEGIN",
-        "=== RenderScene BEGIN ===");
+    m_opaque.Clear();
 
-    if (!m_currentCam) {
-        Debug::LogOnce("RenderScene_NoCamera",
-            "WARNING: RenderManager::RenderScene - Camera not set");
-        return;
+    for (Mesh* mesh : m_objectManager.GetMeshes())
+    {
+        if (!mesh || mesh->surfaces.empty()) continue;
+
+        const DirectX::XMMATRIX world = mesh->transform.GetLocalTransformationMatrix();
+
+        for (Surface* surface : mesh->surfaces)
+        {
+            if (!surface) continue;
+
+            Material* material = surface->pMaterial ? surface->pMaterial : mesh->pMaterial;
+            if (!material) continue;
+
+            Shader* shader = material->pRenderShader;
+            if (!shader) continue;
+
+            m_opaque.Submit(shader, shader->flagsVertex, material, mesh, surface, world);
+        }
     }
 
-    // PASS 1
+    // ---- Queue-Inhalt einmalig loggen (nur wenn sich Größe ändert) ----
+    static size_t s_lastShaderCount = SIZE_MAX;
+    size_t totalDraws = 0;
+    for (auto& sb : m_opaque.shaders)
+        for (auto& mb : sb.materials)
+            totalDraws += mb.draws.size();
+
+    if (m_opaque.shaders.size() != s_lastShaderCount)
+    {
+        s_lastShaderCount = m_opaque.shaders.size();
+
+        Debug::Log("=== RenderQueue ===");
+        Debug::Log("  Shader-Buckets: ", m_opaque.shaders.size());
+
+        for (size_t si = 0; si < m_opaque.shaders.size(); ++si)
+        {
+            ShaderBatch& sb = m_opaque.shaders[si];
+            Debug::Log("  [Shader ", si, "] ptr=", Ptr(sb.shader).c_str(),
+                "  Material-Buckets: ", sb.materials.size());
+
+            for (size_t mi = 0; mi < sb.materials.size(); ++mi)
+            {
+                MaterialBatch& mb = sb.materials[mi];
+                Debug::Log("    [Material ", mi, "] ptr=", Ptr(mb.material).c_str(),
+                    "  DrawEntries: ", mb.draws.size());
+
+                for (size_t di = 0; di < mb.draws.size(); ++di)
+                {
+                    Debug::Log("      [Draw ", di, "] mesh=", Ptr(mb.draws[di].mesh).c_str(),
+                        "  surface=", Ptr(mb.draws[di].surface).c_str());
+                }
+            }
+        }
+
+        Debug::Log("  Gesamt Draw Calls: ", totalDraws);
+        Debug::Log("===================");
+    }
+}
+
+void RenderManager::FlushRenderQueue()
+{
+    for (ShaderBatch& sb : m_opaque.shaders)
+    {
+        if (!sb.shader) continue;
+        sb.shader->UpdateShader(&m_device);
+
+        for (MaterialBatch& mb : sb.materials)
+        {
+            if (!mb.material) continue;
+            mb.material->SetTexture(&m_device);
+            mb.material->UpdateConstantBuffer(m_device.GetDeviceContext());
+
+            for (DrawEntry& entry : mb.draws)
+            {
+                if (!entry.mesh || !entry.surface) continue;
+
+                // World-Matrix dieses Mesh in b0 laden
+                entry.mesh->Update(&m_device, &m_currentCam->matrixSet);
+
+                entry.surface->Draw(&m_device, sb.flagsVertex);
+            }
+        }
+    }
+}
+
+void RenderManager::RenderScene()
+{
+    if (!m_currentCam)
+        return;
+
+    // PASS 1: Shadow Map befüllen
     RenderShadowPass();
 
-    // PASS 2
+    // PASS 2: Render Target + State vorbereiten
     RenderNormalPass();
 
-    // Lights
+    // Lights → b1
     m_lightManager.Update(&m_device);
 
     Debug::LogOnce("RenderScene_Camera",
         "Camera: ", Ptr(m_currentCam).c_str());
 
-    Debug::LogOnce("RenderScene_ShaderCount",
-        "Shader count: ", m_objectManager.GetShaders().size());
+    // Phase 1: Szene traversieren, Queue nach Shader/Material gruppieren
+    BuildRenderQueue();
 
-    for (size_t si = 0; si < m_objectManager.GetShaders().size(); ++si)
-    {
-        Shader* shader = m_objectManager.GetShaders()[si];
-
-        if (!shader)
-        {
-            std::string key = "Shader_NULL_" + std::to_string(si);
-            Debug::LogOnce(key.c_str(),
-                "Shader[", si, "] = NULL");
-            continue;
-        }
-
-        {
-            std::string key = "Shader_" + std::to_string(si);
-            Debug::LogOnce(key.c_str(),
-                "Shader[", si, "]: ",
-                Ptr(shader).c_str(),
-                ", Materials: ",
-                shader->materials.size());
-        }
-
-        if (shader->materials.empty())
-            continue;
-
-        shader->UpdateShader(&m_device);
-
-        for (size_t mi = 0; mi < shader->materials.size(); ++mi)
-        {
-            Material* material = shader->materials[mi];
-
-            if (!material)
-            {
-                std::string key = "Material_NULL_" + std::to_string(si) + "_" + std::to_string(mi);
-                Debug::LogOnce(key.c_str(),
-                    "Material[", mi, "] = NULL");
-                continue;
-            }
-
-            {
-                std::string key = "  Material_" + std::to_string(si) + "_" + std::to_string(mi);
-                Debug::LogOnce(key.c_str(),
-                    "Material[", mi, "]: ",
-                    Ptr(material).c_str(),
-                    ", Meshes: ",
-                    material->meshes.size());
-            }
-
-            material->SetTexture(&m_device);
-            material->UpdateConstantBuffer(
-                m_device.GetDeviceContext());
-
-            for (size_t mei = 0; mei < material->meshes.size(); ++mei)
-            {
-                Mesh* mesh = material->meshes[mei];
-
-                if (!mesh)
-                {
-                    std::string key = "Mesh_NULL_" + std::to_string(si) + "_" +
-                        std::to_string(mi) + "_" + std::to_string(mei);
-
-                    Debug::LogOnce(key.c_str(),
-                        " Mesh[", mei, "] = NULL");
-
-                    continue;
-                }
-
-                {
-                    std::string key =
-                        "Mesh_" + std::to_string(si) + "_" +
-                        std::to_string(mi) + "_" +
-                        std::to_string(mei);
-
-                    Debug::LogOnce(key.c_str(),
-                        " Mesh[", mei, "]: ",
-                        Ptr(mesh).c_str(),
-                        ", Surfaces: ",
-                        mesh->surfaces.size(),
-                        ", Active: ",
-                        mesh->IsActive());
-                }
-
-                mesh->Update(&m_device,
-                    &m_currentCam->matrixSet);
-
-                for (size_t sui = 0; sui < mesh->surfaces.size(); ++sui)
-                {
-                    Surface* surface = mesh->surfaces[sui];
-
-                    if (!surface)
-                    {
-                        std::string key =
-                            "Surface_NULL_" +
-                            std::to_string(si) + "_" +
-                            std::to_string(mi) + "_" +
-                            std::to_string(mei) + "_" +
-                            std::to_string(sui);
-
-                        Debug::LogOnce(key.c_str(),
-                            "   Surface[", sui, "] = NULL");
-
-                        continue;
-                    }
-
-                    {
-                        std::string key =
-                            "Surface_" +
-                            std::to_string(si) + "_" +
-                            std::to_string(mi) + "_" +
-                            std::to_string(mei) + "_" +
-                            std::to_string(sui);
-
-                        Debug::LogOnce(key.c_str(),
-                            "   Surface[", sui, "]: ",
-                            Ptr(surface).c_str(),
-                            ", Active: ",
-                            surface->isActive);
-                    }
-
-                    surface->Draw(
-                        &m_device,
-                        shader->flagsVertex);
-                }
-            }
-        }
-    }
-
-    Debug::LogOnce("RenderScene_END",
-        "=== RenderScene END ===");
+    // Phase 2: Queue abarbeiten – minimale State-Changes
+    FlushRenderQueue();
 }
-
-
-//void RenderManager::RenderScene()
-//{
-//    if (!m_currentCam) {
-//        Debug::Log("RenderManager.cpp: WARNING: RenderManager::RenderScene - Camera not set");
-//        return;
-//    }
-//
-//    // PASS 1: Shadow
-//    RenderShadowPass();
-//
-//    // PASS 2: Main pass setup (OM/RS/VP + shadow bindings)
-//    RenderNormalPass();
-//
-//    // Lichter aktualisieren
-//    m_lightManager.Update(&m_device);
-//
-//    // Draw scene (nutzt jetzt garantiert Main-Pass-State)
-//    for (const auto& shader : m_objectManager.GetShaders())
-//    {
-//        if (!shader || shader->materials.empty())
-//            continue;
-//
-//        shader->UpdateShader(&m_device);
-//
-//        // m_device.GetDeviceContext()
-//        for (const auto& material : shader->materials)
-//        {
-//            material->SetTexture(&m_device);
-//            material->UpdateConstantBuffer(m_device.GetDeviceContext());
-//
-//            for (const auto& mesh : material->meshes)
-//            {
-//
-//                mesh->Update(&m_device, &m_currentCam->matrixSet);
-//
-//                for (const auto& surface : mesh->surfaces)
-//                    if (surface)
-//                        surface->Draw(&m_device, shader->flagsVertex);
-//            }
-//        }
-//    }
-//}

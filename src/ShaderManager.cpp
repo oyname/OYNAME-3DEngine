@@ -82,12 +82,11 @@ HRESULT ShaderManager::CompileShaderFromFile(const std::wstring& filename, const
     );
 
     if (FAILED(hr)) {
-        // Gib Fehler aus, falls vorhanden
         if (errorBlob != nullptr) {
             Debug::Log("ShaderManager.cpp: Shader Compilation Error: ", (const char*)errorBlob->GetBufferPointer());
             Memory::SafeRelease(errorBlob);
         }
-        return 0;
+        return hr;  // hr zurueckgeben, nicht 0 (0 == S_OK!)
     }
 
     return hr;

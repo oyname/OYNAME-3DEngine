@@ -137,14 +137,14 @@ int main()
 
         if ((GetAsyncKeyState(VK_SPACE) & 0x8000))
         {
-            Engine::PositionEntity(light4, camera->transform.getPosition());
+            Engine::PositionEntity(light4, camera->transform.GetPosition());
             Engine::RotateEntity(light4, camera->transform.GetRotationQuaternion());
         }
 
         if ((GetAsyncKeyState(VK_F1) & 0x8000))
         {
-            Engine::PositionEntity(light3, camera->transform.getPosition());
-            Engine::LookAt(light3, camera->transform.getLookAt());
+            Engine::PositionEntity(light3, camera->transform.GetPosition());
+            Engine::LookAt(light3, camera->transform.GetLookAt());
         }
 
         if ((GetAsyncKeyState(VK_UP) & 0x8000)) {
@@ -212,7 +212,7 @@ int main()
     }
 
     // Shutdown the engine
-    return Windows::ShutDown();
+    return 0;
 }
 
 // ==================== SIMPLE CUBE CREATION ====================

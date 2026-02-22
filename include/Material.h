@@ -5,7 +5,7 @@
 #include <string>
 #include "Mesh.h"
 
-class Shader; 
+class Shader;
 
 class Material
 {
@@ -18,7 +18,9 @@ public:
         float shininess;
         float transparency;
         float receiveShadows; // 1.0 = receive, 0.0 = ignore
-        float padding;        // 16-byte alignment
+        float blendMode;      // 0=off 1=multiply 2=multiply×2 3=additive 4=lerp(alpha) 5=luminanz
+        float blendFactor;      
+        float padding[3];      
     };
 
     // ==================== KONSTRUKTOR / DESTRUKTOR ====================
@@ -27,8 +29,7 @@ public:
 
     // ==================== TEXTURE METHODS ====================
     void SetTexture(const GDXDevice* device);
-    void SetTexture(ID3D11Texture2D* texture, ID3D11ShaderResourceView* textureView, ID3D11SamplerState* imageSamplerState);
-    void SetTexture2(ID3D11Texture2D* texture, ID3D11ShaderResourceView* textureView, ID3D11SamplerState* imageSamplerState);
+    void SetTexture(int slot, ID3D11Texture2D* texture, ID3D11ShaderResourceView* textureView, ID3D11SamplerState* imageSamplerState);
     void UpdateConstantBuffer(ID3D11DeviceContext* context);
 
     // ==================== MATERIAL PROPERTY SETTERS ====================
@@ -37,6 +38,9 @@ public:
     void SetShininess(float shininess);
     void SetTransparency(float transparency);
     void SetColor(float r, float g, float b, float a = 1.0f);  // Kurzform fuer Diffuse
+
+    inline void SetBlendFactor(float f) { properties.blendFactor = f; }
+    inline float GetBlendFactor() const { return properties.blendFactor; }
 
     // ==================== MATERIAL PROPERTY GETTERS ====================
     DirectX::XMFLOAT4 GetDiffuseColor() const;
@@ -58,23 +62,27 @@ public:
     inline bool GetCastShadows() const { return castShadows; }
     inline bool GetReceiveShadows() const { return receiveShadows; }
 
+    // ==================== BLEND MODE ====================
+    inline void SetBlendMode(int mode)
+    {
+        properties.blendMode = (float)mode;
+    }
+    inline int GetBlendMode() const { return (int)properties.blendMode; }
+
     // ==================== MATERIAL STATE ====================
     bool isActive;
     MaterialData properties;  // Alle Material-Properties hier!
 
     // ==================== TEXTURE DATA ====================
-    ID3D11Texture2D*          m_texture;            // Slot 0: Albedo / Diffuse
-    ID3D11ShaderResourceView* m_textureView;
-    ID3D11SamplerState*       m_imageSamplerState;
+    static const int MAX_TEXTURES = 8;
 
-    ID3D11Texture2D*          m_texture2;           // Slot 1: Detail / Lightmap / Normal
-    ID3D11ShaderResourceView* m_textureView2;
-    ID3D11SamplerState*       m_imageSamplerState2;
+    ID3D11Texture2D* m_texture[MAX_TEXTURES] = {};
+    ID3D11ShaderResourceView* m_textureView[MAX_TEXTURES] = {};
+    ID3D11SamplerState* m_imageSamplerState[MAX_TEXTURES] = {};
 
     ID3D11Buffer* materialBuffer;  // Constant Buffer fuer GPU
 
     // ==================== OBJECT MANAGEMENT ====================
-    std::vector<Mesh*> meshes;
     Shader* pRenderShader;
 
     // ==================== MEMORY MANAGEMENT ====================

@@ -6,7 +6,8 @@
 #include "gdxdevice.h"
 
 
-class Mesh;    // forward
+class Mesh;      // forward
+class Material;  // forward
 
 class Surface {
 public:
@@ -17,6 +18,7 @@ public:
     void VertexNormal(unsigned int index, float x, float y, float z);
     void VertexColor(unsigned int index, float r, float g, float b);
     void VertexTexCoords(unsigned int index, float u, float v);
+    void VertexTexCoords2(float u, float v);   // Lightmap / zweite UV
     void AddIndex(UINT index);
 
     void Draw(const GDXDevice* m_device, const DWORD flags);
@@ -61,7 +63,8 @@ public:
     ID3D11Buffer* uv2Buffer;
     ID3D11Buffer* indexBuffer;
 
-    Mesh* pMesh = nullptr;               
+    Mesh* pMesh = nullptr;
+    Material* pMaterial = nullptr;   // pro-Surface Material (überschreibt mesh->pMaterial)
     DirectX::XMFLOAT3 minPoint{};
     DirectX::XMFLOAT3 maxPoint{};
 

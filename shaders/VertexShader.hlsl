@@ -53,18 +53,20 @@ struct VS_INPUT
     float3 position : POSITION;
     float3 normal : NORMAL;
     float4 color : COLOR;
-    float2 texCoord : TEXCOORD0;
+    float2 texCoord  : TEXCOORD0;   // Albedo UV
+    float2 texCoord2 : TEXCOORD1;   // Lightmap / Detail UV
 };
 
 struct VS_OUTPUT
 {
-    float4 position : SV_POSITION; // Clip-Space Position
-    float3 normal : NORMAL; // Normale im Welt-Raum
-    float3 worldPosition : TEXCOORD1; // Position im Welt-Raum
-    float4 color : COLOR; // Vertex-Farbe
-    float2 texCoord : TEXCOORD0; // Texturkoordinaten
-    float4 positionLightSpace : TEXCOORD2; // Shadow Mapping: Position im Licht-Raum
-    float3 viewDirection : TEXCOORD3; // Richtung zur Kamera (fuer Specular)
+    float4 position : SV_POSITION;
+    float3 normal : NORMAL;
+    float3 worldPosition : TEXCOORD1;
+    float4 color : COLOR;
+    float2 texCoord  : TEXCOORD0;   // Albedo UV
+    float4 positionLightSpace : TEXCOORD2;
+    float3 viewDirection : TEXCOORD3;
+    float2 texCoord2 : TEXCOORD4;   // Lightmap / Detail UV
 };
 
 // ==================== MAIN VERTEX SHADER ====================
@@ -87,7 +89,8 @@ VS_OUTPUT main(VS_INPUT input)
 
     // Vertex-Attribute kopieren
     o.color = input.color;
-    o.texCoord = input.texCoord;
+    o.texCoord  = input.texCoord;
+    o.texCoord2 = input.texCoord2;
 
     // Shadow Mapping: Welt-Position in Light-Space transformieren
     float4 lightViewPos = mul(worldPos, lightViewMatrix);

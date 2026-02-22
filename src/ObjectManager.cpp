@@ -11,9 +11,6 @@ ObjectManager::~ObjectManager()
     for (auto& shader : m_shaders) {
         shader->materials.clear();
     }
-    for (auto& material : m_materials) {
-        material->meshes.clear();
-    }
     for (auto& mesh : m_meshes) {
         mesh->surfaces.clear();
     }
@@ -93,17 +90,22 @@ void ObjectManager::AddSurfaceToMesh(Mesh* mesh, Surface* surface)
     // surface->pShader = mesh->pShader;
 }
 
+void ObjectManager::AddMaterialToSurface(Material* material, Surface* surface)
+{
+    if (!material || !surface) return;
+    surface->pMaterial = material;
+
+    // Shader-Bucket aktuell halten (damit der RenderManager den Shader findet)
+    if (material->pRenderShader)
+        AssignShaderToMaterial(material->pRenderShader, material);
+}
+
 void ObjectManager::AddMeshToMaterial(Material* material, Mesh* mesh) {
     if (!material || !mesh) return;
 
-    // Keep the relationship consistent.
     mesh->pMaterial = material;
 
-    if (std::find(material->meshes.begin(), material->meshes.end(), mesh) == material->meshes.end())
-        material->meshes.push_back(mesh);
-
-    // Ensure the material is part of the shader bucket used for rendering.
-    // (Rendering walks: shader -> materials -> meshes -> surfaces)
+    // Shader-Bucket aktuell halten
     if (material->pRenderShader)
         AssignShaderToMaterial(material->pRenderShader, material);
 }
@@ -149,15 +151,8 @@ void ObjectManager::DeleteMesh(Mesh* mesh) {
 
     UnregisterRenderable(mesh);
 
-    // Detach from all materials
-    for (auto& material : m_materials) {
-        auto& meshes = material->meshes;
-        for (auto& material : m_materials) {
-            auto& meshes = material->meshes;
-            meshes.erase(std::remove(meshes.begin(), meshes.end(), mesh), meshes.end());
-        }
-        mesh->pMaterial = nullptr;
-    }
+    // Fallback-Material-Referenz nullen
+    mesh->pMaterial = nullptr;
 
     // ObjectManager owns surfaces -> delete all surfaces of this mesh here.
     for (auto* s : mesh->surfaces)
@@ -204,14 +199,19 @@ void ObjectManager::DeleteMaterial(Material* material)
 {
     if (!material) return;
 
-    // Detach meshes
-    for (auto* mesh : material->meshes) {
+    // Meshes die dieses Material als Fallback nutzen → nullen
+    for (auto* mesh : m_meshes) {
         if (mesh && mesh->pMaterial == material)
             mesh->pMaterial = nullptr;
     }
-    material->meshes.clear();
 
-    // remove from shader bucket
+    // Surfaces die dieses Material direkt nutzen → nullen
+    for (auto* surface : m_surfaces) {
+        if (surface && surface->pMaterial == material)
+            surface->pMaterial = nullptr;
+    }
+
+    // Aus Shader-Bucket entfernen
     Shader* sh = material->pRenderShader;
     if (sh) {
         auto& v = sh->materials;
@@ -230,16 +230,6 @@ void ObjectManager::RemoveSurfaceFromMesh(Mesh* mesh, Surface* surface) {
     for (auto it = surfaces.begin(); it != surfaces.end(); ++it) {
         if (*it == surface) {
             surfaces.erase(it);
-            break;
-        }
-    }
-}
-
-void ObjectManager::RemoveMeshFromMaterial(Material* material, Mesh* mesh) {
-    auto& meshes = material->meshes;
-    for (auto it = meshes.begin(); it != meshes.end(); ++it) {
-        if (*it == mesh) {
-            meshes.erase(it);
             break;
         }
     }

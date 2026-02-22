@@ -46,7 +46,7 @@ HRESULT InputLayoutManager::CreateInputLayoutVertex(ID3D11InputLayout** layout, 
     }
    
     if (flags & D3DVERTEX_TEX2) {
-        layoutElements.push_back({ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, cnt, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 });
+        layoutElements.push_back({ "TEXCOORD", 1, DXGI_FORMAT_R32G32_FLOAT, cnt, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 });
         currentOffset += sizeof(DirectX::XMFLOAT2); 
         cnt++;
     }

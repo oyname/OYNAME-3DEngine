@@ -27,7 +27,7 @@ cbuffer MaterialBuffer : register(b2)
     float shininess;
     float transparency;
     float receiveShadows; // 1 = use shadow map, 0 = ignore shadows
-    float padding; // 16-byte alignment
+    float blendMode; // 0=off 1=multiply 2=multiply×2 3=additive 4=lerp(alpha) 5=luminanz
 };
 
 struct PS_INPUT
@@ -37,11 +37,24 @@ struct PS_INPUT
     float3 worldPosition : TEXCOORD1;
     float4 color : COLOR;
     float2 texCoord : TEXCOORD0;
-    float4 positionLightSpace : TEXCOORD2; // from VS (light clip space)
+    float4 positionLightSpace : TEXCOORD2;
+    float2 texCoord2 : TEXCOORD4; // Lightmap / Detail UV
 };
 
-Texture2D textureMap : register(t0);
+Texture2D textureMap : register(t0); // Albedo / Diffuse
 SamplerState samplerState : register(s0);
+
+// Slot 1: Detail / Lightmap / Normal Map  (eigene UV via TEXCOORD1)
+Texture2D textureMap2 : register(t1);
+SamplerState samplerState2 : register(s1);
+
+// Slot 2: Roughness Map  (teilt UV mit t0)
+Texture2D textureMap3 : register(t2);
+SamplerState samplerState3 : register(s2);
+
+// Slot 3: Metallic Map   (teilt UV mit t0)
+Texture2D textureMap4 : register(t3);
+SamplerState samplerState4 : register(s3);
 
 // Shadow map moved to t7/s7 to avoid collision with material multi-textures
 Texture2D shadowMapTexture : register(t7);
@@ -125,7 +138,7 @@ float4 main(PS_INPUT input) : SV_Target
     {
         if (lights[s].lightPosition.w < 0.5f) // Directional
         {
-            shadowLightIndex = (int)s;
+            shadowLightIndex = (int) s;
             shadowLightDir = normalize(lights[s].lightDirection.xyz);
             break;
         }
@@ -153,7 +166,7 @@ float4 main(PS_INPUT input) : SV_Target
 
         // Shadow nur fuer das Directional Light das Schatten wirft
         float shadowFactor = 1.0f;
-        if (receiveShadows > 0.5f && (int)i == shadowLightIndex)
+        if (receiveShadows > 0.5f && (int) i == shadowLightIndex)
             shadowFactor = CalculateShadowFactor(input.positionLightSpace, normal, shadowLightDir);
 
         // Diffuse (Lambert)
@@ -179,6 +192,36 @@ float4 main(PS_INPUT input) : SV_Target
     float3 lighting = saturate(ambient + diffuseAccum + specularAccum);
 
     float4 texColor = textureMap.Sample(samplerState, input.texCoord);
+
+    // Zweite Textur mit eigenen UV-Koordinaten (Lightmap / Detail)
+    float4 texColor2 = textureMap2.Sample(samplerState2, input.texCoord2);
+
+    // Blend-Modi für zweite Textur
+    // 0 = off (Standard, keine zweite Textur)
+    // 1 = Multiplicative         A * B               Lightmaps, Schatten
+    // 2 = Multiplicative ×2      A * B * 2           Detail-Maps, Helligkeitskorrektur
+    // 3 = Additive               A + B               Glühen, Feuer, Licht
+    // 4 = Lerp (Alpha-basiert)   lerp(A,B, B.alpha)  Decals, Aufkleber
+    // 5 = Luminanz-Lerp          lerp(A,B, lum(B))   Overlay mit schwarzem Hintergrund
+    if (blendMode >= 0.5f)
+    {
+        int mode = (int) (blendMode + 0.5f);
+
+        if (mode == 1)
+            texColor.rgb *= texColor2.rgb;
+        else if (mode == 2)
+            texColor.rgb = saturate(texColor.rgb * texColor2.rgb * 2.0f);
+        else if (mode == 3)
+            texColor.rgb = saturate(texColor.rgb + texColor2.rgb);
+        else if (mode == 4)
+            texColor.rgb = lerp(texColor.rgb, texColor2.rgb, texColor2.a);
+        else if (mode == 5)
+        {
+            float lum = dot(texColor2.rgb, float3(0.299f, 0.587f, 0.114f));
+            texColor.rgb = lerp(texColor.rgb, texColor2.rgb, lum);
+        }
+    }
+
     bool hasMaterialColor = (diffuseColor.r > 0.01 || diffuseColor.g > 0.01 || diffuseColor.b > 0.01);
     float3 matColor = hasMaterialColor ? diffuseColor.rgb : float3(1.0, 1.0, 1.0);
 

@@ -434,7 +434,7 @@ namespace Engine
             vertexEntryPoint,
             pixelShaderFile,
             pixelEntryPoint);
-        
+
         if (FAILED(hr))
         {
             Debug::LogHr(__FILE__, __LINE__, hr);
@@ -514,6 +514,16 @@ namespace Engine
         }
 
         engine->GetOM().AddMaterialToShader(shader, *material);
+
+        // Buffer-Anlage gehört in die Engine, nicht in den Wrapper
+        HRESULT hr = engine->InitMaterialBuffer(*material);
+        if (FAILED(hr))
+        {
+            Debug::LogHr(__FILE__, __LINE__, hr);
+            engine->GetOM().DeleteMaterial(*material);
+            *material = nullptr;
+            return;
+        }
     }
 
     inline void CreateSurface(LPSURFACE* surface, LPENTITY entity)
@@ -710,6 +720,16 @@ namespace Engine
         surface->VertexTexCoords(-1, u, v);
     }
 
+    // Zweite UV-Koordinate (Lightmap / Detail-Map) – benötigt D3DVERTEX_TEX2
+    inline void VertexTexCoord2(LPSURFACE surface, float u, float v)
+    {
+        if (surface == nullptr) {
+            Debug::Log("gidx.h: ERROR: VertexTexCoord2 - surface is nullptr");
+            return;
+        }
+        surface->VertexTexCoords2(u, v);
+    }
+
     inline void AddTriangle(LPSURFACE surface, unsigned int a, unsigned int b, unsigned int c)
     {
         if (surface == nullptr) {
@@ -785,38 +805,47 @@ namespace Engine
         }
     }
 
-    inline void MaterialTexture(LPMATERIAL material, LPTEXTURE texture)
+    inline void MaterialTexture(LPMATERIAL material, LPTEXTURE texture, int slot = 0)
     {
-        if (material == nullptr) {
-            Debug::Log("gidx.h: ERROR: MaterialTexture - material is nullptr");
-            return;
-        }
-
-        if (texture == nullptr) {
-            Debug::Log("gidx.h: ERROR: MaterialTexture - texture is nullptr");
-            return;
-        }
-
-        material->SetTexture(texture->m_texture, texture->m_textureView, texture->m_imageSamplerState);
-        material->UpdateConstantBuffer(engine->m_device.GetDeviceContext());
+        if (!material || !texture) return;
+        material->SetTexture(slot, texture->m_texture,
+            texture->m_textureView,
+            texture->m_imageSamplerState);
     }
 
-    // Zweite Textur (Slot 1): Detail-Map, Lightmap, Normal-Map, etc.
-    // Surface muss D3DVERTEX_TEX2 + uv2-Koordinaten haben.
-    // Im Pixel-Shader: Texture2D texDetail : register(t1);
-    inline void MaterialTexture2(LPMATERIAL material, LPTEXTURE texture)
+
+    // Blend-Modus für zweite Textur:
+    // 0 = off          (Standard, nur Textur 1)
+    // 1 = Multiply     (Lightmap, Schatten)
+    // 2 = Multiply×2   (Detail-Map, Helligkeitskorrektur)
+    // 3 = Additive     (Glühen, Feuer, Licht)
+    // 4 = Lerp(Alpha)  (Decals, Aufkleber – nutzt Alpha-Kanal von Textur 2)
+    // 5 = Luminanz     (Overlay mit schwarzem Hintergrund)
+    inline void MaterialBlendMode(LPMATERIAL material, int mode = 0)
     {
         if (material == nullptr) {
-            Debug::Log("gidx.h: ERROR: MaterialTexture2 - material is nullptr");
+            Debug::Log("gidx.h: ERROR: MaterialBlendMode - material is nullptr");
             return;
         }
+        material->SetBlendMode(mode);
+    }
 
-        if (texture == nullptr) {
-            Debug::Log("gidx.h: ERROR: MaterialTexture2 - texture is nullptr");
+    inline void MaterialColor(LPMATERIAL material, float r, float g, float b, float a = 1.0f)
+    {
+        if (material == nullptr) {
+            Debug::Log("gidx.h: ERROR: MaterialColor - material is nullptr");
             return;
         }
+        material->SetDiffuseColor(r, g, b, a);
+    }
 
-        material->SetTexture2(texture->m_texture, texture->m_textureView, texture->m_imageSamplerState);
+    inline void MaterialShininess(LPMATERIAL material, float shininess)
+    {
+        if (material == nullptr) {
+            Debug::Log("gidx.h: ERROR: MaterialShininess - material is nullptr");
+            return;
+        }
+        material->SetShininess(shininess);
     }
 
     inline void EntityMaterial(LPENTITY entity, LPMATERIAL material)
@@ -827,6 +856,25 @@ namespace Engine
         engine->GetOM().AddMeshToMaterial(material, mesh);
     }
 
+    inline void MaterialBlendFactor(LPMATERIAL material, float factor)
+    {
+        if (material == nullptr) {
+            Debug::Log("gidx.h: ERROR: MaterialBlendFactor - material is nullptr");
+            return;
+        }
+        material->SetBlendFactor(factor);
+    }
+
+    // Weist einer einzelnen Surface ein eigenes Material zu.
+    // Ermöglicht mehrere Materialien pro Mesh (z.B. Karosserie, Glas, Reifen).
+    inline void SurfaceMaterial(LPSURFACE surface, LPMATERIAL material)
+    {
+        if (!surface) { Debug::Log("gidx.h: SurfaceMaterial - surface nullptr");  return; }
+        if (!material) { Debug::Log("gidx.h: SurfaceMaterial - material nullptr"); return; }
+        engine->GetOM().AddMaterialToSurface(material, surface);
+    }
+
+    // ===========================================================---------------------------->  FUNKTION ->SetTexture überarbeiten!!!!
     inline void EntityTexture(LPENTITY entity, LPTEXTURE texture)
     {
         if (entity == nullptr) {
@@ -849,7 +897,7 @@ namespace Engine
         if (mesh->pMaterial != nullptr)
         {
             Material* material = mesh->pMaterial;
-            material->SetTexture(texture->m_texture, texture->m_textureView, texture->m_imageSamplerState);
+            material->SetTexture(0, texture->m_texture, texture->m_textureView, texture->m_imageSamplerState);
         }
         else {
             Debug::Log("gidx.h: ERROR: EntityTexture - Mesh has no material");

@@ -12,8 +12,9 @@ int main()
     windowed == true ? Engine::Graphics(1200, 650) : Engine::Graphics(1980, 1080, false);
 
     // Textur laden
-    LPTEXTURE brick = nullptr;
-    Engine::LoadTexture(&brick, L"..\\media\\face.bmp");
+    LPTEXTURE texBrick = nullptr; Engine::LoadTexture(&texBrick, L"..\\media\\dx.bmp");
+    LPTEXTURE texFace = nullptr; Engine::LoadTexture(&texFace, L"..\\media\\face.bmp");
+    LPTEXTURE texBricks = nullptr; Engine::LoadTexture(&texBricks, L"..\\media\\bricks.bmp");
 
     // Kamera erstellen
     Engine::CreateCamera(&quad_camera);
@@ -23,7 +24,7 @@ int main()
     // Material mit Textur
     LPMATERIAL material = nullptr;
     Engine::CreateMaterial(&material);
-    Engine::MaterialTexture(material, brick);
+    Engine::MaterialTexture(material, texBrick);
     
     // Flaeche erstellen
     Engine::CreateMesh(&g_quadMesh);

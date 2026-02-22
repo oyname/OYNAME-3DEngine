@@ -33,6 +33,7 @@ public:
     // ADD
     void AddSurfaceToMesh(Mesh* mesh, Surface* surface);
     void AddMeshToMaterial(Material* material, Mesh* mesh);
+    void AddMaterialToSurface(Material* material, Surface* surface);
 
     // Assign shader to material and keep buckets in sync
     void AssignShaderToMaterial(Shader* shader, Material* material);
@@ -49,7 +50,6 @@ public:
 
     // REMOVE
     void RemoveSurfaceFromMesh(Mesh* mesh, Surface* surface);
-    void RemoveMeshFromMaterial(Material* material, Mesh* mesh);
     void RemoveMaterialFromShader(Shader* shader, Material* material);
 
     // GET PREVIOUS
@@ -67,6 +67,7 @@ public:
     Shader* GetShader(const Mesh& mesh) const;
     Shader* GetShader(const Material& material) const;
     const std::vector<Shader*>& GetShaders() const { return m_shaders; }
+    const std::vector<Mesh*>&   GetMeshes()  const { return m_meshes; }
 
 private:
     std::vector<Entity*> m_entities;

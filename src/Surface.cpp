@@ -31,8 +31,8 @@ Surface::~Surface() {
     Memory::SafeRelease(positionBuffer);
     Memory::SafeRelease(colorBuffer);
     Memory::SafeRelease(indexBuffer);
-    Memory::SafeRelease(normalBuffer);      
-    Memory::SafeRelease(uv1Buffer);         
+    Memory::SafeRelease(normalBuffer);
+    Memory::SafeRelease(uv1Buffer);
     Memory::SafeRelease(uv2Buffer);
 }
 
@@ -59,7 +59,7 @@ float Surface::GetVertexZ(unsigned int index) const
 
 void Surface::AddVertex(unsigned int index, float x, float y, float z)
 {
-    if (index < position.size()) {          
+    if (index < position.size()) {
         position[index] = DirectX::XMFLOAT3(x, y, z);
     }
     else {
@@ -71,7 +71,7 @@ void Surface::AddVertex(unsigned int index, float x, float y, float z)
 
 void Surface::VertexColor(unsigned int index, float r, float g, float b)
 {
-    if (index < color.size()) {             
+    if (index < color.size()) {
         color[index] = DirectX::XMFLOAT4(r, g, b, 1.0f);
     }
     else {
@@ -83,7 +83,7 @@ void Surface::VertexColor(unsigned int index, float r, float g, float b)
 
 void Surface::VertexNormal(unsigned int index, float x, float y, float z)
 {
-    if (index < normal.size()) {            
+    if (index < normal.size()) {
         normal[index] = DirectX::XMFLOAT3(x, y, z);
     }
     else {
@@ -105,6 +105,13 @@ void Surface::VertexTexCoords(unsigned int index, float u, float v)
     size_uv1 = sizeof(DirectX::XMFLOAT2);
 }
 
+void Surface::VertexTexCoords2(float u, float v)
+{
+    uv2.push_back(DirectX::XMFLOAT2(u, v));
+    size_listUV2 = (unsigned int)uv2.size();
+    size_uv2 = sizeof(DirectX::XMFLOAT2);
+}
+
 void Surface::AddIndex(UINT index)
 {
     indices.push_back(index);
@@ -113,29 +120,20 @@ void Surface::AddIndex(UINT index)
 
 void Surface::Draw(const GDXDevice* device, const DWORD flagsVertex)
 {
-    unsigned int offset = 0;
-    unsigned int cnt = 0;
+    // Alle aktiven Streams in einem einzigen IASetVertexBuffers-Call binden
+    ID3D11Buffer* buffers[5] = {};
+    UINT          strides[5] = {};
+    UINT          offsets[5] = {};
+    UINT          cnt = 0;
 
-    if (flagsVertex & D3DVERTEX_POSITION) {
-        device->GetDeviceContext()->IASetVertexBuffers(cnt, 1, &positionBuffer, &size_position, &offset);
-        cnt++;
-    }
-    if (flagsVertex & D3DVERTEX_NORMAL) {
-        device->GetDeviceContext()->IASetVertexBuffers(cnt, 1, &normalBuffer, &size_normal, &offset);
-        cnt++;
-    }
-    if (flagsVertex & D3DVERTEX_COLOR) {
-        device->GetDeviceContext()->IASetVertexBuffers(cnt, 1, &colorBuffer, &size_color, &offset);
-        cnt++;
-    }
-    if (flagsVertex & D3DVERTEX_TEX1) {
-        device->GetDeviceContext()->IASetVertexBuffers(cnt, 1, &uv1Buffer, &size_uv1, &offset);
-        cnt++;
-    }
-    if (flagsVertex & D3DVERTEX_TEX2) {
-        device->GetDeviceContext()->IASetVertexBuffers(cnt, 1, &uv2Buffer, &size_uv2, &offset);
-        cnt++;
-    }
+    if (flagsVertex & D3DVERTEX_POSITION) { buffers[cnt] = positionBuffer; strides[cnt] = size_position; cnt++; }
+    if (flagsVertex & D3DVERTEX_NORMAL) { buffers[cnt] = normalBuffer;   strides[cnt] = size_normal;   cnt++; }
+    if (flagsVertex & D3DVERTEX_COLOR) { buffers[cnt] = colorBuffer;    strides[cnt] = size_color;    cnt++; }
+    if (flagsVertex & D3DVERTEX_TEX1) { buffers[cnt] = uv1Buffer;      strides[cnt] = size_uv1;      cnt++; }
+    if (flagsVertex & D3DVERTEX_TEX2) { buffers[cnt] = uv2Buffer;      strides[cnt] = size_uv2;      cnt++; }
+
+    if (cnt > 0)
+        device->GetDeviceContext()->IASetVertexBuffers(0, cnt, buffers, strides, offsets);
 
     device->GetDeviceContext()->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R32_UINT, 0);
 

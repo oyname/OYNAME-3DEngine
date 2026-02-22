@@ -153,7 +153,7 @@ static void UpdateGridRadialWave(LPENTITY mesh,
 
 int main()
 {
-    Engine::Graphics(1280, 1024, true);
+    Engine::Graphics(1280, 900, true);
 
     // Material
     LPMATERIAL material;

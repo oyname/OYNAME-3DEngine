@@ -12,11 +12,11 @@ int main()
 
     // Neue Shader
     LPSHADER shader = nullptr;
-    Engine::CreateShader(&shader, L"..\\shaders\\VertexShaderRot.hlsl", "main", L"..\\shaders\\PixelShaderRot.hlsl", "main", Engine::CreateVertexFlags(true, false, false, false, false));
+    Engine::CreateShader(&shader, L"..\\shaders\\VertexShaderNeon.hlsl", "main", L"..\\shaders\\PixelShaderNeon.hlsl", "main", Engine::CreateVertexFlags(true, false, false, false, false));
 
     // Textur laden
     LPTEXTURE face = nullptr;
-    Engine::LoadTexture(&face, L"..\\media\\face.bmp");
+    Engine::LoadTexture(&face, L"..\\media\\color3.png");
 
     // Kamera erstellen
     LPENTITY camera = nullptr;

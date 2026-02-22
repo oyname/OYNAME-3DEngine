@@ -69,7 +69,7 @@ GDXEngine::GDXEngine(HWND hwnd, HINSTANCE hinst, unsigned int bpp, unsigned int 
 	m_interface.Init(bpp);
 
 	int bestAdapter = FindBestAdapter();
-	this->SetAdapter(bestAdapter); 
+	this->SetAdapter(bestAdapter);
 
 	// Shader-Pfade ueber Core aufloesen
 	vs = Core::ResolvePath(L"..\\..\\shaders\\VertexShader.hlsl");
@@ -237,14 +237,7 @@ HRESULT GDXEngine::Graphic(unsigned int width, unsigned int height, bool windowe
 	// ==================== CREATE MATERIAL CONSTANT BUFFER ====================
 	LPMATERIAL standardMaterial = GetSM().GetShader()->materials.front();
 
-	hr = GetBM().CreateBuffer(
-		&standardMaterial->properties,
-		sizeof(Material::MaterialData),
-		1,
-		D3D11_BIND_CONSTANT_BUFFER,
-		&standardMaterial->materialBuffer
-	);
-
+	hr = InitMaterialBuffer(standardMaterial);
 	if (FAILED(hr))
 	{
 		Debug::LogHr(__FILE__, __LINE__, hr);
@@ -255,7 +248,7 @@ HRESULT GDXEngine::Graphic(unsigned int width, unsigned int height, bool windowe
 	hr = GetILM().CreateInputLayoutVertex(&GetSM().GetShader()->inputlayoutVertex,	// Store the layout
 		GetSM().GetShader(),														// The shader object
 		GetSM().GetShader()->flagsVertex,											// Store the flag
-		D3DVERTEX_POSITION | D3DVERTEX_COLOR | D3DVERTEX_NORMAL | D3DVERTEX_TEX1);
+		D3DVERTEX_POSITION | D3DVERTEX_COLOR | D3DVERTEX_NORMAL | D3DVERTEX_TEX1 | D3DVERTEX_TEX2);
 
 	if (FAILED(hr))
 	{
@@ -454,5 +447,19 @@ void GDXEngine::SetVSyncInterval(int interval) noexcept
 int GDXEngine::GetVSyncInterval() const noexcept
 {
 	return m_vsyncInterval;
+}
+
+HRESULT GDXEngine::InitMaterialBuffer(Material* material)
+{
+	if (!material) return E_INVALIDARG;
+	if (material->materialBuffer) return S_OK; // schon vorhanden
+
+	return GetBM().CreateBuffer(
+		&material->properties,
+		sizeof(Material::MaterialData),
+		1,
+		D3D11_BIND_CONSTANT_BUFFER,
+		&material->materialBuffer
+	);
 }
 
