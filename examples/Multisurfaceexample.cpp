@@ -110,7 +110,7 @@ int main()
     Engine::MaterialTexture(matTopBot, texBricks);
 
     CreateMultiMaterialCube(&g_cubeMesh, matFront, matSide, matTopBot);
-    Engine::PositionEntity(g_cubeMesh, 0.0f, 20.0f, 0.0f);
+    Engine::PositionEntity(g_cubeMesh, 0.0f, 40.0f, 0.0f);
     Engine::ScaleEntity(g_cubeMesh, 8.0f, 8.0f, 8.0f);
 
     // Bodenplatte – nutzt matTopBot → landet im selben Queue-Bucket wie Oben/Unten
