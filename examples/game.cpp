@@ -65,7 +65,7 @@ int main(LPVOID hwnd)
     Engine::CreateLight(&g_redLight, D3DLIGHT_POINT);
     Engine::PositionEntity(g_redLight, 20.0f, 15.0f, 0.0f);
     Engine::LightColor(g_redLight, 1.0f, 0.3f, 0.3f);
-    
+
     Engine::CreateLight(&g_blueLight, D3DLIGHT_POINT);
     Engine::PositionEntity(g_blueLight, -20.0f, 15.0f, 0.0f);
     Engine::LightColor(g_blueLight, 0.3f, 0.3f, 1.0f);
@@ -99,50 +99,24 @@ int main(LPVOID hwnd)
             Engine::MoveEntity(g_cubeMesh, -50.0f * dt, 0.0f, 0.0f);
 
 
-        Engine::TurnEntity(g_cubeMesh, speed * dt, speed * dt, 0.0f);
+            Engine::TurnEntity(g_cubeMesh, speed * dt, speed * dt, 0.0f);
 
-        Engine::UpdateWorld();
-        Engine::RenderWorld();
-        Engine::Flip();
+            Engine::UpdateWorld();
+            Engine::RenderWorld();
+            Engine::Flip();
 
-        Core::EndFrame();
+            Core::EndFrame();
+        }
+
+        // KEIN Engine::ReleaseEngine() hier!
+        // KEIN Core::Shutdown() hier!
+        // WinMain (main.cpp) ruft Core::Shutdown() auf, das macht beides automatisch.
+
+        Debug::Log("game.cpp: MAIN BEENDET. Letzte FPS: ", Core::GetFPS());
+
+        return 0;
     }
-
-    // KEIN Engine::ReleaseEngine() hier!
-    // KEIN Core::Shutdown() hier!
-    // WinMain (main.cpp) ruft Core::Shutdown() auf, das macht beides automatisch.
-
-    Debug::Log("game.cpp: MAIN BEENDET. Letzte FPS: ", Core::GetFPS());
-
-    return 0;
 }
-//while (Windows::MainLoop())
-//{
-//    Core::BeginFrame();   // Timer::Tick() -> Accumulator fuellen
-//
-//    const float dt = static_cast<float>(Core::GetDeltaTime());
-//
-//    // --- FIXED RATE: Physik, Kollision, Gameplay-Logik ---
-//    while (Timer::ConsumeFixedStep())
-//    {
-//        float fixedDt = static_cast<float>(Timer::GetFixedStep());  // 1/60
-//        // PhysicsUpdate(fixedDt);
-//        // CollisionCheck();
-//        // AI_Update(fixedDt);
-//    }
-//
-//    // --- VARIABLE RATE: Rendering (so schnell wie moeglich / VSync) ---
-//    Engine::Cls(0, 64, 128);
-//    Engine::TurnEntity(g_cubeMesh, speed * dt, speed * dt, 0.0f);
-//    Engine::UpdateWorld();
-//    Engine::RenderWorld();
-//    Engine::Flip();
-//
-//    Core::EndFrame();
-//}
-// Core::BeginFrame() ruft Timer::Tick() auf, das den Accumulator füllt.Die while (Timer::ConsumeFixedStep()) - Schleife verbraucht den Accumulator in 1 / 60s - Schritten – genau so oft wie nötig, unabhängig von der Renderrate.Rendering läuft danach einmal pro Frame mit variablem dt.
-// Wenn du später Bullet Physics einbaust, kommt dynamicsWorld->stepSimulation(fixedDt, 0) in die Fixed - Schleife.Der Spiral - of - Death - Schutz(MAX_FIXED_STEPS_PER_FRAME = 5) ist im Timer schon drin, damit bei Lags nicht hunderte Physik - Steps nachgeholt werden.
-// Core::EndFrame() bleibt ein leichter Platzhalter – da könnte später z.B.ein Frame - Time - Profiler oder ein Stats - Sammler rein, aber keine Spiellogik.
 
 void CreateCube(LPENTITY* mesh, MATERIAL* material)
 {

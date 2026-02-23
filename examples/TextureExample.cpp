@@ -31,13 +31,13 @@ int main()
     // Texturen erstellen
     //
     LPTEXTURE texture1 = nullptr;
-    Engine::LoadTexture(&texture1, L"..\\media\\bricks.bmp");
+    Engine::LoadTexture(&texture1, L"..\\media\\engine.png");
 
     LPTEXTURE texture2 = nullptr;
-    Engine::LoadTexture(&texture2, L"..\\media\\dx.bmp");
+    Engine::LoadTexture(&texture2, L"..\\media\\face.bmp");
 
     LPTEXTURE texture3 = nullptr;
-    Engine::LoadTexture(&texture3, L"..\\media\\face.bmp");
+    Engine::LoadTexture(&texture3, L"..\\media\\color3.png");
 
     // Das erste Material wird von der Engine bei Start erstellt
     //
@@ -58,7 +58,7 @@ int main()
 
     // Positioning the camera
     Engine::RotateEntity(camera, 10.0f, 0.0f, 0.0f);
-    Engine::PositionEntity(camera, 0.0f, 0.0f, -5.0f);
+    Engine::PositionEntity(camera, 0.0f, 25.0f, -5.0f);
 
     // Light erstellen
     LPENTITY light = nullptr;
@@ -78,16 +78,16 @@ int main()
 
     LPENTITY cube;
     CreateCube(&cube, material3);
-    Engine::PositionEntity(cube, 0.0f, 2.0f, 10.0f);
+    Engine::PositionEntity(cube, 0.0f, 10.0f, 10.0f);
     Engine::RotateEntity(cube, 0.0f, 0.0f, 0.0f);
-    Engine::ScaleEntity(cube, 2.0f, 2.0f, 2.0f);
+    Engine::ScaleEntity(cube, 4.0f, 4.0f, 4.0f);
     Engine::EntityCollisionMode(cube, COLLISION::BOX);
 
     LPENTITY cube2;
     CreateCube(&cube2, material2);
-    Engine::PositionEntity(cube2, 0.0f, -4.0f, 10.0f);
+    Engine::PositionEntity(cube2, 0.0f, -10.0f, 10.0f);
     Engine::ScaleEntity(cube2, 50.0f, 0.2f, 50.0f);
-    Engine::RotateEntity(cube2, 0.0f, 0.0f, 0.0f);
+    Engine::RotateEntity(cube2, 0.0f, 180.0f, 0.0f);
     Engine::EntityCollisionMode(cube2, COLLISION::BOX);
 
     Engine::EntityTexture(cube, texture2);
@@ -119,8 +119,6 @@ int main()
 
     auto lastTime = std::chrono::high_resolution_clock::now();
 
-    //Engine::PositionEntity(camera, 0.0f, 50.0f, 10.0f);
-    //Engine::RotateEntity(camera, 90, 0, 0);
 
     while (Windows::MainLoop() && !(GetAsyncKeyState(VK_ESCAPE) & 0x8000))
     {
@@ -213,85 +211,61 @@ void CreateCube(LPENTITY* mesh, MATERIAL* material)
     Engine::CreateMesh(mesh, material);
     Engine::CreateSurface(&wuerfel, (*mesh));
 
-    // Definition der Eckpunkte f�r jede Seite des W�rfels
     Engine::AddVertex(wuerfel, -1.0f, -1.0f, -1.0f); Engine::VertexNormal(wuerfel, 0.0f, 0.0f, -1.0f);  Engine::VertexColor(wuerfel, 224, 224, 224);
-    Engine::AddVertex(wuerfel, -1.0f, 1.0f, -1.0f);  Engine::VertexNormal(wuerfel, 0.0f, 0.0f, -1.0f);  Engine::VertexColor(wuerfel, 224, 224, 224);
-    Engine::AddVertex(wuerfel, 1.0f, -1.0f, -1.0f);  Engine::VertexNormal(wuerfel, 0.0f, 0.0f, -1.0f);  Engine::VertexColor(wuerfel, 224, 224, 224);
-    Engine::AddVertex(wuerfel, 1.0f, 1.0f, -1.0f);   Engine::VertexNormal(wuerfel, 0.0f, 0.0f, -1.0f);  Engine::VertexColor(wuerfel, 224, 224, 224);
+    Engine::AddVertex(wuerfel, -1.0f, 1.0f, -1.0f); Engine::VertexNormal(wuerfel, 0.0f, 0.0f, -1.0f);  Engine::VertexColor(wuerfel, 224, 224, 224);
+    Engine::AddVertex(wuerfel, 1.0f, -1.0f, -1.0f); Engine::VertexNormal(wuerfel, 0.0f, 0.0f, -1.0f);  Engine::VertexColor(wuerfel, 224, 224, 224);
+    Engine::AddVertex(wuerfel, 1.0f, 1.0f, -1.0f); Engine::VertexNormal(wuerfel, 0.0f, 0.0f, -1.0f);  Engine::VertexColor(wuerfel, 224, 224, 224);
 
-    Engine::AddVertex(wuerfel, -1.0f, -1.0f, 1.0f);  Engine::VertexNormal(wuerfel, 0.0f, 0.0f, 1.0f);   Engine::VertexColor(wuerfel, 224, 224, 224);
-    Engine::AddVertex(wuerfel, -1.0f, 1.0f, 1.0f);   Engine::VertexNormal(wuerfel, 0.0f, 0.0f, 1.0f);   Engine::VertexColor(wuerfel, 224, 224, 224);
-    Engine::AddVertex(wuerfel, 1.0f, -1.0f, 1.0f);   Engine::VertexNormal(wuerfel, 0.0f, 0.0f, 1.0f);   Engine::VertexColor(wuerfel, 224, 224, 224);
-    Engine::AddVertex(wuerfel, 1.0f, 1.0f, 1.0f);    Engine::VertexNormal(wuerfel, 0.0f, 0.0f, 1.0f);   Engine::VertexColor(wuerfel, 224, 224, 224);
+    Engine::AddVertex(wuerfel, -1.0f, -1.0f, 1.0f); Engine::VertexNormal(wuerfel, 0.0f, 0.0f, 1.0f);   Engine::VertexColor(wuerfel, 224, 224, 224);
+    Engine::AddVertex(wuerfel, -1.0f, 1.0f, 1.0f); Engine::VertexNormal(wuerfel, 0.0f, 0.0f, 1.0f);   Engine::VertexColor(wuerfel, 224, 224, 224);
+    Engine::AddVertex(wuerfel, 1.0f, -1.0f, 1.0f); Engine::VertexNormal(wuerfel, 0.0f, 0.0f, 1.0f);   Engine::VertexColor(wuerfel, 224, 224, 224);
+    Engine::AddVertex(wuerfel, 1.0f, 1.0f, 1.0f); Engine::VertexNormal(wuerfel, 0.0f, 0.0f, 1.0f);   Engine::VertexColor(wuerfel, 224, 224, 224);
 
     Engine::AddVertex(wuerfel, -1.0f, -1.0f, -1.0f); Engine::VertexNormal(wuerfel, -1.0f, 0.0f, 0.0f);  Engine::VertexColor(wuerfel, 224, 224, 224);
-    Engine::AddVertex(wuerfel, -1.0f, -1.0f, 1.0f);  Engine::VertexNormal(wuerfel, -1.0f, 0.0f, 0.0f);  Engine::VertexColor(wuerfel, 224, 224, 224);
-    Engine::AddVertex(wuerfel, -1.0f, 1.0f, -1.0f);  Engine::VertexNormal(wuerfel, -1.0f, 0.0f, 0.0f);  Engine::VertexColor(wuerfel, 224, 224, 224);
-    Engine::AddVertex(wuerfel, -1.0f, 1.0f, 1.0f);   Engine::VertexNormal(wuerfel, -1.0f, 0.0f, 0.0f);  Engine::VertexColor(wuerfel, 224, 224, 224);
+    Engine::AddVertex(wuerfel, -1.0f, -1.0f, 1.0f); Engine::VertexNormal(wuerfel, -1.0f, 0.0f, 0.0f);  Engine::VertexColor(wuerfel, 224, 224, 224);
+    Engine::AddVertex(wuerfel, -1.0f, 1.0f, -1.0f); Engine::VertexNormal(wuerfel, -1.0f, 0.0f, 0.0f);  Engine::VertexColor(wuerfel, 224, 224, 224);
+    Engine::AddVertex(wuerfel, -1.0f, 1.0f, 1.0f); Engine::VertexNormal(wuerfel, -1.0f, 0.0f, 0.0f);  Engine::VertexColor(wuerfel, 224, 224, 224);
 
-    Engine::AddVertex(wuerfel, 1.0f, -1.0f, -1.0f);  Engine::VertexNormal(wuerfel, 1.0f, 0.0f, 0.0f);   Engine::VertexColor(wuerfel, 224, 224, 224);
-    Engine::AddVertex(wuerfel, 1.0f, -1.0f, 1.0f);   Engine::VertexNormal(wuerfel, 1.0f, 0.0f, 0.0f);   Engine::VertexColor(wuerfel, 224, 224, 224);
-    Engine::AddVertex(wuerfel, 1.0f, 1.0f, -1.0f);   Engine::VertexNormal(wuerfel, 1.0f, 0.0f, 0.0f);   Engine::VertexColor(wuerfel, 224, 224, 224);
-    Engine::AddVertex(wuerfel, 1.0f, 1.0f, 1.0f);    Engine::VertexNormal(wuerfel, 1.0f, 0.0f, 0.0f);   Engine::VertexColor(wuerfel, 224, 224, 224);
+    Engine::AddVertex(wuerfel, 1.0f, -1.0f, -1.0f); Engine::VertexNormal(wuerfel, 1.0f, 0.0f, 0.0f);   Engine::VertexColor(wuerfel, 224, 224, 224);
+    Engine::AddVertex(wuerfel, 1.0f, -1.0f, 1.0f); Engine::VertexNormal(wuerfel, 1.0f, 0.0f, 0.0f);   Engine::VertexColor(wuerfel, 224, 224, 224);
+    Engine::AddVertex(wuerfel, 1.0f, 1.0f, -1.0f); Engine::VertexNormal(wuerfel, 1.0f, 0.0f, 0.0f);   Engine::VertexColor(wuerfel, 224, 224, 224);
+    Engine::AddVertex(wuerfel, 1.0f, 1.0f, 1.0f); Engine::VertexNormal(wuerfel, 1.0f, 0.0f, 0.0f);   Engine::VertexColor(wuerfel, 224, 224, 224);
 
     Engine::AddVertex(wuerfel, -1.0f, -1.0f, -1.0f); Engine::VertexNormal(wuerfel, 0.0f, -1.0f, 0.0f);  Engine::VertexColor(wuerfel, 224, 224, 224);
-    Engine::AddVertex(wuerfel, 1.0f, -1.0f, -1.0f);  Engine::VertexNormal(wuerfel, 0.0f, -1.0f, 0.0f);  Engine::VertexColor(wuerfel, 224, 224, 224);
-    Engine::AddVertex(wuerfel, -1.0f, -1.0f, 1.0f);  Engine::VertexNormal(wuerfel, 0.0f, -1.0f, 0.0f);  Engine::VertexColor(wuerfel, 224, 224, 224);
-    Engine::AddVertex(wuerfel, 1.0f, -1.0f, 1.0f);   Engine::VertexNormal(wuerfel, 0.0f, -1.0f, 0.0f);  Engine::VertexColor(wuerfel, 224, 224, 224);
+    Engine::AddVertex(wuerfel, 1.0f, -1.0f, -1.0f); Engine::VertexNormal(wuerfel, 0.0f, -1.0f, 0.0f);  Engine::VertexColor(wuerfel, 224, 224, 224);
+    Engine::AddVertex(wuerfel, -1.0f, -1.0f, 1.0f); Engine::VertexNormal(wuerfel, 0.0f, -1.0f, 0.0f);  Engine::VertexColor(wuerfel, 224, 224, 224);
+    Engine::AddVertex(wuerfel, 1.0f, -1.0f, 1.0f); Engine::VertexNormal(wuerfel, 0.0f, -1.0f, 0.0f);  Engine::VertexColor(wuerfel, 224, 224, 224);
 
-    Engine::AddVertex(wuerfel, -1.0f, 1.0f, -1.0f);  Engine::VertexNormal(wuerfel, 0.0f, 1.0f, 0.0f);   Engine::VertexColor(wuerfel, 224, 224, 224);
-    Engine::AddVertex(wuerfel, 1.0f, 1.0f, -1.0f);   Engine::VertexNormal(wuerfel, 0.0f, 1.0f, 0.0f);   Engine::VertexColor(wuerfel, 224, 224, 224);
-    Engine::AddVertex(wuerfel, -1.0f, 1.0f, 1.0f);   Engine::VertexNormal(wuerfel, 0.0f, 1.0f, 0.0f);   Engine::VertexColor(wuerfel, 224, 224, 224);
-    Engine::AddVertex(wuerfel, 1.0f, 1.0f, 1.0f);    Engine::VertexNormal(wuerfel, 0.0f, 1.0f, 0.0f);   Engine::VertexColor(wuerfel, 224, 224, 224);
+    Engine::AddVertex(wuerfel, -1.0f, 1.0f, -1.0f); Engine::VertexNormal(wuerfel, 0.0f, 1.0f, 0.0f);   Engine::VertexColor(wuerfel, 224, 224, 224);
+    Engine::AddVertex(wuerfel, 1.0f, 1.0f, -1.0f); Engine::VertexNormal(wuerfel, 0.0f, 1.0f, 0.0f);   Engine::VertexColor(wuerfel, 224, 224, 224);
+    Engine::AddVertex(wuerfel, -1.0f, 1.0f, 1.0f); Engine::VertexNormal(wuerfel, 0.0f, 1.0f, 0.0f);   Engine::VertexColor(wuerfel, 224, 224, 224);
+    Engine::AddVertex(wuerfel, 1.0f, 1.0f, 1.0f); Engine::VertexNormal(wuerfel, 0.0f, 1.0f, 0.0f);   Engine::VertexColor(wuerfel, 224, 224, 224);
 
-    Engine::VertexTexCoord(wuerfel, 0.0f, 1.0f);
-    Engine::VertexTexCoord(wuerfel, 0.0f, 0.0f);
-    Engine::VertexTexCoord(wuerfel, 1.0f, 1.0f);
-    Engine::VertexTexCoord(wuerfel, 1.0f, 0.0f);
+    // Back (verts 0-3)
+    Engine::VertexTexCoord(wuerfel, 0.0f, 1.0f); Engine::VertexTexCoord(wuerfel, 0.0f, 0.0f);
+    Engine::VertexTexCoord(wuerfel, 1.0f, 1.0f); Engine::VertexTexCoord(wuerfel, 1.0f, 0.0f);
+    // Front (verts 4-7)
+    Engine::VertexTexCoord(wuerfel, 1.0f, 1.0f); Engine::VertexTexCoord(wuerfel, 1.0f, 0.0f);
+    Engine::VertexTexCoord(wuerfel, 0.0f, 1.0f); Engine::VertexTexCoord(wuerfel, 0.0f, 0.0f);
+    // Left (verts 8-11)
+    Engine::VertexTexCoord(wuerfel, 1.0f, 1.0f); Engine::VertexTexCoord(wuerfel, 0.0f, 1.0f);
+    Engine::VertexTexCoord(wuerfel, 1.0f, 0.0f); Engine::VertexTexCoord(wuerfel, 0.0f, 0.0f);
+    // Right (verts 12-15)
+    Engine::VertexTexCoord(wuerfel, 0.0f, 1.0f); Engine::VertexTexCoord(wuerfel, 1.0f, 1.0f);
+    Engine::VertexTexCoord(wuerfel, 0.0f, 0.0f); Engine::VertexTexCoord(wuerfel, 1.0f, 0.0f);
+    // Bottom (verts 16-19)
+    Engine::VertexTexCoord(wuerfel, 0.0f, 0.0f); Engine::VertexTexCoord(wuerfel, 1.0f, 0.0f);
+    Engine::VertexTexCoord(wuerfel, 0.0f, 1.0f); Engine::VertexTexCoord(wuerfel, 1.0f, 1.0f);
+    // Top (verts 20-23)
+    Engine::VertexTexCoord(wuerfel, 1.0f, 0.0f); Engine::VertexTexCoord(wuerfel, 0.0f, 0.0f);
+    Engine::VertexTexCoord(wuerfel, 1.0f, 1.0f); Engine::VertexTexCoord(wuerfel, 0.0f, 1.0f);
 
-    Engine::VertexTexCoord(wuerfel, 0.0f, 1.0f);
-    Engine::VertexTexCoord(wuerfel, 0.0f, 0.0f);
-    Engine::VertexTexCoord(wuerfel, 1.0f, 1.0f);
-    Engine::VertexTexCoord(wuerfel, 1.0f, 0.0f);
-
-    Engine::VertexTexCoord(wuerfel, 0.0f, 1.0f);
-    Engine::VertexTexCoord(wuerfel, 0.0f, 0.0f);
-    Engine::VertexTexCoord(wuerfel, 1.0f, 1.0f);
-    Engine::VertexTexCoord(wuerfel, 1.0f, 0.0f);
-
-    Engine::VertexTexCoord(wuerfel, 0.0f, 1.0f);
-    Engine::VertexTexCoord(wuerfel, 0.0f, 0.0f);
-    Engine::VertexTexCoord(wuerfel, 1.0f, 1.0f);
-    Engine::VertexTexCoord(wuerfel, 1.0f, 0.0f);
-
-    Engine::VertexTexCoord(wuerfel, 0.0f, 1.0f);
-    Engine::VertexTexCoord(wuerfel, 0.0f, 0.0f);
-    Engine::VertexTexCoord(wuerfel, 1.0f, 1.0f);
-    Engine::VertexTexCoord(wuerfel, 1.0f, 0.0f);
-
-    Engine::VertexTexCoord(wuerfel, 0.0f, 1.0f);
-    Engine::VertexTexCoord(wuerfel, 0.0f, 0.0f);
-    Engine::VertexTexCoord(wuerfel, 1.0f, 1.0f);
-    Engine::VertexTexCoord(wuerfel, 1.0f, 0.0f);
-
-    // Definition der Dreiecke f�r jede Seite des W�rfels
-    Engine::AddTriangle(wuerfel, 0, 1, 2);
-    Engine::AddTriangle(wuerfel, 3, 2, 1);
-
-    Engine::AddTriangle(wuerfel, 6, 5, 4);
-    Engine::AddTriangle(wuerfel, 6, 7, 5);
-
-    Engine::AddTriangle(wuerfel, 8, 9, 10);
-    Engine::AddTriangle(wuerfel, 10, 9, 11);
-
-    Engine::AddTriangle(wuerfel, 14, 13, 12);
-    Engine::AddTriangle(wuerfel, 14, 15, 13);
-
-    Engine::AddTriangle(wuerfel, 16, 17, 18);
-    Engine::AddTriangle(wuerfel, 18, 17, 19);
-
-    Engine::AddTriangle(wuerfel, 21, 22, 23);
-    Engine::AddTriangle(wuerfel, 22, 21, 20);
+    Engine::AddTriangle(wuerfel, 0, 1, 2); Engine::AddTriangle(wuerfel, 3, 2, 1);
+    Engine::AddTriangle(wuerfel, 6, 5, 4); Engine::AddTriangle(wuerfel, 6, 7, 5);
+    Engine::AddTriangle(wuerfel, 8, 9, 10); Engine::AddTriangle(wuerfel, 10, 9, 11);
+    Engine::AddTriangle(wuerfel, 14, 13, 12); Engine::AddTriangle(wuerfel, 14, 15, 13);
+    Engine::AddTriangle(wuerfel, 16, 17, 18); Engine::AddTriangle(wuerfel, 18, 17, 19);
+    Engine::AddTriangle(wuerfel, 21, 22, 23); Engine::AddTriangle(wuerfel, 22, 21, 20);
 
     Engine::FillBuffer(wuerfel);
 }

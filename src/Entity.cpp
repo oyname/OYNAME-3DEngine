@@ -3,9 +3,11 @@
 #include "Memory.h"
 using namespace DirectX;
 
-Entity::Entity() :
-    constantBuffer(nullptr),
-    isActive(true)
+Entity::Entity()
+    : constantBuffer(nullptr),
+    m_active(true),
+    m_visible(true),
+    m_layerMask(LAYER_DEFAULT)
 {
     transform.SetWorldMatrix(&matrixSet.worldMatrix);
 
@@ -13,15 +15,18 @@ Entity::Entity() :
     matrixSet.viewMatrix = DirectX::XMMatrixIdentity();
     matrixSet.projectionMatrix = DirectX::XMMatrixIdentity();
 
-    viewport = { 0 };  
+    viewport = { 0 };
 }
 
-Entity::~Entity() {
+Entity::~Entity()
+{
     Memory::SafeRelease(constantBuffer);
 }
 
-void Entity::Update(const GDXDevice* device) {
-    if (!isActive) return;
+void Entity::Update(const GDXDevice* device)
+{
+    // active = false: komplett überspringen
+    if (!m_active) return;
 
     HRESULT hr = S_OK;
     D3D11_MAPPED_SUBRESOURCE mappedResource;
@@ -30,10 +35,10 @@ void Entity::Update(const GDXDevice* device) {
         transform.GetRotation() *
         transform.GetTranslation();
 
-    if (constantBuffer != nullptr) {
+    if (constantBuffer != nullptr)
+    {
         hr = device->GetDeviceContext()->Map(constantBuffer, 0,
-            D3D11_MAP_WRITE_DISCARD, 0,
-            &mappedResource);
+            D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
         if (FAILED(hr))
         {
             Debug::LogHr(__FILE__, __LINE__, hr);
@@ -47,18 +52,17 @@ void Entity::Update(const GDXDevice* device) {
     }
 }
 
-// Matrix-Generierung für alle Entities
 void Entity::GenerateViewMatrix(DirectX::XMVECTOR position,
     DirectX::XMVECTOR lookAt,
     DirectX::XMVECTOR up)
 {
-    this->matrixSet.viewMatrix = DirectX::XMMatrixLookAtLH(position, lookAt, up);
+    matrixSet.viewMatrix = DirectX::XMMatrixLookAtLH(position, lookAt, up);
 }
 
 void Entity::GenerateProjectionMatrix(float fieldOfView, float screenAspect,
     float nearZ, float farZ)
 {
-    this->matrixSet.projectionMatrix =
+    matrixSet.projectionMatrix =
         DirectX::XMMatrixPerspectiveFovLH(fieldOfView, screenAspect, nearZ, farZ);
 }
 

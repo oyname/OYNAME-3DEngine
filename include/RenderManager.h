@@ -1,11 +1,14 @@
-﻿#pragma once
+#pragma once
 #include "ObjectManager.h"
 #include "LightManager.h"
 #include "RenderQueue.h"
 #include "gdxdevice.h"
+#include "ShadowMapTarget.h"
+#include "BackbufferTarget.h"
 #include <d3d11.h>
 
-class RenderManager {
+class RenderManager
+{
 public:
     RenderManager(ObjectManager& objectManager, LightManager& lightManager, GDXDevice& device);
     ~RenderManager() = default;
@@ -20,10 +23,11 @@ public:
 
 private:
     RenderQueue m_opaque;
+
     // Transparent-Queue: vorbereitet, noch nicht aktiv
     std::vector<std::pair<float, DrawEntry>> m_transFrame;
 
-    // Objekte im 3D Raum
+    // Objekte im 3D-Raum
     LPENTITY m_currentCam;
     LPENTITY m_directionLight;
 
@@ -32,11 +36,15 @@ private:
     LightManager&  m_lightManager;
     GDXDevice&     m_device;
 
-    // Helper Functions
-    void BuildRenderQueue();   // Phase 1: Szene traversieren, Queue befüllen
-    void FlushRenderQueue();   // Phase 2: Queue abarbeiten (Draw Calls)
-    void UpdateShadowMatrixBuffer(const DirectX::XMMATRIX& viewMatrix, const DirectX::XMMATRIX& projMatrix);
+    // Render Targets
+    ShadowMapTarget  m_shadowTarget;
+    BackbufferTarget m_backbufferTarget;
 
-    // Default-Konstruktor gelöscht
+    // Helper Functions
+    void BuildRenderQueue();
+    void FlushRenderQueue();
+    void UpdateShadowMatrixBuffer(const DirectX::XMMATRIX& viewMatrix,
+                                  const DirectX::XMMATRIX& projMatrix);
+
     RenderManager() = delete;
 };

@@ -1028,4 +1028,68 @@ namespace Engine
 
         return &mesh->obb;
     }
+
+    // Aktiviert/Deaktiviert eine Entity komplett.
+    // active = false: kein Update(), keine Physik, kein Rendering.
+    inline void EntityActive(LPENTITY entity, bool active)
+    {
+        if (!entity) { Debug::Log("gidx.h: ERROR: EntityActive - entity is nullptr"); return; }
+        entity->SetActive(active);
+    }
+
+    inline bool EntityActive(LPENTITY entity)
+    {
+        if (!entity) { Debug::Log("gidx.h: ERROR: EntityActive - entity is nullptr"); return false; }
+        return entity->IsActive();
+    }
+
+    // Setzt die Sichtbarkeit einer Entity.
+    // visible = false: Update() läuft weiter (Logik, Physik), aber kein Rendering.
+    inline void ShowEntity(LPENTITY entity, bool visible)
+    {
+        if (!entity) { Debug::Log("gidx.h: ERROR: ShowEntity - entity is nullptr"); return; }
+        entity->SetVisible(visible);
+    }
+
+    inline bool EntityVisible(LPENTITY entity)
+    {
+        if (!entity) { Debug::Log("gidx.h: ERROR: EntityVisible - entity is nullptr"); return false; }
+        return entity->IsVisible();
+    }
+
+    // Setzt den Layer-Bitmask einer Entity.
+    // Kombiniere mit LAYER_*-Konstanten aus RenderLayers.h
+    // Beispiel: EntityLayer(mesh, LAYER_DEFAULT | LAYER_REFLECTION);
+    inline void EntityLayer(LPENTITY entity, uint32_t layerMask)
+    {
+        if (!entity) { Debug::Log("gidx.h: ERROR: EntityLayer - entity is nullptr"); return; }
+        entity->SetLayerMask(layerMask);
+    }
+
+    inline uint32_t EntityLayer(LPENTITY entity)
+    {
+        if (!entity) { Debug::Log("gidx.h: ERROR: EntityLayer - entity is nullptr"); return 0; }
+        return entity->GetLayerMask();
+    }
+
+    // ==================== CAMERA CULLING ====================
+
+        // Setzt die cull-Maske der Kamera.
+        // Nur Objekte deren layerMask mit dieser Maske übereinstimmt werden gerendert.
+        // Beispiel: CameraCullMask(cam, LAYER_ALL & ~LAYER_UI);
+    inline void CameraCullMask(LPENTITY camera, uint32_t mask)
+    {
+        if (!camera) { Debug::Log("gidx.h: ERROR: CameraCullMask - camera is nullptr"); return; }
+        Camera* cam = dynamic_cast<Camera*>(camera);
+        if (!cam) { Debug::Log("gidx.h: ERROR: CameraCullMask - Entity ist keine Camera"); return; }
+        cam->cullMask = mask;
+    }
+
+    inline uint32_t CameraCullMask(LPENTITY camera)
+    {
+        if (!camera) { Debug::Log("gidx.h: ERROR: CameraCullMask - camera is nullptr"); return 0; }
+        Camera* cam = dynamic_cast<Camera*>(camera);
+        if (!cam) { Debug::Log("gidx.h: ERROR: CameraCullMask - Entity ist keine Camera"); return 0; }
+        return cam->cullMask;
+    }
 } // End of namespace Engine

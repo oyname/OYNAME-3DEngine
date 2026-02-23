@@ -73,6 +73,21 @@
     <Filter Include="05 Example\MultiShader">
       <UniqueIdentifier>{3022191d-48bc-4207-b23e-8df35bf97e9b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="03 Engine\03 Manager\06 RenderManager\BackbufferTarget">
+      <UniqueIdentifier>{03fb1a65-489f-461c-a1fd-2251afe781a7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="03 Engine\03 Manager\06 RenderManager\RenderTarget">
+      <UniqueIdentifier>{dd0f3cba-8f91-4229-8d03-2d3be291f5d3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="03 Engine\03 Manager\06 RenderManager\RenderQueue">
+      <UniqueIdentifier>{9fe2fe8e-3338-4943-a6f5-d57e97ea57cb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="03 Engine\03 Manager\06 RenderManager\ShadowmapTarget">
+      <UniqueIdentifier>{51f7bcd2-14b9-4916-b3ac-4a1c2a3b1b9d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="03 Engine\03 Manager\06 RenderManager\RenderLayers">
+      <UniqueIdentifier>{c15ab25d-5ff7-46a4-afe3-2dd13af81fdc}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\Camera.cpp">
@@ -195,6 +210,18 @@
     <ClCompile Include="..\examples\Neontimebuffer.cpp">
       <Filter>05 Example\MultiShader</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\ShadowMapTarget.cpp">
+      <Filter>03 Engine\03 Manager\06 RenderManager\ShadowmapTarget</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\BackbufferTarget.cpp">
+      <Filter>03 Engine\03 Manager\06 RenderManager\BackbufferTarget</Filter>
+    </ClCompile>
+    <ClCompile Include="..\examples\Layerexample.cpp">
+      <Filter>05 Example</Filter>
+    </ClCompile>
+    <ClCompile Include="..\examples\Rendertotexture.cpp">
+      <Filter>05 Example</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\third_party\stb_image.h">
@@ -269,9 +296,6 @@
     <ClInclude Include="..\include\Transform.h">
       <Filter>03 Engine\04 Transform</Filter>
     </ClInclude>
-    <ClInclude Include="..\include\RenderQueue.h">
-      <Filter>03 Engine\03 Manager\06 RenderManager</Filter>
-    </ClInclude>
     <ClInclude Include="..\include\core.h">
       <Filter>03 Engine\01 Core</Filter>
     </ClInclude>
@@ -283,6 +307,21 @@
     </ClInclude>
     <ClInclude Include="..\examples\Neontimebuffer.h">
       <Filter>05 Example\MultiShader</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\RenderQueue.h">
+      <Filter>03 Engine\03 Manager\06 RenderManager\RenderQueue</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\BackbufferTarget.h">
+      <Filter>03 Engine\03 Manager\06 RenderManager\BackbufferTarget</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\ShadowMapTarget.h">
+      <Filter>03 Engine\03 Manager\06 RenderManager\ShadowmapTarget</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\RenderTarget.h">
+      <Filter>03 Engine\03 Manager\06 RenderManager\RenderTarget</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\RenderLayers.h">
+      <Filter>03 Engine\03 Manager\06 RenderManager\RenderLayers</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
