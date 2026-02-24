@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <windows.h>
 #include <DirectXMath.h>
@@ -349,7 +349,7 @@ namespace Engine
             return;
         }
 
-        Light* l = dynamic_cast<Light*>(light);
+        Light* l = (light->IsLight()  ? light->AsLight()  : nullptr);
         if (l == nullptr) {
             Debug::Log("gidx.h: ERROR: LightColor - Entity is not a Light!");
             return;
@@ -368,7 +368,7 @@ namespace Engine
             return;
         }
 
-        Light* l = dynamic_cast<Light*>(light);
+        Light* l = (light->IsLight()  ? light->AsLight()  : nullptr);
         if (l == nullptr) {
             Debug::Log("gidx.h: ERROR - SetDirectionalLight - Entity is not a Light!");
             return;
@@ -570,7 +570,7 @@ namespace Engine
         }
 
         // Prüfe ob Entity ein Mesh ist (nur Meshes haben Surfaces)
-        Mesh* mesh = dynamic_cast<Mesh*>(entity);
+        Mesh* mesh = (entity->IsMesh()   ? entity->AsMesh()   : nullptr);
         if (mesh == nullptr) {
             Debug::Log("gidx.h: ERROR: CreateSurface - Entity is not a Mesh!");
             engine->GetOM().DeleteSurface(*surface);
@@ -588,7 +588,7 @@ namespace Engine
             return nullptr;
         }
 
-        Mesh* mesh = dynamic_cast<Mesh*>(entity);
+        Mesh* mesh = (entity->IsMesh()   ? entity->AsMesh()   : nullptr);
         if (mesh == nullptr) {
             Debug::Log("gidx.h: ERROR: GetSurface - Entity is not a Mesh!");
             return nullptr;
@@ -875,7 +875,7 @@ namespace Engine
 
     inline void EntityMaterial(LPENTITY entity, LPMATERIAL material)
     {
-        Mesh* mesh = dynamic_cast<Mesh*>(entity);
+        Mesh* mesh = (entity->IsMesh()   ? entity->AsMesh()   : nullptr);
         if (!mesh) { Debug::Log("gidx.h: EntityMaterial - Entity ist kein Mesh"); return; }
         if (!material) { Debug::Log("gidx.h: EntityMaterial - material nullptr"); return; }
         engine->GetOM().AddMeshToMaterial(material, mesh);
@@ -913,7 +913,7 @@ namespace Engine
         }
 
         // Prüfe ob Entity ein Mesh ist
-        Mesh* mesh = dynamic_cast<Mesh*>(entity);
+        Mesh* mesh = (entity->IsMesh()   ? entity->AsMesh()   : nullptr);
         if (mesh == nullptr) {
             Debug::Log("gidx.h: ERROR: EntityTexture - Entity is not a Mesh!");
             return;
@@ -995,7 +995,7 @@ namespace Engine
             return;
         }
 
-        Mesh* mesh = dynamic_cast<Mesh*>(entity);
+        Mesh* mesh = (entity->IsMesh()   ? entity->AsMesh()   : nullptr);
         if (mesh == nullptr) {
             Debug::Log("gidx.h: ERROR: EntityCollisionMode - Entity is not a Mesh!");
             return;
@@ -1011,7 +1011,7 @@ namespace Engine
             return nullptr;
         }
 
-        Mesh* mesh = dynamic_cast<Mesh*>(entity);
+        Mesh* mesh = (entity->IsMesh()   ? entity->AsMesh()   : nullptr);
         if (mesh == nullptr) {
             Debug::Log("gidx.h: ERROR: EntitySurface - Entity is not a Mesh!");
             return nullptr;
@@ -1027,8 +1027,8 @@ namespace Engine
             return false;
         }
 
-        Mesh* mesh1 = dynamic_cast<Mesh*>(entity1);
-        Mesh* mesh2 = dynamic_cast<Mesh*>(entity2);
+        Mesh* mesh1 = (entity1->IsMesh()   ? entity1->AsMesh()   : nullptr);
+        Mesh* mesh2 = (entity2->IsMesh()   ? entity2->AsMesh()   : nullptr);
 
         if (mesh1 == nullptr || mesh2 == nullptr) {
             Debug::Log("gidx.h: ERROR: EntityCollision - one or both entities are not Meshes!");
@@ -1045,7 +1045,7 @@ namespace Engine
             return nullptr;
         }
 
-        Mesh* mesh = dynamic_cast<Mesh*>(entity);
+        Mesh* mesh = (entity->IsMesh()   ? entity->AsMesh()   : nullptr);
         if (mesh == nullptr) {
             Debug::Log("gidx.h: ERROR: EntityOBB - Entity is not a Mesh!");
             return nullptr;
@@ -1105,7 +1105,7 @@ namespace Engine
     inline void CameraCullMask(LPENTITY camera, uint32_t mask)
     {
         if (!camera) { Debug::Log("gidx.h: ERROR: CameraCullMask - camera is nullptr"); return; }
-        Camera* cam = dynamic_cast<Camera*>(camera);
+        Camera* cam = (camera->IsCamera() ? camera->AsCamera() : nullptr);
         if (!cam) { Debug::Log("gidx.h: ERROR: CameraCullMask - Entity ist keine Camera"); return; }
         cam->cullMask = mask;
     }
@@ -1113,7 +1113,7 @@ namespace Engine
     inline uint32_t CameraCullMask(LPENTITY camera)
     {
         if (!camera) { Debug::Log("gidx.h: ERROR: CameraCullMask - camera is nullptr"); return 0; }
-        Camera* cam = dynamic_cast<Camera*>(camera);
+        Camera* cam = (camera->IsCamera() ? camera->AsCamera() : nullptr);
         if (!cam) { Debug::Log("gidx.h: ERROR: CameraCullMask - Entity ist keine Camera"); return 0; }
         return cam->cullMask;
     }

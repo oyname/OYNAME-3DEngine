@@ -1,7 +1,7 @@
 ﻿#include "Light.h"
 #include "Memory.h"
 
-Light::Light() : Entity(), lightType(LightType::Directional)
+Light::Light() : Entity(EntityType::Light), lightType(LightType::Directional)
 {
     lightBuffer = nullptr;
 

@@ -3,8 +3,9 @@
 #include "Memory.h"
 using namespace DirectX;
 
-Entity::Entity()
-    : constantBuffer(nullptr),
+Entity::Entity(EntityType type)
+    : m_entityType(type),
+    constantBuffer(nullptr),
     m_active(true),
     m_visible(true),
     m_layerMask(LAYER_DEFAULT)

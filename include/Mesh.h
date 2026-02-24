@@ -28,7 +28,7 @@ public:
     Mesh();
     ~Mesh();
 
-    // 1. Überschreibt Entity::Update() - für einfaches Update
+    // 1. Ueberschreibt Entity::Update() - fuer einfaches Update
     void Update(const GDXDevice* device) override;
 
     // 2. Rendering-spezifisches Update mit MatrixSet
@@ -36,21 +36,25 @@ public:
 
     unsigned int NumSurface();
     Surface* GetSurface(unsigned int index);
-    void AddSurfaceToMesh(Surface* surface);
+    void         AddSurfaceToMesh(Surface* surface);
 
     void SetCollisionMode(COLLISION collision);
     bool CheckCollision(Mesh* mesh);
     void CalculateOBB(unsigned int index);
 
-    void* operator new(size_t size) {
-        return _aligned_malloc(size, 16);
-    }
-    void operator delete(void* p) noexcept {
-        _aligned_free(p);
-    }
+    // Frame-Update-Flag: verhindert mehrfaches Update desselben Mesh
+    // wenn mehrere Surfaces auf dasselbe Mesh zeigen.
+    // ResetFrameFlag() wird einmal pro Frame in BuildRenderQueue aufgerufen.
+    bool IsUpdatedThisFrame() const noexcept { return m_updatedThisFrame; }
+    void MarkUpdated()              noexcept { m_updatedThisFrame = true; }
+    void ResetFrameFlag()           noexcept { m_updatedThisFrame = false; }
+
+    void* operator new(size_t size) { return _aligned_malloc(size, 16); }
+    void  operator delete(void* p) noexcept { _aligned_free(p); }
 
 private:
     COLLISION collisionType;
+    bool      m_updatedThisFrame = false;
 };
 
 typedef Mesh* LPMESH;

@@ -1,7 +1,7 @@
 ﻿#include "gidx.h"
 #include "core.h"
 
-static void CreateCube(LPENTITY* mesh, MATERIAL* material);
+static void CreateCube(LPENTITY * mesh, MATERIAL * material);
 
 // Beispiel mit einem zweiten Shader. Der zweite Shader stellt das Objekt nur in Rot
 
@@ -46,7 +46,7 @@ int main()
 
     // LICHT
     LPENTITY directionalLight = nullptr;
-    Engine::CreateLight(&directionalLight, D3DLIGHT_POINT); 
+    Engine::CreateLight(&directionalLight, D3DLIGHT_POINT);
     Engine::PositionEntity(directionalLight, 0.0f, 0.0f, -10.0f);
     Engine::RotateEntity(directionalLight, 90.0f, 20.0f, 0.0f);
     Engine::LightColor(directionalLight, 1.0f, 1.0f, 1.0f);

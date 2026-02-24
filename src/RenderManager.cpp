@@ -69,7 +69,7 @@ void RenderManager::RenderShadowPass()
     if (!m_currentCam || !m_directionLight || !m_device.IsInitialized())
         return;
 
-    Light* light = dynamic_cast<Light*>(m_directionLight);
+    Light* light = (m_directionLight->IsLight() ? m_directionLight->AsLight() : nullptr);
     if (!light) return;
 
     m_shadowTarget.Bind();
@@ -145,7 +145,7 @@ void RenderManager::RenderNormalPass()
 
     if (m_directionLight)
     {
-        Light* light = dynamic_cast<Light*>(m_directionLight);
+        Light* light = (m_directionLight->IsLight() ? m_directionLight->AsLight() : nullptr);
         if (light)
         {
             UpdateShadowMatrixBuffer(light->GetLightViewMatrix(), light->GetLightProjectionMatrix());
@@ -160,8 +160,12 @@ void RenderManager::BuildRenderQueue()
 {
     m_opaque.Clear();
 
+    // Frame-Update-Flags aller Meshes zuruecksetzen
+    for (Mesh* mesh : m_objectManager.GetMeshes())
+        if (mesh) mesh->ResetFrameFlag();
+
     uint32_t cameraCullMask = LAYER_ALL;
-    if (Camera* cam = dynamic_cast<Camera*>(m_currentCam))
+    if (Camera* cam = (m_currentCam->IsCamera() ? m_currentCam->AsCamera() : nullptr))
         cameraCullMask = cam->cullMask;
 
     for (Mesh* mesh : m_objectManager.GetMeshes())
@@ -228,26 +232,78 @@ void RenderManager::BuildRenderQueue()
 
 void RenderManager::FlushRenderQueue()
 {
-    for (ShaderBatch& sb : m_opaque.shaders)
+    // Debug-Log: einmalig ausgeben wenn sich Queue-Struktur aendert.
+    // Zeigt pro Shader/Material/Draw ob Mesh voll geupdated oder nur CB-gebunden wird.
+    static size_t s_lastFlushShaderCount = SIZE_MAX;
+    bool doLog = (m_opaque.shaders.size() != s_lastFlushShaderCount);
+    if (doLog)
     {
+        s_lastFlushShaderCount = m_opaque.shaders.size();
+        Debug::Log("=== FlushRenderQueue ===");
+    }
+
+    for (size_t si = 0; si < m_opaque.shaders.size(); ++si)
+    {
+        ShaderBatch& sb = m_opaque.shaders[si];
         if (!sb.shader) continue;
+
         sb.shader->UpdateShader(&m_device);
 
-        for (MaterialBatch& mb : sb.materials)
+        if (doLog)
+            Debug::Log("  [Shader ", si, "] ptr=", Ptr(sb.shader).c_str(),
+                "  flagsVertex=", sb.flagsVertex);
+
+        for (size_t mi = 0; mi < sb.materials.size(); ++mi)
         {
+            MaterialBatch& mb = sb.materials[mi];
             if (!mb.material) continue;
+
             mb.material->SetTexture(&m_device);
             mb.material->UpdateConstantBuffer(m_device.GetDeviceContext());
 
-            for (DrawEntry& entry : mb.draws)
+            if (doLog)
+                Debug::Log("    [Material ", mi, "] ptr=", Ptr(mb.material).c_str(),
+                    "  Draws: ", mb.draws.size());
+
+            for (size_t di = 0; di < mb.draws.size(); ++di)
             {
+                DrawEntry& entry = mb.draws[di];
                 if (!entry.mesh || !entry.surface) continue;
 
-                entry.mesh->Update(&m_device, &m_currentCam->matrixSet);
+                if (!entry.mesh->IsUpdatedThisFrame())
+                {
+                    // Erster Auftritt dieses Mesh: voller Update (Matrix + CB-Upload + Bind)
+                    entry.mesh->Update(&m_device, &m_currentCam->matrixSet);
+                    entry.mesh->MarkUpdated();
+
+                    if (doLog)
+                        Debug::Log("      [Draw ", di, "] mesh=", Ptr(entry.mesh).c_str(),
+                            "  surface=", Ptr(entry.surface).c_str(),
+                            "  -> FULL UPDATE (matrix + CB upload + bind)");
+                }
+                else
+                {
+                    // Mesh schon geupdated: nur CB binden, kein Map/Unmap
+                    ID3D11Buffer* cb = entry.mesh->constantBuffer;
+                    if (cb)
+                    {
+                        m_device.GetDeviceContext()->VSSetConstantBuffers(0, 1, &cb);
+                        m_device.GetDeviceContext()->PSSetConstantBuffers(0, 1, &cb);
+                    }
+
+                    if (doLog)
+                        Debug::Log("      [Draw ", di, "] mesh=", Ptr(entry.mesh).c_str(),
+                            "  surface=", Ptr(entry.surface).c_str(),
+                            "  -> CB BIND ONLY (matrix already uploaded)");
+                }
+
                 entry.surface->Draw(&m_device, sb.flagsVertex);
             }
         }
     }
+
+    if (doLog)
+        Debug::Log("========================");
 }
 
 void RenderManager::RenderScene()

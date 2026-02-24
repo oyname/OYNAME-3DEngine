@@ -1,7 +1,7 @@
 #include "Camera.h"
 using namespace DirectX;
 
-Camera::Camera() : Entity()
+Camera::Camera() : Entity(EntityType::Camera)
 {
     // Matrizen werden in Entity::Entity() initialisiert
 }

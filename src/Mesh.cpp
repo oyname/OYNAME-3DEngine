@@ -3,7 +3,7 @@
 using namespace DirectX;
 
 Mesh::Mesh() :
-    Entity(),
+    Entity(EntityType::Mesh),
     pMaterial(nullptr),
     collisionType(COLLISION::NONE)
 {

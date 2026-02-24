@@ -60,8 +60,8 @@ int main()
 
     LPENTITY Mesh1 = nullptr;
     CreateCube(&Mesh1, materialRTT);
-    Engine::PositionEntity(Mesh1, -10.0f, 0.0f, 10.0f);
-    Engine::RotateEntity(Mesh1, 0.0f, 45.0f, 0.0f);
+    Engine::PositionEntity(Mesh1, -10.0f, 0.0f, 13.0f);
+    Engine::RotateEntity(Mesh1, 45.0f, 45.0f, 0.0f);
     Engine::ScaleEntity(Mesh1, 4.0f, 4.0f, 4.0f);
 
     // --- Rechter Wuerfel: Neon-Plasma-Shader ---
@@ -106,7 +106,7 @@ int main()
         // --- NeonTimeBuffer aktualisieren ---
         g_neonTime.Update(dt);
 
-        Engine::TurnEntity(Mesh1, -20.0f * dt, -20.0f * dt, -20.0f * dt);
+        //Engine::TurnEntity(Mesh1, -20.0f * dt, -20.0f * dt, -20.0f * dt);
         Engine::TurnEntity(Mesh2, 50.0f * dt, 50.0f * dt, 0.0f);
 
         // ── Pass 1: RTT-Pass ─────────────────────────────────────────────────

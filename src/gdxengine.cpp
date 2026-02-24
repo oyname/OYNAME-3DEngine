@@ -1,4 +1,4 @@
-﻿#include "gdxengine.h"
+#include "gdxengine.h"
 #include "gdxdevice.h"   
 #include "gdxwin.h"      
 #include "core.h"
@@ -411,7 +411,7 @@ void GDXEngine::SetCamera(LPENTITY entity)
 	}
 
 	// Type-Check mit dynamic_cast
-	Camera* camera = dynamic_cast<Camera*>(entity);
+	Camera* camera = (entity->IsCamera() ? entity->AsCamera() : nullptr);
 	if (camera == nullptr) {
 		Debug::Log("gdxengine.cpp: ERROR - SetCamera - Entity is not a Camera!");
 		return;
@@ -429,7 +429,7 @@ void GDXEngine::SetDirectionalLight(LPENTITY entity)
 	}
 
 	// Type-Check mit dynamic_cast
-	Light* light = dynamic_cast<Light*>(entity);
+	Light* light = (entity->IsLight()  ? entity->AsLight()  : nullptr);
 	if (light == nullptr) {
 		Debug::Log("gdxengine.cpp: ERROR - SetDirectionalLight - Entity is not a Light!");
 		return;
