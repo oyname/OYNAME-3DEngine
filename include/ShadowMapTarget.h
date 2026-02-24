@@ -1,10 +1,10 @@
 #pragma once
-#include "RenderTarget.h"
+#include "IRenderTarget.h"
 #include <d3d11.h>
 
 class GDXDevice;
 
-class ShadowMapTarget : public RenderTarget
+class ShadowMapTarget : public IRenderTarget
 {
 public:
     void SetDevice(GDXDevice* device) { m_device = device; }

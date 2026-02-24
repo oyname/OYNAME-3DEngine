@@ -1,5 +1,7 @@
 ﻿#include "Memory.h"
 #include "Mesh.h"
+#include "GeometryHelper.h"
+#include "gdxdevice.h"
 using namespace DirectX;
 
 Mesh::Mesh() :
@@ -93,7 +95,7 @@ void Mesh::CalculateOBB(unsigned int index)
 
     if (this->surfaces.empty()) return;
 
-    this->GetSurface(0)->CalculateSize(XMMatrixIdentity(), minSize, maxSize);
+    GeometryHelper::CalculateSize(*this->GetSurface(0), XMMatrixIdentity(), minSize, maxSize);
 
     // Center und Extents
     XMFLOAT3 extents{

@@ -102,6 +102,7 @@
     <ClCompile Include="..\src\gdxinterface.cpp" />
     <ClCompile Include="..\src\gdxutil.cpp" />
     <ClCompile Include="..\src\gdxwin.cpp" />
+    <ClCompile Include="..\src\GeometryHelper.cpp" />
     <ClCompile Include="..\src\InputLayoutManager.cpp" />
     <ClCompile Include="..\src\Light.cpp" />
     <ClCompile Include="..\src\LightManager.cpp" />
@@ -109,12 +110,14 @@
     <ClCompile Include="..\src\Material.cpp" />
     <ClCompile Include="..\src\Mesh.cpp" />
     <ClCompile Include="..\src\ObjectManager.cpp" />
+    <ClCompile Include="..\src\RenderCommand.cpp" />
     <ClCompile Include="..\src\RenderManager.cpp" />
     <ClCompile Include="..\src\RenderTextureTarget.cpp" />
     <ClCompile Include="..\src\Shader.cpp" />
     <ClCompile Include="..\src\ShaderManager.cpp" />
     <ClCompile Include="..\src\ShadowMapTarget.cpp" />
     <ClCompile Include="..\src\Surface.cpp" />
+    <ClCompile Include="..\src\SurfaceGpuBuffer.cpp" />
     <ClCompile Include="..\src\Texture.cpp" />
     <ClCompile Include="..\src\TextureManager.cpp" />
     <ClCompile Include="..\src\Timer.cpp" />
@@ -135,11 +138,14 @@
     <ClInclude Include="..\include\gdxengine.h" />
     <ClInclude Include="..\include\gdxinterface.h" />
     <ClInclude Include="..\include\gdxutil.h" />
+    <ClInclude Include="..\include\GeometryHelper.h" />
     <ClInclude Include="..\include\gidx.h" />
     <ClInclude Include="..\include\gdxwin.h" />
+    <ClInclude Include="..\include\IGpuResource.h" />
     <ClInclude Include="..\include\InputLayoutManager.h" />
+    <ClInclude Include="..\include\RenderCommand.h" />
     <ClInclude Include="..\include\RenderLayers.h" />
-    <ClInclude Include="..\include\RenderTarget.h" />
+    <ClInclude Include="..\include\IRenderTarget.h" />
     <ClInclude Include="..\include\Light.h" />
     <ClInclude Include="..\include\LightManager.h" />
     <ClInclude Include="..\include\main.h" />
@@ -153,6 +159,7 @@
     <ClInclude Include="..\include\ShaderManager.h" />
     <ClInclude Include="..\include\ShadowMapTarget.h" />
     <ClInclude Include="..\include\Surface.h" />
+    <ClInclude Include="..\include\SurfaceGpuBuffer.h" />
     <ClInclude Include="..\include\Texture.h" />
     <ClInclude Include="..\include\TextureManager.h" />
     <ClInclude Include="..\include\Timer.h" />

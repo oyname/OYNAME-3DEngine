@@ -1,5 +1,5 @@
 #pragma once
-#include "RenderTarget.h"
+#include "IRenderTarget.h"
 #include "Texture.h"
 #include <d3d11.h>
 
@@ -9,7 +9,7 @@ class GDXDevice;
 // Verwaltet alle D3D11-Ressourcen selbst (Textur, RTV, SRV, Depth).
 // Der interne Texture-Wrapper kann direkt mit Engine::MaterialTexture / EntityTexture
 // benutzt werden — er zeigt auf denselben SRV.
-class RenderTextureTarget : public RenderTarget
+class RenderTextureTarget : public IRenderTarget
 {
 public:
     RenderTextureTarget();

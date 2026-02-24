@@ -108,7 +108,7 @@ void RenderManager::RenderShadowPass()
             if (!shader) continue;
 
             shader->UpdateShader(&m_device, ShaderBindMode::VS_ONLY);
-            s->Draw(&m_device, shader->flagsVertex);
+            s->gpu->Draw(&m_device, shader->flagsVertex);
         }
     }
 }
@@ -177,6 +177,9 @@ void RenderManager::BuildRenderQueue()
 
         const DirectX::XMMATRIX world = mesh->transform.GetLocalTransformationMatrix();
 
+        // MatrixSet fuer Execute() vorbereiten -- world kommt aus dem Mesh-Transform
+        mesh->matrixSet.worldMatrix = world;
+
         for (Surface* surface : mesh->surfaces)
         {
             if (!surface) continue;
@@ -191,119 +194,46 @@ void RenderManager::BuildRenderQueue()
         }
     }
 
-    // Queue-Inhalt einmalig loggen (nur wenn sich Shader-Bucket-Anzahl aendert)
-    static size_t s_lastShaderCount = SIZE_MAX;
-    size_t totalDraws = 0;
-    for (auto& sb : m_opaque.shaders)
-        for (auto& mb : sb.materials)
-            totalDraws += mb.draws.size();
+    // Nach Shader/Material sortieren -- minimiert GPU-State-Wechsel
+    m_opaque.Sort();
 
-    if (m_opaque.shaders.size() != s_lastShaderCount)
+    static size_t s_lastCount = SIZE_MAX;
+    if (m_opaque.Count() != s_lastCount)
     {
-        s_lastShaderCount = m_opaque.shaders.size();
-
-        Debug::Log("=== RenderQueue ===");
-        Debug::Log("  Shader-Buckets: ", m_opaque.shaders.size());
-
-        for (size_t si = 0; si < m_opaque.shaders.size(); ++si)
-        {
-            ShaderBatch& sb = m_opaque.shaders[si];
-            Debug::Log("  [Shader ", si, "] ptr=", Ptr(sb.shader).c_str(),
-                "  Material-Buckets: ", sb.materials.size());
-
-            for (size_t mi = 0; mi < sb.materials.size(); ++mi)
-            {
-                MaterialBatch& mb = sb.materials[mi];
-                Debug::Log("    [Material ", mi, "] ptr=", Ptr(mb.material).c_str(),
-                    "  DrawEntries: ", mb.draws.size());
-
-                for (size_t di = 0; di < mb.draws.size(); ++di)
-                {
-                    Debug::Log("      [Draw ", di, "] mesh=", Ptr(mb.draws[di].mesh).c_str(),
-                        "  surface=", Ptr(mb.draws[di].surface).c_str());
-                }
-            }
-        }
-
-        Debug::Log("  Gesamt Draw Calls: ", totalDraws);
-        Debug::Log("===================");
+        s_lastCount = m_opaque.Count();
+        Debug::Log("RenderManager.cpp: BuildRenderQueue - ", m_opaque.Count(), " RenderCommands");
     }
 }
 
 void RenderManager::FlushRenderQueue()
 {
-    // Debug-Log: einmalig ausgeben wenn sich Queue-Struktur aendert.
-    // Zeigt pro Shader/Material/Draw ob Mesh voll geupdated oder nur CB-gebunden wird.
-    static size_t s_lastFlushShaderCount = SIZE_MAX;
-    bool doLog = (m_opaque.shaders.size() != s_lastFlushShaderCount);
-    if (doLog)
+    Shader*   lastShader   = nullptr;
+    Material* lastMaterial = nullptr;
+
+    for (RenderCommand& cmd : m_opaque.commands)
     {
-        s_lastFlushShaderCount = m_opaque.shaders.size();
-        Debug::Log("=== FlushRenderQueue ===");
-    }
+        if (!cmd.shader || !cmd.material || !cmd.mesh || !cmd.surface) continue;
 
-    for (size_t si = 0; si < m_opaque.shaders.size(); ++si)
-    {
-        ShaderBatch& sb = m_opaque.shaders[si];
-        if (!sb.shader) continue;
-
-        sb.shader->UpdateShader(&m_device);
-
-        if (doLog)
-            Debug::Log("  [Shader ", si, "] ptr=", Ptr(sb.shader).c_str(),
-                "  flagsVertex=", sb.flagsVertex);
-
-        for (size_t mi = 0; mi < sb.materials.size(); ++mi)
+        // Shader nur binden wenn gewechselt
+        if (cmd.shader != lastShader)
         {
-            MaterialBatch& mb = sb.materials[mi];
-            if (!mb.material) continue;
-
-            mb.material->SetTexture(&m_device);
-            mb.material->UpdateConstantBuffer(m_device.GetDeviceContext());
-
-            if (doLog)
-                Debug::Log("    [Material ", mi, "] ptr=", Ptr(mb.material).c_str(),
-                    "  Draws: ", mb.draws.size());
-
-            for (size_t di = 0; di < mb.draws.size(); ++di)
-            {
-                DrawEntry& entry = mb.draws[di];
-                if (!entry.mesh || !entry.surface) continue;
-
-                if (!entry.mesh->IsUpdatedThisFrame())
-                {
-                    // Erster Auftritt dieses Mesh: voller Update (Matrix + CB-Upload + Bind)
-                    entry.mesh->Update(&m_device, &m_currentCam->matrixSet);
-                    entry.mesh->MarkUpdated();
-
-                    if (doLog)
-                        Debug::Log("      [Draw ", di, "] mesh=", Ptr(entry.mesh).c_str(),
-                            "  surface=", Ptr(entry.surface).c_str(),
-                            "  -> FULL UPDATE (matrix + CB upload + bind)");
-                }
-                else
-                {
-                    // Mesh schon geupdated: nur CB binden, kein Map/Unmap
-                    ID3D11Buffer* cb = entry.mesh->constantBuffer;
-                    if (cb)
-                    {
-                        m_device.GetDeviceContext()->VSSetConstantBuffers(0, 1, &cb);
-                        m_device.GetDeviceContext()->PSSetConstantBuffers(0, 1, &cb);
-                    }
-
-                    if (doLog)
-                        Debug::Log("      [Draw ", di, "] mesh=", Ptr(entry.mesh).c_str(),
-                            "  surface=", Ptr(entry.surface).c_str(),
-                            "  -> CB BIND ONLY (matrix already uploaded)");
-                }
-
-                entry.surface->Draw(&m_device, sb.flagsVertex);
-            }
+            cmd.shader->UpdateShader(&m_device);
+            lastShader = cmd.shader;
         }
-    }
 
-    if (doLog)
-        Debug::Log("========================");
+        // Material nur binden wenn gewechselt
+        if (cmd.material != lastMaterial)
+        {
+            cmd.material->SetTexture(&m_device);
+            cmd.material->UpdateConstantBuffer(m_device.GetDeviceContext());
+            lastMaterial = cmd.material;
+        }
+
+        // MatrixSet der Kamera in den Command schreiben und ausfuehren
+        cmd.mesh->matrixSet = m_currentCam->matrixSet;
+        cmd.mesh->matrixSet.worldMatrix = cmd.world;
+        cmd.Execute(&m_device);
+    }
 }
 
 void RenderManager::RenderScene()

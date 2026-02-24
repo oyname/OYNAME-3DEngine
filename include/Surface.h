@@ -1,81 +1,74 @@
 #pragma once
 #include <vector>
-#include <d3d11.h>
+#include <memory>
 #include <DirectXMath.h>
-#include "gdxutil.h"
-#include "gdxdevice.h"
+#include "IGpuResource.h"
 
+class Mesh;     // forward
+class Material; // forward
 
-class Mesh;      // forward
-class Material;  // forward
-
-class Surface {
+// Surface beschreibt ausschliesslich die CPU-seitige Geometrie:
+// Vertices (Position, Normal, Farbe, UV) und Indices.
+//
+// GPU-Ressourcen + Draw-Aufruf: gpu  (IGpuResource, konkret: SurfaceGpuBuffer)
+// Geometrie-Berechnungen:       GeometryHelper::CalculateSize()
+class Surface
+{
 public:
     Surface();
-    ~Surface();
+    ~Surface() = default;
 
-    void AddVertex(unsigned int index, float x, float y, float z);
-    void VertexNormal(unsigned int index, float x, float y, float z);
-    void VertexColor(unsigned int index, float r, float g, float b);
-    void VertexTexCoords(unsigned int index, float u, float v);
+    // Vertices hinzufuegen / setzen
+    // index == -1 oder >= size: push_back; sonst: ueberschreiben
+    void AddVertex       (int index, float x, float y, float z);
+    void VertexNormal    (int index, float x, float y, float z);
+    void VertexColor     (int index, float r, float g, float b);
+    void VertexTexCoords (int index, float u, float v);
     void VertexTexCoords2(float u, float v);   // Lightmap / zweite UV
-    void AddIndex(UINT index);
 
-    void Draw(const GDXDevice* m_device, const DWORD flags);
+    void AddIndex(unsigned int index);
 
-    // Getter
+    // Getter - einzelne Vertex-Koordinaten
     float GetVertexX(unsigned int index) const;
     float GetVertexY(unsigned int index) const;
     float GetVertexZ(unsigned int index) const;
 
-    void CalculateSize(DirectX::XMMATRIX roationMatrix, DirectX::XMFLOAT3& minSize, DirectX::XMFLOAT3& maxSize);
+    // Getter - gesamte Datenreihen (const-Referenz, kein Kopieren)
+    const std::vector<DirectX::XMFLOAT3>& GetPositions() const noexcept { return m_positions; }
+    const std::vector<DirectX::XMFLOAT3>& GetNormals()   const noexcept { return m_normals;   }
+    const std::vector<DirectX::XMFLOAT4>& GetColors()    const noexcept { return m_colors;    }
+    const std::vector<DirectX::XMFLOAT2>& GetUV1()       const noexcept { return m_uv1;       }
+    const std::vector<DirectX::XMFLOAT2>& GetUV2()       const noexcept { return m_uv2;       }
+    const std::vector<unsigned int>&       GetIndices()   const noexcept { return m_indices;   }
+
+    // Anzahl-Getter
+    unsigned int CountVertices() const noexcept { return static_cast<unsigned int>(m_positions.size()); }
+    unsigned int CountIndices()  const noexcept { return static_cast<unsigned int>(m_indices.size());   }
+    unsigned int CountNormals()  const noexcept { return static_cast<unsigned int>(m_normals.size());   }
+    unsigned int CountColors()   const noexcept { return static_cast<unsigned int>(m_colors.size());    }
+    unsigned int CountUV1()      const noexcept { return static_cast<unsigned int>(m_uv1.size());       }
+    unsigned int CountUV2()      const noexcept { return static_cast<unsigned int>(m_uv2.size());       }
 
 public:
-    bool isActive = false;
+    // Navigation / Metadaten - nicht-owning Zeiger
+    bool      isActive  = false;
+    Mesh*     pMesh     = nullptr;
+    Material* pMaterial = nullptr;  // pro-Surface Material (ueberschreibt mesh->pMaterial)
 
-    std::vector<DirectX::XMFLOAT3> position;
-    unsigned int size_position;
-    unsigned int size_listPosition;
-
-    std::vector<DirectX::XMFLOAT3> normal;
-    unsigned int size_normal;
-    unsigned int size_listNormal;
-
-    std::vector<DirectX::XMFLOAT4> color;
-    unsigned int size_color;
-    unsigned int size_listColor;
-
-    std::vector<DirectX::XMFLOAT2> uv1;
-    unsigned int size_uv1;
-    unsigned int size_listUV1;
-
-    std::vector<DirectX::XMFLOAT2> uv2;
-    unsigned int size_uv2;
-    unsigned int size_listUV2;
-
-    std::vector<unsigned int> indices;
-    unsigned int size_listIndex;
-
-    ID3D11Buffer* positionBuffer;
-    ID3D11Buffer* normalBuffer;
-    ID3D11Buffer* colorBuffer;
-    ID3D11Buffer* uv1Buffer;
-    ID3D11Buffer* uv2Buffer;
-    ID3D11Buffer* indexBuffer;
-
-    Mesh* pMesh = nullptr;
-    Material* pMaterial = nullptr;   // pro-Surface Material (überschreibt mesh->pMaterial)
-    DirectX::XMFLOAT3 minPoint{};
-    DirectX::XMFLOAT3 maxPoint{};
-
-public:
-    // Wireframe-Modus: true = Linien statt gefüllte Dreiecke
-    bool IsWireframe() const noexcept { return m_wireframe; }
-    void SetWireframe(bool enabled) noexcept { m_wireframe = enabled; }
+    // GPU Resource Layer - Interface, konkret DX11: SurfaceGpuBuffer
+    // RenderManager spricht nur gegen IGpuResource.
+    // gidx.h::FillBuffer castet auf SurfaceGpuBuffer* fuer Buffer-Upload.
+    std::unique_ptr<IGpuResource> gpu;
 
 private:
-    bool m_wireframe = false;
+    // CPU-Geometriedaten
+    std::vector<DirectX::XMFLOAT3> m_positions;
+    std::vector<DirectX::XMFLOAT3> m_normals;
+    std::vector<DirectX::XMFLOAT4> m_colors;
+    std::vector<DirectX::XMFLOAT2> m_uv1;
+    std::vector<DirectX::XMFLOAT2> m_uv2;
+    std::vector<unsigned int>      m_indices;
 };
 
 typedef Surface* LPSURFACE;
-typedef Surface SURFACE;
+typedef Surface  SURFACE;

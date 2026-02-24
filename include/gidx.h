@@ -5,6 +5,7 @@
 #include <fstream>  
 
 #include "gdxengine.h"
+#include "SurfaceGpuBuffer.h"
 
 extern Timer Time;
 
@@ -607,31 +608,43 @@ namespace Engine
 
         if (!shader) { Debug::Log("gidx.h: ERROR: FillBuffer - cannot resolve shader"); return; }
 
+        // FillBuffer ist DX11-spezifisch: Cast auf konkreten Typ erlaubt
+        SurfaceGpuBuffer* gpuDX11 = static_cast<SurfaceGpuBuffer*>(surface->gpu.get());
+        if (!gpuDX11) { Debug::Log("gidx.h: ERROR: FillBuffer - gpu ist kein SurfaceGpuBuffer"); return; }
+
+        // Stride-Werte und Index-Count setzen
+        gpuDX11->stridePosition = sizeof(DirectX::XMFLOAT3);
+        gpuDX11->strideNormal   = sizeof(DirectX::XMFLOAT3);
+        gpuDX11->strideColor    = sizeof(DirectX::XMFLOAT4);
+        gpuDX11->strideUV1      = sizeof(DirectX::XMFLOAT2);
+        gpuDX11->strideUV2      = sizeof(DirectX::XMFLOAT2);
+        gpuDX11->indexCount     = surface->CountIndices();
+
         // Vertexbuffer
-        if (shader->flagsVertex & D3DVERTEX_POSITION) {
-            engine->GetBM().CreateBuffer(surface->position.data(), surface->size_position,
-                surface->size_listPosition, D3D11_BIND_VERTEX_BUFFER, &surface->positionBuffer);
+        if (shader->flagsVertex & D3DVERTEX_POSITION && surface->CountVertices() > 0) {
+            engine->GetBM().CreateBuffer(surface->GetPositions().data(), sizeof(DirectX::XMFLOAT3),
+                surface->CountVertices(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->positionBuffer);
         }
-        if (shader->flagsVertex & D3DVERTEX_NORMAL) {
-            engine->GetBM().CreateBuffer(surface->normal.data(), surface->size_normal,
-                surface->size_listNormal, D3D11_BIND_VERTEX_BUFFER, &surface->normalBuffer);
+        if (shader->flagsVertex & D3DVERTEX_NORMAL && surface->CountNormals() > 0) {
+            engine->GetBM().CreateBuffer(surface->GetNormals().data(), sizeof(DirectX::XMFLOAT3),
+                surface->CountNormals(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->normalBuffer);
         }
-        if (shader->flagsVertex & D3DVERTEX_COLOR) {
-            engine->GetBM().CreateBuffer(surface->color.data(), surface->size_color,
-                surface->size_listColor, D3D11_BIND_VERTEX_BUFFER, &surface->colorBuffer);
+        if (shader->flagsVertex & D3DVERTEX_COLOR && surface->CountColors() > 0) {
+            engine->GetBM().CreateBuffer(surface->GetColors().data(), sizeof(DirectX::XMFLOAT4),
+                surface->CountColors(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->colorBuffer);
         }
-        if (shader->flagsVertex & D3DVERTEX_TEX1) {
-            engine->GetBM().CreateBuffer(surface->uv1.data(), surface->size_uv1,
-                surface->size_listUV1, D3D11_BIND_VERTEX_BUFFER, &surface->uv1Buffer);
+        if (shader->flagsVertex & D3DVERTEX_TEX1 && surface->CountUV1() > 0) {
+            engine->GetBM().CreateBuffer(surface->GetUV1().data(), sizeof(DirectX::XMFLOAT2),
+                surface->CountUV1(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->uv1Buffer);
         }
-        if (shader->flagsVertex & D3DVERTEX_TEX2) {
-            engine->GetBM().CreateBuffer(surface->uv2.data(), surface->size_uv2,
-                surface->size_listUV2, D3D11_BIND_VERTEX_BUFFER, &surface->uv2Buffer);
+        if (shader->flagsVertex & D3DVERTEX_TEX2 && surface->CountUV2() > 0) {
+            engine->GetBM().CreateBuffer(surface->GetUV2().data(), sizeof(DirectX::XMFLOAT2),
+                surface->CountUV2(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->uv2Buffer);
         }
 
         // Indexbuffer
-        engine->GetBM().CreateBuffer(surface->indices.data(), sizeof(UINT),
-            surface->size_listIndex, D3D11_BIND_INDEX_BUFFER, &surface->indexBuffer);
+        engine->GetBM().CreateBuffer(surface->GetIndices().data(), sizeof(UINT),
+            surface->CountIndices(), D3D11_BIND_INDEX_BUFFER, &gpuDX11->indexBuffer);
     }
 
     inline void UpdateColorBuffer(LPSURFACE surface)
@@ -640,7 +653,9 @@ namespace Engine
             Debug::Log("gidx.h: ERROR: UpdateColorBuffer - surface is nullptr");
             return;
         }
-        engine->GetBM().UpdateBuffer(surface->colorBuffer, surface->color.data(), surface->size_color);
+        SurfaceGpuBuffer* gpuDX11 = static_cast<SurfaceGpuBuffer*>(surface->gpu.get());
+        if (!gpuDX11) return;
+        engine->GetBM().UpdateBuffer(gpuDX11->colorBuffer, surface->GetColors().data(), sizeof(DirectX::XMFLOAT4) * surface->CountColors());
     }
 
     inline void UpdateVertexBuffer(LPSURFACE surface)
@@ -649,8 +664,9 @@ namespace Engine
             Debug::Log("gidx.h: ERROR: UpdateVertexBuffer - surface is nullptr");
             return;
         }
-        engine->GetBM().UpdateBuffer(surface->positionBuffer, surface->position.data(),
-            surface->size_position * surface->size_listPosition);
+        SurfaceGpuBuffer* gpuDX11 = static_cast<SurfaceGpuBuffer*>(surface->gpu.get());
+        if (!gpuDX11) return;
+        engine->GetBM().UpdateBuffer(gpuDX11->positionBuffer, surface->GetPositions().data(), sizeof(DirectX::XMFLOAT3) * surface->CountVertices());
     }
 
     inline void AddVertex(LPSURFACE surface, float x, float y, float z)
@@ -1024,13 +1040,13 @@ namespace Engine
     inline void SurfaceWireframe(LPSURFACE surface, bool enabled)
     {
         if (!surface) { Debug::Log("gidx.h: ERROR: SurfaceWireframe - surface is nullptr"); return; }
-        surface->SetWireframe(enabled);
+        surface->gpu->SetWireframe(enabled);
     }
 
     inline bool SurfaceWireframe(LPSURFACE surface)
     {
         if (!surface) { Debug::Log("gidx.h: ERROR: SurfaceWireframe - surface is nullptr"); return false; }
-        return surface->IsWireframe();
+        return surface->gpu->IsWireframe();
     }
 
     inline bool EntityCollision(LPENTITY entity1, LPENTITY entity2)

@@ -1,70 +1,52 @@
 #pragma once
 #include <vector>
-#include <unordered_map>
+#include <algorithm>
 #include <DirectXMath.h>
+#include "RenderCommand.h"
 
 class Shader;
 class Material;
 class Mesh;
 class Surface;
 
-struct DrawEntry {
-    Mesh*                  mesh     = nullptr;
-    Surface*               surface  = nullptr;
-    DirectX::XMMATRIX      world    = DirectX::XMMatrixIdentity();
-};
-
-struct MaterialBatch {
-    Material*              material = nullptr;
-    std::vector<DrawEntry> draws;
-};
-
-struct ShaderBatch {
-    Shader*                shader      = nullptr;
-    int                    flagsVertex = 0;
-    std::vector<MaterialBatch>           materials;
-    std::unordered_map<Material*, size_t> matIndex;
-};
-
-struct RenderQueue {
-    std::vector<ShaderBatch>             shaders;
-    std::unordered_map<Shader*, size_t>  shIndex;
+// RenderQueue: flache Liste von RenderCommands.
+//
+// Vorher: verschachtelte ShaderBatch -> MaterialBatch -> DrawEntry Hierarchie.
+// Jetzt:  jeder Command ist eigenstaendig und traegt alle noetigen Daten.
+//
+// Sort() ordnet nach SortKey (Shader -> Material), um State-Wechsel
+// auf der GPU zu minimieren -- dasselbe Ziel wie die Bucket-Struktur,
+// aber flexibler (z.B. Tiefensortierung fuer Transparenz moeglich).
+struct RenderQueue
+{
+    std::vector<RenderCommand> commands;
 
     void Clear()
     {
-        shaders.clear();
-        shIndex.clear();
+        commands.clear();
     }
 
-    // Einen DrawEntry in den richtigen Shader/Material-Bucket einsortieren
     void Submit(Shader* shader, int flagsVertex, Material* material,
                 Mesh* mesh, Surface* surface, const DirectX::XMMATRIX& world)
     {
-        // Shader-Bucket suchen oder anlegen
-        auto shIt = shIndex.find(shader);
-        size_t si;
-        if (shIt == shIndex.end())
-        {
-            si = shaders.size();
-            shIndex[shader] = si;
-            shaders.push_back({shader, flagsVertex, {}, {}});
-        }
-        else si = shIt->second;
-
-        ShaderBatch& sb = shaders[si];
-
-        // Material-Bucket suchen oder anlegen
-        auto matIt = sb.matIndex.find(material);
-        size_t mi;
-        if (matIt == sb.matIndex.end())
-        {
-            mi = sb.materials.size();
-            sb.matIndex[material] = mi;
-            sb.materials.push_back({material, {}});
-        }
-        else mi = matIt->second;
-
-        sb.materials[mi].draws.push_back({mesh, surface, world});
+        RenderCommand cmd;
+        cmd.mesh        = mesh;
+        cmd.surface     = surface;
+        cmd.world       = world;
+        cmd.shader      = shader;
+        cmd.material    = material;
+        cmd.flagsVertex = flagsVertex;
+        commands.push_back(cmd);
     }
-};
 
+    // Sortiert nach Shader, dann Material -- minimiert GPU-State-Wechsel.
+    void Sort()
+    {
+        std::sort(commands.begin(), commands.end(),
+            [](const RenderCommand& a, const RenderCommand& b) {
+                return a.SortKey() < b.SortKey();
+            });
+    }
+
+    size_t Count() const noexcept { return commands.size(); }
+};

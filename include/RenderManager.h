@@ -31,7 +31,8 @@ private:
     RenderQueue m_opaque;
 
     // Transparent-Queue: vorbereitet, noch nicht aktiv
-    std::vector<std::pair<float, DrawEntry>> m_transFrame;
+    // Transparent-Queue: nach Tiefe sortiert (depth, RenderCommand)
+    std::vector<std::pair<float, RenderCommand>> m_transFrame;
 
     // Objekte im 3D-Raum
     LPENTITY m_currentCam;

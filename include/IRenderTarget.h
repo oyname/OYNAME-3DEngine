@@ -1,10 +1,10 @@
 #pragma once
 #include <d3d11.h>
 
-class RenderTarget
+class IRenderTarget
 {
 public:
-    virtual ~RenderTarget() = default;
+    virtual ~IRenderTarget() = default;
 
     // Rendertarget binden + internen State setzen (Viewport, RasterState)
     virtual void Bind() = 0;

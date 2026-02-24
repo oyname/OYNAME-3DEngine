@@ -70,26 +70,35 @@
     <Filter Include="05 Example\MultiShader">
       <UniqueIdentifier>{3022191d-48bc-4207-b23e-8df35bf97e9b}</UniqueIdentifier>
     </Filter>
-    <Filter Include="03 Engine\03 Manager\06 RenderManager\BackbufferTarget">
-      <UniqueIdentifier>{03fb1a65-489f-461c-a1fd-2251afe781a7}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="03 Engine\03 Manager\06 RenderManager\RenderTarget">
-      <UniqueIdentifier>{dd0f3cba-8f91-4229-8d03-2d3be291f5d3}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="03 Engine\03 Manager\06 RenderManager\RenderQueue">
-      <UniqueIdentifier>{9fe2fe8e-3338-4943-a6f5-d57e97ea57cb}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="03 Engine\03 Manager\06 RenderManager\ShadowmapTarget">
-      <UniqueIdentifier>{51f7bcd2-14b9-4916-b3ac-4a1c2a3b1b9d}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="03 Engine\03 Manager\06 RenderManager\RenderLayers">
-      <UniqueIdentifier>{c15ab25d-5ff7-46a4-afe3-2dd13af81fdc}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="03 Engine\03 Manager\06 RenderManager\RenderTextureTarget">
-      <UniqueIdentifier>{8bb97810-9cf2-4071-aaf0-312f3825c06d}</UniqueIdentifier>
-    </Filter>
     <Filter Include="04 Shader\05 Timer">
       <UniqueIdentifier>{ee902689-32f5-4e8f-a878-2cc295085e4f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="03 Engine\05 Geomentry">
+      <UniqueIdentifier>{d502e388-c68a-4d1c-96a4-7df6f921e050}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="03 Engine\03 Manager\06 RenderManager\07 ShadowmapTarget">
+      <UniqueIdentifier>{51f7bcd2-14b9-4916-b3ac-4a1c2a3b1b9d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="03 Engine\03 Manager\06 RenderManager\08 RenderCommand">
+      <UniqueIdentifier>{47bd6a87-50b4-4009-a84e-c3999397ecb8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="03 Engine\03 Manager\06 RenderManager\02 BackbufferTarget">
+      <UniqueIdentifier>{03fb1a65-489f-461c-a1fd-2251afe781a7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="03 Engine\03 Manager\06 RenderManager\03 SurfaceGPUBuffer">
+      <UniqueIdentifier>{3dc6c440-e9f0-40c7-88c5-cf7a356c8951}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="03 Engine\03 Manager\06 RenderManager\04 RenderTextureTarget">
+      <UniqueIdentifier>{8bb97810-9cf2-4071-aaf0-312f3825c06d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="03 Engine\03 Manager\06 RenderManager\05 RenderLayers">
+      <UniqueIdentifier>{c15ab25d-5ff7-46a4-afe3-2dd13af81fdc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="03 Engine\03 Manager\06 RenderManager\06 RenderQueue">
+      <UniqueIdentifier>{9fe2fe8e-3338-4943-a6f5-d57e97ea57cb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="03 Engine\03 Manager\06 RenderManager\01 Interfaces">
+      <UniqueIdentifier>{dd0f3cba-8f91-4229-8d03-2d3be291f5d3}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -214,10 +223,10 @@
       <Filter>05 Example\MultiShader</Filter>
     </ClCompile>
     <ClCompile Include="..\src\ShadowMapTarget.cpp">
-      <Filter>03 Engine\03 Manager\06 RenderManager\ShadowmapTarget</Filter>
+      <Filter>03 Engine\03 Manager\06 RenderManager\07 ShadowmapTarget</Filter>
     </ClCompile>
     <ClCompile Include="..\src\BackbufferTarget.cpp">
-      <Filter>03 Engine\03 Manager\06 RenderManager\BackbufferTarget</Filter>
+      <Filter>03 Engine\03 Manager\06 RenderManager\02 BackbufferTarget</Filter>
     </ClCompile>
     <ClCompile Include="..\examples\Layerexample.cpp">
       <Filter>05 Example</Filter>
@@ -226,10 +235,19 @@
       <Filter>05 Example</Filter>
     </ClCompile>
     <ClCompile Include="..\src\RenderTextureTarget.cpp">
-      <Filter>03 Engine\03 Manager\06 RenderManager\RenderTextureTarget</Filter>
+      <Filter>03 Engine\03 Manager\06 RenderManager\04 RenderTextureTarget</Filter>
     </ClCompile>
     <ClCompile Include="..\examples\MultitexturRTTExample.cpp">
       <Filter>05 Example\MultiShader</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\GeometryHelper.cpp">
+      <Filter>03 Engine\05 Geomentry</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\SurfaceGpuBuffer.cpp">
+      <Filter>03 Engine\03 Manager\06 RenderManager\03 SurfaceGPUBuffer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\RenderCommand.cpp">
+      <Filter>03 Engine\03 Manager\06 RenderManager\08 RenderCommand</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -318,22 +336,34 @@
       <Filter>05 Example\MultiShader</Filter>
     </ClInclude>
     <ClInclude Include="..\include\RenderQueue.h">
-      <Filter>03 Engine\03 Manager\06 RenderManager\RenderQueue</Filter>
+      <Filter>03 Engine\03 Manager\06 RenderManager\06 RenderQueue</Filter>
     </ClInclude>
     <ClInclude Include="..\include\BackbufferTarget.h">
-      <Filter>03 Engine\03 Manager\06 RenderManager\BackbufferTarget</Filter>
+      <Filter>03 Engine\03 Manager\06 RenderManager\02 BackbufferTarget</Filter>
     </ClInclude>
     <ClInclude Include="..\include\ShadowMapTarget.h">
-      <Filter>03 Engine\03 Manager\06 RenderManager\ShadowmapTarget</Filter>
+      <Filter>03 Engine\03 Manager\06 RenderManager\07 ShadowmapTarget</Filter>
     </ClInclude>
-    <ClInclude Include="..\include\RenderTarget.h">
-      <Filter>03 Engine\03 Manager\06 RenderManager\RenderTarget</Filter>
+    <ClInclude Include="..\include\IRenderTarget.h">
+      <Filter>03 Engine\03 Manager\06 RenderManager\01 Interfaces</Filter>
     </ClInclude>
     <ClInclude Include="..\include\RenderLayers.h">
-      <Filter>03 Engine\03 Manager\06 RenderManager\RenderLayers</Filter>
+      <Filter>03 Engine\03 Manager\06 RenderManager\05 RenderLayers</Filter>
     </ClInclude>
     <ClInclude Include="..\include\RenderTextureTarget.h">
-      <Filter>03 Engine\03 Manager\06 RenderManager\RenderTextureTarget</Filter>
+      <Filter>03 Engine\03 Manager\06 RenderManager\04 RenderTextureTarget</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\GeometryHelper.h">
+      <Filter>03 Engine\05 Geomentry</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\SurfaceGpuBuffer.h">
+      <Filter>03 Engine\03 Manager\06 RenderManager\03 SurfaceGPUBuffer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\IGpuResource.h">
+      <Filter>03 Engine\03 Manager\06 RenderManager\01 Interfaces</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\RenderCommand.h">
+      <Filter>03 Engine\03 Manager\06 RenderManager\08 RenderCommand</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

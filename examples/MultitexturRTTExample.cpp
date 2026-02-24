@@ -98,6 +98,8 @@ int main()
 
     const float speed = 100.0f;
 
+    
+
     while (Windows::MainLoop() && !(GetAsyncKeyState(VK_ESCAPE) & 0x8000))
     {
         Core::BeginFrame();
