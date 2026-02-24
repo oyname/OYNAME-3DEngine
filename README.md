@@ -1,17 +1,17 @@
-Welcome to the oyname Engine 
+Welcome to the world of 3D development!
 
-The oyname Engine is a personal hobby project focused on developing a simple 3D engine. It has been created purely out of personal interest, and there is no claim to professional or commercial quality.
+The OYNMAE 3DEngine is a personal hobby project focused on developing a simple 3D engine based on DirectX11. It has been created purely out of personal interest, and there is no claim to professional or commercial quality.
 
 The main goal of this project is to explore the fundamentals of 3D programming and to experiment with creative ideas. The engine is intended as a learning platform where new concepts can be tested and improved without pressure or strict requirements.
 
 Everyone who is interested is welcome to exchange ideas, learn together, and explore the possibilities of 3D development. The joy of discovery and experimentation is the core motivation behind this project.
 
-Thank you for your interest in the oyname Engine!
+Thank you for your interest in the OYNMAE 3DEngine!
 
 
 PROJECT OVERVIEW
 
-The oyname Engine is a 3D engine written in C++ and built on DirectX 11. It provides a basic framework for rendering 3D graphics, loading textures, and experimenting with shaders and rendering techniques.
+The OYNMAE 3DEngine is a 3D engine written in C++ and built on DirectX 11. It provides a basic framework for rendering 3D graphics, loading textures, and experimenting with shaders and rendering techniques.
 
 This project is designed for learning and experimentation rather than for production use.
 
@@ -32,11 +32,11 @@ DOWNLOADING THE SOURCE CODE
 
 The complete source code of the engine is hosted on GitHub:
 
-https://github.com/oyname/oyname-Engine
+[https://github.com/OYNMAE 3DEngine/OYNMAE 3DEngine-Engine](https://github.com/oyname/OYNAME-3DEngine)
 
 To download the project locally, use the following command:
 
-git clone https://github.com/oyname/oyname-Engine.git
+git clone [https://github.com/OYNMAE 3DEngine/OYNMAE 3DEngine-Engine.git](https://github.com/oyname/OYNAME-3DEngine.git)
 
 After cloning, the entire project will be available on your local machine.
 
@@ -45,7 +45,7 @@ PROJECT STRUCTURE
 
 After cloning the repository, the directory layout will look similar to this:
 
-oyname-Engine/
+OYNMAE 3DEngine/
     include/
     src/
     shaders/
@@ -54,11 +54,15 @@ oyname-Engine/
 
 Description of the main folders:
 
-include/      – contains all header files of the engine  
+include/      – contains all header files of the engine
+
 src/          – contains the C++ source code  
+
 shaders/      – contains all HLSL shader files  
+
 third_party/  – includes external components used by the engine  
-oyname.sln    – Visual Studio solution file  
+
+oynmae.sln    – Visual Studio solution file  
 
 
 BUILDING THE ENGINE
@@ -130,6 +134,9 @@ All required files and configurations are already included, so you can start wor
 
 FINAL WORDS
 
+The OYNMAE 3DEngine is an open playground for learning, experimenting, and improving skills in 3D graphics programming.
+
+Have fun exploring, testing, and further developing the OYNAME 3DEngine!
 The oyname Engine is an open playground for learning, experimenting, and improving skills in 3D graphics programming.
 
 Have fun exploring, testing, and further developing the oyname Engine!
