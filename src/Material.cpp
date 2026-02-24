@@ -1,4 +1,5 @@
 ﻿#include "Material.h"
+#include "gdxdevice.h"
 
 Material::Material() :
     isActive(false),

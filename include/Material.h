@@ -3,9 +3,13 @@
 #include <d3d11.h>
 #include <DirectXMath.h>
 #include <string>
-#include "Mesh.h"
+#include "gdxutil.h"
+#include "Memory.h"
 
+// Forward declarations – Mesh.h wird NICHT inkludiert (verhindert zirkuläre Abhängigkeit)
 class Shader;
+class Mesh;
+class GDXDevice;
 
 class Material
 {

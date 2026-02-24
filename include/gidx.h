@@ -607,8 +607,6 @@ namespace Engine
 
         if (!shader) { Debug::Log("gidx.h: ERROR: FillBuffer - cannot resolve shader"); return; }
 
-        if (!shader) { Debug::Log("gidx.h: ERROR: FillBuffer - cannot resolve shader"); return; }
-
         // Vertexbuffer
         if (shader->flagsVertex & D3DVERTEX_POSITION) {
             engine->GetBM().CreateBuffer(surface->position.data(), surface->size_position,
@@ -1018,6 +1016,21 @@ namespace Engine
         }
 
         return mesh->GetSurface(index);
+    }
+
+    // Schaltet den Wireframe-Modus einer Surface an oder aus.
+    // true  = Linien (Wireframe)
+    // false = gefüllte Dreiecke (Standard)
+    inline void SurfaceWireframe(LPSURFACE surface, bool enabled)
+    {
+        if (!surface) { Debug::Log("gidx.h: ERROR: SurfaceWireframe - surface is nullptr"); return; }
+        surface->SetWireframe(enabled);
+    }
+
+    inline bool SurfaceWireframe(LPSURFACE surface)
+    {
+        if (!surface) { Debug::Log("gidx.h: ERROR: SurfaceWireframe - surface is nullptr"); return false; }
+        return surface->IsWireframe();
     }
 
     inline bool EntityCollision(LPENTITY entity1, LPENTITY entity2)

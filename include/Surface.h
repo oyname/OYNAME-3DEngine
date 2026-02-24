@@ -69,8 +69,12 @@ public:
     DirectX::XMFLOAT3 maxPoint{};
 
 public:
-    // Debug Kollision...kann dann gelöscht werden!
-    bool test;
+    // Wireframe-Modus: true = Linien statt gefüllte Dreiecke
+    bool IsWireframe() const noexcept { return m_wireframe; }
+    void SetWireframe(bool enabled) noexcept { m_wireframe = enabled; }
+
+private:
+    bool m_wireframe = false;
 };
 
 typedef Surface* LPSURFACE;

@@ -21,7 +21,7 @@ Surface::Surface() :
     size_uv2(0),
     pMesh(nullptr),
     isActive(true),
-    test(false)
+    m_wireframe(false)
 
 {
 }
@@ -137,7 +137,7 @@ void Surface::Draw(const GDXDevice* device, const DWORD flagsVertex)
 
     device->GetDeviceContext()->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R32_UINT, 0);
 
-    if (!test)
+    if (!m_wireframe)
     {
         device->GetDeviceContext()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         device->GetDeviceContext()->DrawIndexed(size_listIndex, 0, 0);
@@ -145,7 +145,7 @@ void Surface::Draw(const GDXDevice* device, const DWORD flagsVertex)
     else
     {
         device->GetDeviceContext()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
-        device->GetDeviceContext()->Draw(size_listIndex, 0);  // ← Bleibt Draw()
+        device->GetDeviceContext()->Draw(size_listIndex, 0);
     }
 }
 

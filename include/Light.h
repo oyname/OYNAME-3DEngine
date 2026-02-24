@@ -65,7 +65,7 @@ private:
     float m_shadowOrthoSize = 50.0f;
     float m_shadowNear = 0.1f;
     float m_shadowFar = 1000.0f;
-    float m_shadowFov = 0.1f;// DirectX::XM_PIDIV2; // 90° for point/spot style shadow projections
+    float m_shadowFov = DirectX::XM_PIDIV2; // 90° for point/spot style shadow projections
 };
 
 typedef Light* LPLIGHT;

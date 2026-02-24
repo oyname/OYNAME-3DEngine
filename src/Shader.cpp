@@ -1,5 +1,6 @@
 ﻿// Shader.cpp
 #include "Shader.h"
+#include "gdxdevice.h"
 
 Shader::Shader() :
     isActive(false),
