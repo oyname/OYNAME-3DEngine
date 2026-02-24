@@ -19,7 +19,7 @@ void BackbufferTarget::Bind()
     ID3D11DepthStencilView* dsv = m_device->GetDepthStencilView();
     if (!ctx || !rtv || !dsv)
     {
-        Debug::LogError("BackbufferTarget.cpp: Bind() – RTV oder DSV nicht verfuegbar");
+        Debug::LogError("BackbufferTarget.cpp: Bind() RTV oder DSV nicht verfuegbar");
         return;
     }
 
@@ -35,7 +35,7 @@ void BackbufferTarget::Bind()
     ctx->RSSetViewports(1, &m_viewport);
 
     Debug::LogOnce("BackbufferTarget_Bind",
-        "BackbufferTarget.cpp: Bind() – Backbuffer aktiv");
+        "BackbufferTarget.cpp: Bind() Backbuffer aktiv");
 }
 
 void BackbufferTarget::Clear()

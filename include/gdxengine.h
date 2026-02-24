@@ -93,6 +93,7 @@ public:
 	InputLayoutManager& GetILM();	// InputManager
 	TextureManager& GetTM();		// TextureManager
 	CameraManager& GetCam();		// KameraManager
+	RenderManager& GetRM();			// RenderManager
 
 	// Setter-Funktionen fÃ¼r private Variablen
 	void SetAdapter(unsigned int index);

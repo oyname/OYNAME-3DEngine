@@ -105,7 +105,30 @@ namespace Engine
         return engine->m_interface.interfaceManager.GetMaxFrequnecy(engine->GetAdapterIndex(), engine->GetOutputIndex(), width, height);
     }
 
+    //
     // Diese Funktionen arbeiten mit allen Entity-Typen (Mesh, Camera, Light)
+    //
+
+    // ── Schatten werfen (Mesh-Ebene) ──────────────────────────────────────────
+    // Steuert ob ein Mesh im Shadow Pass gerendert wird.
+    // false = Mesh wirft keinen Schatten, wird im Shadow Pass übersprungen.
+    // Entspricht Unity's MeshRenderer.shadowCastingMode / Unreal's bCastShadow.
+    inline void EntityCastShadows(LPENTITY entity, bool enabled)
+    {
+        if (!entity) return;
+        entity->SetCastShadows(enabled);
+    }
+
+    // ── Schatten empfangen (Material-Ebene) ───────────────────────────────────
+    // Steuert ob ein Material die Shadow Map auswertet.
+    // false = Oberfläche wird nicht abgedunkelt, auch wenn ein Schatten drauf fällt.
+    // Bleibt auf Material-Ebene, weil es im Pixel Shader ausgewertet wird.
+    inline void MaterialReceiveShadows(LPMATERIAL material, bool enabled)
+    {
+        if (!material) return;
+        material->SetReceiveShadows(enabled);
+    }
+
     inline void PositionEntity(LPENTITY entity, float x, float y, float z)
     {
         if (entity == nullptr) {
@@ -489,6 +512,8 @@ namespace Engine
     }
 
     // ==================== MATERIAL ====================
+
+
 
     inline void CreateMaterial(LPMATERIAL* material, SHADER* shader = nullptr)
     {
@@ -1091,5 +1116,82 @@ namespace Engine
         Camera* cam = dynamic_cast<Camera*>(camera);
         if (!cam) { Debug::Log("gidx.h: ERROR: CameraCullMask - Entity ist keine Camera"); return 0; }
         return cam->cullMask;
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    // RTT – Render to Texture API
+    // Diese Funktionen in gidx.h einfügen (z.B. nach dem LoadTexture-Block).
+    // RenderTextureTarget.h muss über den RenderManager-Include-Pfad erreichbar sein.
+    // ════════════════════════════════════════════════════════════════════════════
+
+        // ── Render-Textur anlegen ─────────────────────────────────────────────────
+        // Erzeugt eine RTT-Instanz und schreibt den Zeiger nach *rtt.
+        // width/height: Auflösung der Textur (unabhängig vom Screen).
+        // Verwendung als Textur: Engine::GetRTTTexture(rtt).
+    inline void CreateRenderTexture(LPRENDERTARGET* rtt, UINT width, UINT height)
+    {
+        if (!engine || !rtt) return;
+
+        RenderTextureTarget* target = new RenderTextureTarget();
+        target->SetDevice(&engine->m_device);
+        HRESULT hr = target->Create(
+            engine->m_device.GetDevice(),
+            engine->m_device.GetDeviceContext(),
+            width, height);
+
+        if (FAILED(hr))
+        {
+            Debug::LogError("gidx.h: CreateRenderTexture() – Create() fehlgeschlagen");
+            delete target;
+            *rtt = nullptr;
+            return;
+        }
+
+        *rtt = target;
+        Debug::Log("gidx.h: CreateRenderTexture() – ", width, "x", height, " erstellt");
+    }
+
+    // ── Render-Textur freigeben ───────────────────────────────────────────────
+    // Gibt alle D3D11-Ressourcen frei und löscht die RTT-Instanz.
+    inline void ReleaseRenderTexture(LPRENDERTARGET* rtt)
+    {
+        if (!rtt || !*rtt) return;
+        (*rtt)->Release();
+        delete* rtt;
+        *rtt = nullptr;
+    }
+
+    // ── RTT als aktiven Render-Target setzen ─────────────────────────────────
+    // Alle nachfolgenden RenderWorld()-Aufrufe rendern in diese Textur.
+    // rttCamera: optionale zweite Kamera für den RTT-Pass (z.B. andere Perspektive).
+    //            nullptr → aktuelle Haupt-Kamera wird verwendet.
+    inline void SetRenderTarget(LPRENDERTARGET rtt, LPENTITY rttCamera = nullptr)
+    {
+        if (!engine || !rtt) return;
+        engine->GetRM().SetRTTTarget(rtt, rttCamera);
+    }
+
+    // ── Backbuffer als Render-Target wiederherstellen ────────────────────────
+    // Muss nach dem RTT-Pass aufgerufen werden, bevor der normale Frame gerendert wird.
+    inline void ResetRenderTarget()
+    {
+        if (!engine) return;
+        engine->GetRM().SetRTTTarget(nullptr, nullptr);
+    }
+
+    // ── Texture-Wrapper für den Shader-Input ─────────────────────────────────
+    // Gibt den internen Texture*-Wrapper zurück.
+    // Direkt verwendbar mit Engine::MaterialTexture / Engine::EntityTexture.
+    inline LPTEXTURE GetRTTTexture(LPRENDERTARGET rtt)
+    {
+        if (!rtt) return nullptr;
+        return rtt->GetTextureWrapper();
+    }
+
+    // ── Clearfarbe der RTT setzen ─────────────────────────────────────────────
+    inline void SetRTTClearColor(LPRENDERTARGET rtt, float r, float g, float b, float a = 1.0f)
+    {
+        if (!rtt) return;
+        rtt->SetClearColor(r, g, b, a);
     }
 } // End of namespace Engine

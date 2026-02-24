@@ -1,123 +1,142 @@
-﻿// ════════════════════════════════════════════════════════════════════════════
-// main_rtt.cpp – RTT Demo
-//
-// Linker Würfel: dreht sich, wird von einer RTT-Kamera gefilmt.
-// Rechter Würfel: steht still, trägt die RTT-Textur — zeigt live den linken Würfel.
-// ════════════════════════════════════════════════════════════════════════════
-
 #include "gidx.h"
+#include "NeonTimeBuffer.h"
 
-static void CreateCube(LPENTITY* mesh, LPMATERIAL material);
+static void CreateCube(LPENTITY* mesh, MATERIAL* material);
+
+// Zwei Wuerfel nebeneinander:
+// Links  = Standard-Shader mit Textur
+// Rechts = Neon-Plasma-Shader (animiert, zeitbasiert)
+
+static NeonTimeBuffer g_neonTime;
 
 int main()
 {
-    Engine::Graphics(1200, 650);
+    bool windowed = true;
+    windowed == true ? Engine::Graphics(1200, 650) : Engine::Graphics(1980, 1080, false);
 
-    // ── Haupt-Textur (Face) ───────────────────────────────────────────────────
-    LPTEXTURE texFace = nullptr;
-    Engine::LoadTexture(&texFace, L"..\\media\\color1.png");
+    // --- Neon-Shader erstellen ---
+    // Nur POSITION wird benoetigt (keine Normals, keine UVs, kein Color)
+    LPSHADER neonShader = nullptr;
+    Engine::CreateShader(
+        &neonShader,
+        L"..\\shaders\\VertexShaderNeon.hlsl", "main",
+        L"..\\shaders\\PixelShaderNeon.hlsl", "main",
+        D3DVERTEX_POSITION
+    );
 
-    // ── Material für den linken Würfel (face.bmp) ─────────────────────────────
-    LPMATERIAL materialLeft = nullptr;
-    Engine::CreateMaterial(&materialLeft);
-    Engine::MaterialTexture(materialLeft, texFace);
+    // NeonTimeBuffer initialisieren.
+    // engine ist ueber gidx.h -> gdxengine.h bereits bekannt.
+    if (!g_neonTime.Initialize(Engine::engine->m_device.GetDevice(), Engine::engine->m_device.GetDeviceContext()))
+    {
+        Debug::Log("game.cpp: NeonTimeBuffer-Initialisierung fehlgeschlagen.");
+    }
+
+    // --- Kamera ---
+    LPENTITY camera = nullptr;
+    Engine::CreateCamera(&camera);
+    Engine::PositionEntity(camera, 10.0f, 0.0f, 10.0f);
+    Engine::LookAt(camera, -20.0f, 0.0f, 0.0f);
+
+    // --- RTT-Kamera: filmt nur den linken Wuerfel ---
+    LPENTITY rttCamera = nullptr;
+    Engine::CreateCamera(&rttCamera);
+    Engine::PositionEntity(rttCamera, 7.0f, 0.0f, 3.0f);
+    Engine::LookAt(rttCamera, 2.0f, 0.0f, 0.0f);
+
+    // --- Material 2: Neon-Plasma-Shader (rechter Wuerfel) ---
+    LPMATERIAL neonMaterial = nullptr;
+    Engine::CreateMaterial(&neonMaterial, neonShader);
 
     // ── RTT anlegen: 512×512 Render-Textur ───────────────────────────────────
     LPRENDERTARGET rtt = nullptr;
     Engine::CreateRenderTexture(&rtt, 512, 512);
-    Engine::SetRTTClearColor(rtt, 0.6f, 0.6f, 0.8f); // dunkles Blau als RTT-Hintergrund
+    Engine::SetRTTClearColor(rtt, 0.0f, 0.25f, 0.5f); // dunkles Blau als RTT-Hintergrund
 
+    // --- Linker Wuerfel: Standard-Shader ---
     // ── Material für den rechten Würfel: bekommt RTT-Textur ──────────────────
-    LPMATERIAL materialRight = nullptr;
-    Engine::CreateMaterial(&materialRight);
-    Engine::MaterialTexture(materialRight, Engine::GetRTTTexture(rtt));
+    LPMATERIAL materialRTT = nullptr;
+    Engine::CreateMaterial(&materialRTT);
+    Engine::MaterialTexture(materialRTT, Engine::GetRTTTexture(rtt));
 
-    // ── Haupt-Kamera ──────────────────────────────────────────────────────────
-    LPENTITY camera = nullptr;
-    Engine::CreateCamera(&camera);
-    Engine::PositionEntity(camera, 0.0f, 0.0f, -10.0f);
+    LPENTITY Mesh1 = nullptr;
+    CreateCube(&Mesh1, materialRTT);
+    Engine::PositionEntity(Mesh1, -10.0f, 0.0f, 10.0f);
+    Engine::RotateEntity(Mesh1, 0.0f, 45.0f, 0.0f);
+    Engine::ScaleEntity(Mesh1, 4.0f, 4.0f, 4.0f);
 
-    // ── RTT-Kamera: seitliche Perspektive auf den linken Würfel ──────────────
-    // Diese Kamera rendert nur den linken Würfel in die RTT.
-    LPENTITY rttCamera = nullptr;
-    Engine::CreateCamera(&rttCamera);
-    Engine::PositionEntity(rttCamera, 4.0f, 0.0f, 10.0f);
-    Engine::TurnEntity(rttCamera, 0.0f, 90.0f, 0.0f);
+    // --- Rechter Wuerfel: Neon-Plasma-Shader ---
+    LPENTITY Mesh2 = nullptr;
+    CreateCube(&Mesh2, neonMaterial);
+    Engine::PositionEntity(Mesh2, 2.0f, 0.0f, 0.0f);
+    Engine::ScaleEntity(Mesh2, 1.5f, 1.5f, 1.5f);
 
-    // ── Lichter ───────────────────────────────────────────────────────────────
-    LPENTITY light = nullptr;
-    Engine::CreateLight(&light, D3DLIGHT_DIRECTIONAL);
-    Engine::PositionEntity(light, 0.0f, 20.0f, 10.0f);
-    Engine::RotateEntity(light, 90.0f, 0.0f, 0.0f);
-    Engine::LightColor(light, 0.4f, 0.4f, 0.5f);
+    // --- Licht ---
+    LPENTITY directionalLight = nullptr;
+    Engine::CreateLight(&directionalLight, D3DLIGHT_DIRECTIONAL);
+    Engine::PositionEntity(directionalLight, 5.0f, 0.0f, -1.0f);
+    Engine::LookAt(directionalLight, 2.0f, 0.0f, 0.0f);
+    Engine::LightColor(directionalLight, 1.0f, 0.8f, 1.0f);
+    Engine::SetDirectionalLight(directionalLight);
 
-    LPENTITY light2 = nullptr;
-    Engine::CreateLight(&light2, D3DLIGHT_DIRECTIONAL);
-    Engine::PositionEntity(light2, 0.0f, 10.0f, -10.0f);
-    Engine::RotateEntity(light2, -45.0f, 0.0f, 0.0f);
-    Engine::LightColor(light2, 0.5f, 0.5f, 0.5f);
-
-    Engine::SetDirectionalLight(light);
-    Engine::SetAmbientColor(0.9f, 0.9f, 0.9f);
-
-    // ── Linker Würfel – dreht sich, eigenes Material ──────────────────────────
-    LPENTITY cubeLeft = nullptr;
-    CreateCube(&cubeLeft, materialLeft);
-    Engine::PositionEntity(cubeLeft, -4.0f, 0.0f, 10.0f);
-    Engine::ScaleEntity(cubeLeft, 2.0f, 2.0f, 2.0f);
-    Engine::EntityTexture(cubeLeft, texFace);
-    Engine::EntityMaterial(cubeLeft, materialLeft);
-
-
-    // ── Rechter Würfel – steht still, zeigt RTT-Textur ───────────────────────
-    LPENTITY cubeRight = nullptr;
-    CreateCube(&cubeRight, materialRight);
-    Engine::PositionEntity(cubeRight, 4.0f, 0.0f, 5.0f);
-    Engine::ScaleEntity(cubeRight, 2.0f, 2.0f, 2.0f);
-    Engine::TurnEntity(cubeRight, 45.0f, 45.0f, 0.0f);
-    Engine::EntityMaterial(cubeRight, materialRight);
+    Engine::SetVSync(1);
 
     // Render to Texture Kamera sieht Würfel nicht
-    Engine::EntityLayer(cubeRight, LAYER_REFLECTION);
+    Engine::EntityLayer(Mesh1, LAYER_FX);
     Engine::CameraCullMask(rttCamera, LAYER_DEFAULT);
 
-    // ── Haupt-Loop ────────────────────────────────────────────────────────────
+    // --- Textur fuer den linken Wuerfel ---
+    LPTEXTURE face = nullptr;
+    Engine::LoadTexture(&face, L"..\\media\\engine.png");
+    LPMATERIAL materialFace = nullptr;
+    Engine::CreateMaterial(&materialFace);
+    Engine::MaterialTexture(materialFace, face);
+
+    LPENTITY Mesh3 = nullptr;
+    CreateCube(&Mesh3, materialFace);
+    Engine::PositionEntity(Mesh3, -15.0f, 0.0f, 0.0f);
+    Engine::ScaleEntity(Mesh3, 1.0f, 20.0f, 20.0f);
+
+    const float speed = 100.0f;
+
     while (Windows::MainLoop() && !(GetAsyncKeyState(VK_ESCAPE) & 0x8000))
     {
         Core::BeginFrame();
         const float dt = static_cast<float>(Core::GetDeltaTime());
 
-        // Linken Würfel drehen
-        Engine::TurnEntity(cubeLeft, 60.0f * dt, 80.0f * dt, 0.0f);
+        // --- NeonTimeBuffer aktualisieren ---
+        g_neonTime.Update(dt);
 
-        // ══ Pass 1: RTT-Pass ════════════════════════════════════════════════
-        // Rendert den linken Würfel aus Sicht der RTT-Kamera in die Textur.
-        // Der rechte Würfel wird in dieser Kamera nicht benötigt — er ist
-        // sichtbar, aber aus dem Blickwinkel der RTT-Kamera nicht im Bild.
+        Engine::TurnEntity(Mesh1, -20.0f * dt, -20.0f * dt, -20.0f * dt);
+        Engine::TurnEntity(Mesh2, 50.0f * dt, 50.0f * dt, 0.0f);
+
+        // ── Pass 1: RTT-Pass ─────────────────────────────────────────────────
+        
+        Engine::EntityCastShadows(Mesh1, false);
         Engine::SetCamera(rttCamera);
         Engine::SetRenderTarget(rtt, rttCamera);
         Engine::UpdateWorld();
-        Engine::RenderWorld();   // → rendert in rtt (512×512)
+        Engine::RenderWorld();   // rendert in rtt (512x512)
 
-        // ══ Pass 2: Normaler Frame ══════════════════════════════════════════
+        // ── Pass 2: Normaler Frame ───────────────────────────────────────────
+        Engine::EntityCastShadows(Mesh1, true);
         Engine::ResetRenderTarget();
         Engine::SetCamera(camera);
         Engine::Cls(0, 64, 128);
         Engine::UpdateWorld();
-        Engine::RenderWorld();   // → rendert in Backbuffer (1200×650)
+        g_neonTime.Bind();
+        Engine::RenderWorld();   // rendert in Backbuffer (1200x650)
         Engine::Flip();
 
         Core::EndFrame();
     }
 
-    // ── Aufräumen ─────────────────────────────────────────────────────────────
     Engine::ReleaseRenderTexture(&rtt);
-
+    g_neonTime.Shutdown();
+    
     return 0;
 }
 
-// ── Würfel-Geometrie (unverändert) ───────────────────────────────────────────
-static void CreateCube(LPENTITY* mesh, MATERIAL* material)
+void CreateCube(LPENTITY* mesh, MATERIAL* material)
 {
     LPSURFACE wuerfel = NULL;
 

@@ -46,9 +46,6 @@
     <Filter Include="03 Engine\04 Transform">
       <UniqueIdentifier>{78912823-fd0c-43ff-8685-ae7373c53489}</UniqueIdentifier>
     </Filter>
-    <Filter Include="03 Engine\05 Timer">
-      <UniqueIdentifier>{ee902689-32f5-4e8f-a878-2cc295085e4f}</UniqueIdentifier>
-    </Filter>
     <Filter Include="02 DirectX\00 Device">
       <UniqueIdentifier>{e0f18073-c779-412b-b9f7-3cbab514c31c}</UniqueIdentifier>
     </Filter>
@@ -87,6 +84,12 @@
     </Filter>
     <Filter Include="03 Engine\03 Manager\06 RenderManager\RenderLayers">
       <UniqueIdentifier>{c15ab25d-5ff7-46a4-afe3-2dd13af81fdc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="03 Engine\03 Manager\06 RenderManager\RenderTextureTarget">
+      <UniqueIdentifier>{8bb97810-9cf2-4071-aaf0-312f3825c06d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="04 Shader\05 Timer">
+      <UniqueIdentifier>{ee902689-32f5-4e8f-a878-2cc295085e4f}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -127,7 +130,7 @@
       <Filter>03 Engine\04 Transform</Filter>
     </ClCompile>
     <ClCompile Include="..\src\Timer.cpp">
-      <Filter>03 Engine\05 Timer</Filter>
+      <Filter>04 Shader\05 Timer</Filter>
     </ClCompile>
     <ClCompile Include="..\src\ShaderManager.cpp">
       <Filter>03 Engine\03 Manager\04 ShaderManager</Filter>
@@ -222,6 +225,12 @@
     <ClCompile Include="..\examples\Rendertotexture.cpp">
       <Filter>05 Example</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\RenderTextureTarget.cpp">
+      <Filter>03 Engine\03 Manager\06 RenderManager\RenderTextureTarget</Filter>
+    </ClCompile>
+    <ClCompile Include="..\examples\MultitexturRTTExample.cpp">
+      <Filter>05 Example\MultiShader</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\third_party\stb_image.h">
@@ -291,7 +300,7 @@
       <Filter>03 Engine\03 Manager\07 TexturManager</Filter>
     </ClInclude>
     <ClInclude Include="..\include\Timer.h">
-      <Filter>03 Engine\05 Timer</Filter>
+      <Filter>04 Shader\05 Timer</Filter>
     </ClInclude>
     <ClInclude Include="..\include\Transform.h">
       <Filter>03 Engine\04 Transform</Filter>
@@ -322,6 +331,9 @@
     </ClInclude>
     <ClInclude Include="..\include\RenderLayers.h">
       <Filter>03 Engine\03 Manager\06 RenderManager\RenderLayers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\RenderTextureTarget.h">
+      <Filter>03 Engine\03 Manager\06 RenderManager\RenderTextureTarget</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

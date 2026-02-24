@@ -4,12 +4,12 @@
 
 RenderManager::RenderManager(ObjectManager& objectManager, LightManager& lightManager, GDXDevice& device)
     : m_objectManager(objectManager), m_lightManager(lightManager), m_device(device),
-      m_currentCam(nullptr), m_directionLight(nullptr)
+    m_currentCam(nullptr), m_directionLight(nullptr)
 {
     m_shadowTarget.SetDevice(&m_device);
     m_backbufferTarget.SetDevice(&m_device);
 
-    Debug::Log("RenderManager.cpp: RenderManager erstellt – ShadowMapTarget + BackbufferTarget initialisiert");
+    Debug::Log("RenderManager.cpp: RenderManager erstellt - ShadowMapTarget + BackbufferTarget initialisiert");
 }
 
 void RenderManager::SetCamera(LPENTITY camera)
@@ -22,8 +22,14 @@ void RenderManager::SetDirectionalLight(LPENTITY dirLight)
     m_directionLight = dirLight;
 }
 
+void RenderManager::SetRTTTarget(RenderTextureTarget* rtt, LPENTITY rttCamera)
+{
+    m_activeRTT = rtt;
+    m_rttCamera = rttCamera;
+}
+
 void RenderManager::UpdateShadowMatrixBuffer(const DirectX::XMMATRIX& viewMatrix,
-                                              const DirectX::XMMATRIX& projMatrix)
+    const DirectX::XMMATRIX& projMatrix)
 {
     if (!m_device.IsInitialized()) return;
 
@@ -46,12 +52,12 @@ void RenderManager::UpdateShadowMatrixBuffer(const DirectX::XMMATRIX& viewMatrix
     ShadowMatrixBuffer* bufferData = reinterpret_cast<ShadowMatrixBuffer*>(mappedResource.pData);
     if (HLSL_USES_ROW_MAJOR)
     {
-        bufferData->lightViewMatrix       = viewMatrix;
+        bufferData->lightViewMatrix = viewMatrix;
         bufferData->lightProjectionMatrix = projMatrix;
     }
     else
     {
-        bufferData->lightViewMatrix       = DirectX::XMMatrixTranspose(viewMatrix);
+        bufferData->lightViewMatrix = DirectX::XMMatrixTranspose(viewMatrix);
         bufferData->lightProjectionMatrix = DirectX::XMMatrixTranspose(projMatrix);
     }
 
@@ -70,7 +76,7 @@ void RenderManager::RenderShadowPass()
     m_shadowTarget.Clear();
 
     const DirectX::XMMATRIX lightViewMatrix = light->GetLightViewMatrix();
-    const DirectX::XMMATRIX lightProjMatrix  = light->GetLightProjectionMatrix();
+    const DirectX::XMMATRIX lightProjMatrix = light->GetLightProjectionMatrix();
     UpdateShadowMatrixBuffer(lightViewMatrix, lightProjMatrix);
 
     if (ID3D11Buffer* shadowMatrixBuffer = m_device.GetShadowMatrixBuffer())
@@ -79,17 +85,16 @@ void RenderManager::RenderShadowPass()
     for (Mesh* mesh : m_objectManager.GetMeshes())
     {
         if (!mesh || mesh->surfaces.empty()) continue;
-
-        // active = false: komplett überspringen (keine Berechnung)
         if (!mesh->IsActive()) continue;
-
-        // visible = false: kein Shadow-Beitrag
         if (!mesh->IsVisible()) continue;
 
+        // Mesh-Level: wirft dieses Objekt Schatten?
+        if (!mesh->GetCastShadows()) continue;
+
         MatrixSet ms = m_currentCam->matrixSet;
-        ms.viewMatrix       = lightViewMatrix;
+        ms.viewMatrix = lightViewMatrix;
         ms.projectionMatrix = lightProjMatrix;
-        ms.worldMatrix      = mesh->transform.GetLocalTransformationMatrix();
+        ms.worldMatrix = mesh->transform.GetLocalTransformationMatrix();
         mesh->Update(&m_device, &ms);
 
         for (Surface* s : mesh->surfaces)
@@ -116,12 +121,25 @@ void RenderManager::RenderNormalPass()
     ID3D11DeviceContext* ctx = m_device.GetDeviceContext();
     if (!ctx) return;
 
-    m_backbufferTarget.SetViewport(m_currentCam->viewport);
-    m_backbufferTarget.Bind();
+    if (m_activeRTT)
+    {
+        // RTT-Pass: in die Render-Textur rendern
+        m_activeRTT->Bind();
+        m_activeRTT->Clear();
+
+        Debug::LogOnce("RenderNormalPass_RTT",
+            "RenderManager.cpp: RenderNormalPass - RTT-Pass aktiv");
+    }
+    else
+    {
+        // Standard-Pass: in den Backbuffer rendern
+        m_backbufferTarget.SetViewport(m_currentCam->viewport);
+        m_backbufferTarget.Bind();
+    }
 
     constexpr UINT SHADOW_TEX_SLOT = 7;
     ID3D11ShaderResourceView* shadowSRV = m_shadowTarget.GetSRV();
-    ID3D11SamplerState*       shadowSmp = m_device.GetComparisonSampler();
+    ID3D11SamplerState* shadowSmp = m_device.GetComparisonSampler();
     ctx->PSSetShaderResources(SHADOW_TEX_SLOT, 1, &shadowSRV);
     ctx->PSSetSamplers(SHADOW_TEX_SLOT, 1, &shadowSmp);
 
@@ -142,7 +160,6 @@ void RenderManager::BuildRenderQueue()
 {
     m_opaque.Clear();
 
-    // cullMask der aktuellen Kamera holen
     uint32_t cameraCullMask = LAYER_ALL;
     if (Camera* cam = dynamic_cast<Camera*>(m_currentCam))
         cameraCullMask = cam->cullMask;
@@ -150,15 +167,8 @@ void RenderManager::BuildRenderQueue()
     for (Mesh* mesh : m_objectManager.GetMeshes())
     {
         if (!mesh || mesh->surfaces.empty()) continue;
-
-        // active = false: komplett überspringen (keine Berechnung, kein Rendering)
         if (!mesh->IsActive()) continue;
-
-        // visible = false: Update läuft weiter (Update wird in RenderShadowPass/FlushRenderQueue
-        // pro Mesh aufgerufen), aber kein Eintrag in die RenderQueue
         if (!mesh->IsVisible()) continue;
-
-        // Layer-Check: Mesh muss mindestens einen Layer mit der Kamera teilen
         if (!(mesh->GetLayerMask() & cameraCullMask)) continue;
 
         const DirectX::XMMATRIX world = mesh->transform.GetLocalTransformationMatrix();
@@ -177,7 +187,7 @@ void RenderManager::BuildRenderQueue()
         }
     }
 
-    // Queue-Inhalt einmalig loggen (nur wenn sich Shader-Bucket-Anzahl ändert)
+    // Queue-Inhalt einmalig loggen (nur wenn sich Shader-Bucket-Anzahl aendert)
     static size_t s_lastShaderCount = SIZE_MAX;
     size_t totalDraws = 0;
     for (auto& sb : m_opaque.shaders)
@@ -245,14 +255,22 @@ void RenderManager::RenderScene()
     if (!m_currentCam)
         return;
 
+    // Wenn RTT aktiv, temporaer auf RTT-Kamera umschalten (falls gesetzt)
+    LPENTITY savedCam = m_currentCam;
+    if (m_activeRTT && m_rttCamera)
+        m_currentCam = m_rttCamera;
+
     RenderShadowPass();
     RenderNormalPass();
 
     m_lightManager.Update(&m_device);
 
     Debug::LogOnce("RenderScene_Camera",
-        "RenderManager.cpp: RenderScene – Camera: ", Ptr(m_currentCam).c_str());
+        "RenderManager.cpp: RenderScene - Camera: ", Ptr(m_currentCam).c_str());
 
     BuildRenderQueue();
     FlushRenderQueue();
+
+    // Kamera wiederherstellen
+    m_currentCam = savedCam;
 }

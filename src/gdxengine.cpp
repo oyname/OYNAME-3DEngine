@@ -463,3 +463,7 @@ HRESULT GDXEngine::InitMaterialBuffer(Material* material)
 	);
 }
 
+RenderManager& GDXEngine::GetRM() {
+	return m_renderManager;
+}
+
