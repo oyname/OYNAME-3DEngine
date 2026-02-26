@@ -25,6 +25,8 @@ using Microsoft::WRL::ComPtr;
 
 #include <cstdint>
 
+#include "gxformat.h"
+
 inline std::string Ptr(const void* p)
 {
     std::ostringstream oss;
@@ -50,27 +52,7 @@ enum D3DVERTEX_FLAGS {
     D3DVERTEX_SPECULAR = (1 << 7),
 };
 
-enum GXFORMAT {
-    FORMAT_NONE = 0,
-    B8G8R8A8_UNORM = 1 << 0,
-    B8G8R8A8_UNORM_SRGB = 1 << 1,
-    R8G8B8A8_UNORM = 1 << 2,
-    R8G8B8A8_UNORM_SRGB = 1 << 3,
-    R16G16B16A16_FLOAT = 1 << 4,
-    R10G10B10A2_UNORM = 1 << 5,
-    R10G10B10_XR_BIAS_A2_UNORM = 1 << 6,
-};
 
-// Bitwise ops f�r GXFORMAT (GLOBAL, nicht in GXUTIL!)
-inline GXFORMAT operator|(GXFORMAT a, GXFORMAT b)
-{
-    return static_cast<GXFORMAT>(static_cast<int>(a) | static_cast<int>(b));
-}
-inline GXFORMAT& operator|=(GXFORMAT& a, GXFORMAT b)
-{
-    a = a | b;
-    return a;
-}
 
 
 // Common structs

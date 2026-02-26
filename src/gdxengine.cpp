@@ -168,6 +168,7 @@ HRESULT GDXEngine::Graphic(unsigned int width, unsigned int height, bool windowe
 		Debug::LogHr(__FILE__, __LINE__, hr);
 		return hr;
 	}
+	m_renderManager.EnsureBackend();
 
 	Memory::SafeRelease(adapter);
 

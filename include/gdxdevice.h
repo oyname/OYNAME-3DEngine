@@ -1,9 +1,41 @@
 ﻿#pragma once
 
-#include <d3d11.h>
-#include <dxgi.h>
+// NOTE:
+// gdxdevice.h is included by a lot of engine/public headers.
+// Keep it lean: no <d3d11.h>, no <dxgi.h>, no gdxutil.h.
+
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+
+#include <windows.h>      // HWND, HRESULT, UINT
 #include <vector>
-#include "gdxutil.h"  // ← WICHTIG: War vorher nicht included!
+
+#include <d3dcommon.h>    // D3D_FEATURE_LEVEL
+#include <dxgiformat.h>   // DXGI_FORMAT
+
+#include "gxformat.h"    // GXFORMAT (small, no DX headers)
+
+// Forward declarations for COM interfaces (avoid heavy DX includes here)
+struct ID3D11Device;
+struct ID3D11DeviceContext;
+struct ID3D11Texture2D;
+struct ID3D11DepthStencilState;
+struct ID3D11DepthStencilView;
+struct ID3D11RenderTargetView;
+struct ID3D11RasterizerState;
+struct ID3D11ShaderResourceView;
+struct ID3D11SamplerState;
+struct ID3D11Buffer;
+struct ID3D11VertexShader;
+struct ID3D11PixelShader;
+
+struct IDXGISwapChain;
+struct IDXGIFactory;
+struct IDXGIAdapter;
+
+// Forward declaration: DX11 backend (kept out of the public header to avoid DX includes)
+class Dx11RenderBackend;
 
 
 struct GXDEVICE
@@ -68,6 +100,10 @@ private:
 	// Initialization state
 	bool m_bInitialized;
 
+	// True once a D3D device + immediate context exist.
+	// (SwapChain/backbuffer may still be null until a window is created.)
+	bool m_deviceReady;
+
 	// Device and context
 	ID3D11Device* m_pd3dDevice;
 	ID3D11DeviceContext* m_pContext;
@@ -83,14 +119,9 @@ private:
 	ID3D11RenderTargetView* m_pRenderTargetView;
 	ID3D11RasterizerState* m_pRasterizerState;
 
-	// Shadow mapping
-	ID3D11Texture2D* m_pShadowMap;
-	ID3D11ShaderResourceView* m_pShadowMapSRView;
-	ID3D11DepthStencilView* m_pShadowMapDepthView;
-	ID3D11RenderTargetView* m_pShadowTargetView;
-	ID3D11RasterizerState* m_pShadowRenderState;
-	ID3D11SamplerState* m_pComparisonSampler_point;
-	ID3D11Buffer* m_shadowMatrixBuffer;
+	// Step 3: Shadow mapping resources are owned by the DX11 backend.
+	// GDXDevice keeps API-stable getters that delegate to the backend.
+	Dx11RenderBackend* m_dx11Backend = nullptr; // non-owning
 
 	// Private initialization methods
 	HRESULT EnumerateSystemDevices();
@@ -101,17 +132,16 @@ private:
 	HRESULT CreateRasterizerState();
 	HRESULT CreateDepthStencilState();
 
-	// Shadow map creation
-	HRESULT CreateShadowMapTexture(UINT width, UINT height);
-	HRESULT CreateResourceViews();
-	HRESULT CreateComparisonStatus();
-	HRESULT CreateRenderStats();
-	HRESULT CreateShadowMatrixBuffer();
+	// Shadow map creation is delegated to the backend (see CreateShadowBuffer wrapper).
 
 	// Window management
 	void ResizeWindow(HWND hwnd, unsigned int x, unsigned int y, bool windowed);
 
 	friend class GDXEngine;
+	friend class Dx11RenderBackend;
+
+	// Called by Dx11RenderBackend to register itself for delegation.
+	void AttachDx11Backend(Dx11RenderBackend* backend) noexcept { m_dx11Backend = backend; }
 
 public:
 	DEVICEMANAGER deviceManager;  // ← Bleibt hier
@@ -192,45 +222,31 @@ public:
 	}
 
 	ID3D11DepthStencilView* GetShadowMapDepthView() const
-	{
-		return m_pShadowMapDepthView;
-	}
+	;
 
 	ID3D11ShaderResourceView* GetShadowMapSRV() const
-	{
-		return m_pShadowMapSRView;
-	}
+	;
 
 	ID3D11SamplerState* GetComparisonSampler() const
-	{
-		return m_pComparisonSampler_point;
-	}
+	;
 
 	ID3D11RasterizerState* GetShadowRasterState() const
-	{
-		return m_pShadowRenderState;
-	}
+	;
 
 	ID3D11Buffer* GetShadowMatrixBuffer() const
-	{
-		return m_shadowMatrixBuffer;
-	}
+	;
 
 	// Shadow map dimensions (queried from the texture).
 	// Returns (0,0) if the shadow map is not created.
-	void GetShadowMapSize(UINT& outWidth, UINT& outHeight) const
-	{
-		outWidth = 0;
-		outHeight = 0;
-		if (!m_pShadowMap) return;
-		D3D11_TEXTURE2D_DESC desc{};
-		m_pShadowMap->GetDesc(&desc);
-		outWidth = desc.Width;
-		outHeight = desc.Height;
-	}
+	void GetShadowMapSize(UINT& outWidth, UINT& outHeight) const;
 
 	bool IsInitialized() const
 	{
 		return m_bInitialized;
+	}
+
+	bool IsDeviceReady() const noexcept
+	{
+		return m_deviceReady;
 	}
 };

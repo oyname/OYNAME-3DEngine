@@ -1,4 +1,5 @@
 #include "Dx11RenderBackend.h"
+#include "Dx11ShadowMap.h"
 #include "gdxdevice.h"
 #include "Entity.h"
 #include "ShadowMapTarget.h"
@@ -10,6 +11,43 @@
 #ifndef SHADOW_TEX_SLOT
 #define SHADOW_TEX_SLOT 7
 #endif
+
+Dx11RenderBackend::Dx11RenderBackend(GDXDevice& device)
+{
+    m_device = &device;
+    device.AttachDx11Backend(this);
+    m_shadow = std::make_unique<Dx11ShadowMap>();
+}
+
+Dx11RenderBackend::~Dx11RenderBackend()
+{
+    if (m_shadow) m_shadow->Release();
+}
+
+Dx11ShadowMap& Dx11RenderBackend::GetShadow()
+{
+    return *m_shadow;
+}
+
+const Dx11ShadowMap& Dx11RenderBackend::GetShadow() const
+{
+    return *m_shadow;
+}
+
+bool Dx11RenderBackend::EnsureShadowCreated(GDXDevice& device, unsigned int width, unsigned int height)
+{
+    if (!m_shadow) m_shadow = std::make_unique<Dx11ShadowMap>();
+
+    const unsigned int size = width; // keep behaviour: square shadow map
+    (void)height;
+
+    if (m_shadow->GetSize() == size && m_shadow->GetDSV() && m_shadow->GetSRV())
+        return true;
+
+    ID3D11Device* dev = device.GetDevice();
+    if (!dev) return false;
+    return m_shadow->Create(dev, size);
+}
 
 void Dx11RenderBackend::BindEntityConstants(GDXDevice& device, const Entity& entity)
 {
@@ -95,44 +133,69 @@ void Dx11RenderBackend::BindShadowResourcesPS(GDXDevice& device, ShadowMapTarget
 // Schritt 2: RenderTargets (Bind/Clear/Viewport) - copy + redirect
 // -----------------------------
 
-void Dx11RenderBackend::BeginShadowPass(GDXDevice& device, ShadowMapTarget& shadowTarget)
+void Dx11RenderBackend::BeginShadowPass()
 {
-    (void)shadowTarget; // aktuell nur als "Handle"/Tag
-
-    if (!device.IsInitialized()) return;
-    ID3D11DeviceContext* ctx = device.GetDeviceContext();
-    ID3D11DepthStencilView* shadowDSV = device.GetShadowMapDepthView();
-    if (!ctx || !shadowDSV) return;
+    if (!m_device || !m_device->IsInitialized()) return;
+    ID3D11DeviceContext* ctx = m_device->GetDeviceContext();
+    if (!ctx) return;
 
     // SRV-Hazard verhindern: Shadow-Slot freigeben bevor als DSV genutzt
     ID3D11ShaderResourceView* nullSRV[1] = { nullptr };
     ctx->PSSetShaderResources(SHADOW_TEX_SLOT, 1, nullSRV);
     ctx->VSSetShaderResources(SHADOW_TEX_SLOT, 1, nullSRV);
 
-    // Depth-only: kein Color-RTV
-    ctx->OMSetRenderTargets(0, nullptr, shadowDSV);
-
-    // Clear
-    ctx->ClearDepthStencilView(shadowDSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
-
     // Kein Pixel-Shader nötig (Depth-only Pass)
     ctx->PSSetShader(nullptr, nullptr, 0);
 
-    // Pipeline-State fuer Shadow-Pass
-    if (ID3D11RasterizerState* rsShadow = device.GetShadowRasterState())
-        ctx->RSSetState(rsShadow);
+    // Shadow bind/clear/viewport/RS in one place.
+    if (m_shadow) m_shadow->Begin(ctx);
+}
 
-    // Shadow-Viewport
-    UINT smW = 0, smH = 0;
-    device.GetShadowMapSize(smW, smH);
-    if (smW == 0 || smH == 0) return;
+void Dx11RenderBackend::EndShadowPass()
+{
+    if (!m_device || !m_device->IsInitialized()) return;
+    ID3D11DeviceContext* ctx = m_device->GetDeviceContext();
+    if (!ctx) return;
 
-    D3D11_VIEWPORT vp{};
-    vp.Width    = static_cast<float>(smW);
-    vp.Height   = static_cast<float>(smH);
-    vp.MinDepth = 0.0f;
-    vp.MaxDepth = 1.0f;
-    ctx->RSSetViewports(1, &vp);
+    ID3D11RenderTargetView* rtv = m_device->GetRenderTargetView();
+    ID3D11DepthStencilView* dsv = m_device->GetDepthStencilView();
+    if (rtv && dsv)
+        ctx->OMSetRenderTargets(1, &rtv, dsv);
+
+    // Viewport zurück auf Backbuffer
+    UINT w = 0, h = 0;
+    if (ID3D11Texture2D* bb = m_device->GetBackBuffer())
+    {
+        D3D11_TEXTURE2D_DESC desc{};
+        bb->GetDesc(&desc);
+        w = desc.Width;
+        h = desc.Height;
+    }
+    if (w > 0 && h > 0)
+    {
+        D3D11_VIEWPORT vp{};
+        vp.TopLeftX = 0.0f;
+        vp.TopLeftY = 0.0f;
+        vp.Width    = (float)w;
+        vp.Height   = (float)h;
+        vp.MinDepth = 0.0f;
+        vp.MaxDepth = 1.0f;
+        ctx->RSSetViewports(1, &vp);
+    }
+
+    // Standard RS wieder setzen
+    if (ID3D11RasterizerState* rs = m_device->GetRasterizerState())
+        ctx->RSSetState(rs);
+    else
+        ctx->RSSetState(nullptr);
+}
+
+// Legacy (kept)
+void Dx11RenderBackend::BeginShadowPass(GDXDevice& device, ShadowMapTarget& shadowTarget)
+{
+    (void)device;
+    (void)shadowTarget;
+    BeginShadowPass();
 }
 
 void Dx11RenderBackend::BeginMainPass(

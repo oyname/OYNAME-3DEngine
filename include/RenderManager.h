@@ -10,6 +10,7 @@
 #include <memory>
 
 class IRenderBackend;
+class Dx11RenderBackend;
 
 class RenderManager
 {
@@ -29,6 +30,8 @@ public:
     // Setzt den aktiven RTT-Target und optional eine andere Kamera für den Pass.
     // Wenn rtt == nullptr, wird bei RenderNormalPass wieder der Backbuffer verwendet.
     void SetRTTTarget(RenderTextureTarget* rtt, LPENTITY rttCamera = nullptr);
+
+    void EnsureBackend();
 
 private:
     RenderQueue m_opaque;

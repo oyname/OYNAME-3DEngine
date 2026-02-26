@@ -10,7 +10,7 @@ RenderManager::RenderManager(ObjectManager& objectManager, LightManager& lightMa
     m_currentCam(nullptr), m_directionLight(nullptr)
 {
     // Schritt 1: DX11-Backend verwenden (copy + redirect, keine Behaviour-Aenderung)
-    m_backend = std::make_unique<Dx11RenderBackend>();
+    //m_backend = std::make_unique<Dx11RenderBackend>(m_device);
 
     Debug::Log("RenderManager.cpp: RenderManager erstellt - ShadowMapTarget + BackbufferTarget initialisiert");
 }
@@ -50,7 +50,7 @@ void RenderManager::RenderShadowPass()
     if (!light) return;
 
     // Schritt 2: RenderTargets ins Backend verschoben (copy + redirect, keine Behaviour-Aenderung)
-    if (m_backend) m_backend->BeginShadowPass(m_device, m_shadowTarget);
+    if (m_backend) m_backend->BeginShadowPass();
 
     const DirectX::XMMATRIX lightViewMatrix = light->GetLightViewMatrix();
     const DirectX::XMMATRIX lightProjMatrix = light->GetLightProjectionMatrix();
@@ -87,6 +87,9 @@ void RenderManager::RenderShadowPass()
             s->gpu->Draw(&m_device, shader->flagsVertex);
         }
     }
+
+    if (m_backend) m_backend->EndShadowPass();
+
 }
 
 void RenderManager::RenderNormalPass()
@@ -227,6 +230,17 @@ void RenderManager::RenderScene()
     if (!m_currentCam)
         return;
 
+    //if (!m_backend)
+    //{
+    //    if (!m_device.GetDevice() || !m_device.GetDeviceContext())
+    //    {
+    //        Debug::LogError("RenderManager::EnsureBackend - device not ready");
+    //        return;
+    //    }
+    //
+    //    m_backend = std::make_unique<Dx11RenderBackend>(m_device);
+    //}
+
     // Wenn RTT aktiv, temporaer auf RTT-Kamera umschalten (falls gesetzt)
     LPENTITY savedCam = m_currentCam;
     if (m_activeRTT && m_rttCamera)
@@ -245,4 +259,19 @@ void RenderManager::RenderScene()
 
     // Kamera wiederherstellen
     m_currentCam = savedCam;
+}
+
+void RenderManager::EnsureBackend()
+{
+    if (m_backend)
+        return;
+
+    // Device muss bereits existieren (nach InitializeDirectX)
+    if (!m_device.GetDevice() || !m_device.GetDeviceContext())
+    {
+        Debug::LogError("RenderManager::EnsureBackend - device/context not ready.");
+        return;
+    }
+
+    m_backend = std::make_unique<Dx11RenderBackend>(m_device);
 }

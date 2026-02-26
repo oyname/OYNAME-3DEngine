@@ -33,7 +33,16 @@ public:
     virtual void BindShadowResourcesPS(GDXDevice& device, ShadowMapTarget& shadowTarget) = 0;
 
     // Step 2
-    virtual void BeginShadowPass(GDXDevice& device, ShadowMapTarget& shadowTarget) = 0;
+    // New: ShadowPass begin/end owned by backend (setup + restore).
+    virtual void BeginShadowPass() = 0;
+    virtual void EndShadowPass() = 0;
+
+    // Legacy (kept for compatibility)
+    virtual void BeginShadowPass(GDXDevice& device, ShadowMapTarget& shadowTarget)
+    {
+        (void)device; (void)shadowTarget;
+        BeginShadowPass();
+    }
 
     virtual void BeginMainPass(
         GDXDevice& device,

@@ -1,24 +1,20 @@
 ﻿#include "gdxutil.h"
 #include "gdxdevice.h"
-
+#include "Dx11RenderBackend.h" 
+  
 
 GDXDevice::GDXDevice() : m_bInitialized(false),
-m_pd3dDevice(nullptr),
-m_pContext(nullptr),
-m_pSwapChain(nullptr),
-m_depthStencilBuffer(nullptr),
-m_depthStencilView(nullptr),
-m_pBackBuffer(nullptr),
-m_pRenderTargetView(nullptr),
-m_pShadowRenderState(nullptr),
-m_pComparisonSampler_point(nullptr),
-m_depthStencilState(nullptr),
-m_pRasterizerState(nullptr),
-m_pShadowMap(nullptr),
-m_pShadowMapSRView(nullptr),
-m_pShadowMapDepthView(nullptr),
-m_pShadowTargetView(nullptr),
-m_shadowMatrixBuffer(nullptr)
+    m_deviceReady(false),
+    m_pd3dDevice(nullptr),
+    m_pContext(nullptr),
+    m_pSwapChain(nullptr),
+    m_pBackBuffer(nullptr),
+    m_depthStencilBuffer(nullptr),
+    m_depthStencilState(nullptr),
+    m_depthStencilView(nullptr),
+    m_pRenderTargetView(nullptr),
+    m_pRasterizerState(nullptr),
+    m_dx11Backend(nullptr)
 {
 }
 
@@ -42,21 +38,54 @@ void GDXDevice::Release()
         Memory::SafeRelease(m_depthStencilState);
         Memory::SafeRelease(m_depthStencilView);
         Memory::SafeRelease(m_pRenderTargetView);
-        Memory::SafeRelease(m_pShadowMap);
-        Memory::SafeRelease(m_pShadowMapSRView);
-        Memory::SafeRelease(m_pShadowMapDepthView);
         Memory::SafeRelease(m_pRasterizerState);
-        Memory::SafeRelease(m_pShadowRenderState);
-        Memory::SafeRelease(m_pComparisonSampler_point);
-        Memory::SafeRelease(m_shadowMatrixBuffer);
+
+        // Shadow resources are owned by the DX11 backend.
     }
 
     m_bInitialized = false;
+    m_deviceReady = false;
 }
 
 HRESULT GDXDevice::Init()
 {
     return EnumerateSystemDevices();
+}
+
+void GDXDevice::GetShadowMapSize(UINT& outWidth, UINT& outHeight) const
+{
+    outWidth = 0;
+    outHeight = 0;
+
+    if (!m_dx11Backend) return;
+    const UINT s = m_dx11Backend->GetShadow().GetSize();
+    outWidth = s;
+    outHeight = s;
+}
+
+ID3D11DepthStencilView* GDXDevice::GetShadowMapDepthView() const
+{
+    return (m_dx11Backend) ? m_dx11Backend->GetShadow().GetDSV() : nullptr;
+}
+
+ID3D11ShaderResourceView* GDXDevice::GetShadowMapSRV() const
+{
+    return (m_dx11Backend) ? m_dx11Backend->GetShadow().GetSRV() : nullptr;
+}
+
+ID3D11SamplerState* GDXDevice::GetComparisonSampler() const
+{
+    return (m_dx11Backend) ? m_dx11Backend->GetShadow().GetSampler() : nullptr;
+}
+
+ID3D11RasterizerState* GDXDevice::GetShadowRasterState() const
+{
+    return (m_dx11Backend) ? m_dx11Backend->GetShadow().GetRasterState() : nullptr;
+}
+
+ID3D11Buffer* GDXDevice::GetShadowMatrixBuffer() const
+{
+    return (m_dx11Backend) ? m_dx11Backend->GetShadow().GetMatrixCB() : nullptr;
 }
 
 HRESULT GDXDevice::EnumerateSystemDevices()
@@ -157,6 +186,9 @@ HRESULT GDXDevice::InitializeDirectX(IDXGIAdapter* adapter, D3D_FEATURE_LEVEL* f
     if (!adapter || !featureLevel)
         return E_INVALIDARG;
 
+    // Keep state consistent if re-initialized.
+    m_deviceReady = false;
+
     HRESULT hr = S_OK;
 
     // Create the Direct3D device with single feature level
@@ -178,6 +210,7 @@ HRESULT GDXDevice::InitializeDirectX(IDXGIAdapter* adapter, D3D_FEATURE_LEVEL* f
         return hr;
     }
 
+    m_deviceReady = (m_pd3dDevice != nullptr) && (m_pContext != nullptr);
     return hr;
 }
 
@@ -337,47 +370,18 @@ cleanup:
 
 HRESULT GDXDevice::CreateShadowBuffer(unsigned int width, unsigned int height)
 {
-    if (width == 0 || height == 0 || !m_pd3dDevice)
+    if (width == 0 || height == 0)
         return E_INVALIDARG;
 
-    HRESULT hr = S_OK;
+    // Step 3: shadow resources are created/owned by the DX11 backend.
+    if (!m_dx11Backend)
+    {
+        Debug::LogError("gdxdevice.cpp: CreateShadowBuffer called but no DX11 backend is attached.");
+        return E_FAIL;
+    }
 
-    // Create shadow map texture
-    hr = CreateShadowMapTexture(width, height);
-    if (FAILED(hr))
-        return hr;
-
-    // Create resource views
-    hr = CreateResourceViews();
-    if (FAILED(hr))
-        goto cleanup;
-
-    // Create comparison sampler
-    hr = CreateComparisonStatus();
-    if (FAILED(hr))
-        goto cleanup;
-
-    // Create render state for shadow pass
-    hr = CreateRenderStats();
-    if (FAILED(hr))
-        goto cleanup;
-
-    // Create shadow matrix constant buffer (b3)
-    hr = CreateShadowMatrixBuffer();
-    if (FAILED(hr))
-        goto cleanup;
-
-    Debug::Log("gdxdevice.cpp: Shadow Buffer complete (Texture + DSV + SRV + Sampler + RasterState + MatrixBuffer)");
-    return hr;
-
-cleanup:
-    Memory::SafeRelease(m_pShadowMap);
-    Memory::SafeRelease(m_pShadowMapDepthView);
-    Memory::SafeRelease(m_pShadowMapSRView);
-    Memory::SafeRelease(m_pComparisonSampler_point);
-    Memory::SafeRelease(m_pShadowRenderState);
-    Memory::SafeRelease(m_shadowMatrixBuffer);
-    return hr;
+    const bool ok = m_dx11Backend->EnsureShadowCreated(*this, width, height);
+    return ok ? S_OK : E_FAIL;
 }
 
 HRESULT GDXDevice::CreateDepthTexture(unsigned int width, unsigned int height)
@@ -473,224 +477,5 @@ HRESULT GDXDevice::CreateDepthStencilState()
     return hr;
 }
 
-HRESULT GDXDevice::CreateShadowMapTexture(UINT width, UINT height)
-{
-    if (!m_pd3dDevice)
-        return E_INVALIDARG;
-
-    HRESULT hr = S_OK;
-
-    Debug::Log("gdxdevice.cpp: Creating Shadow Map Texture: ", width, "x", height);
-
-    D3D11_TEXTURE2D_DESC shadowMapDesc;
-    ZeroMemory(&shadowMapDesc, sizeof(shadowMapDesc));
-
-    shadowMapDesc.Width = width;
-    shadowMapDesc.Height = height;
-    shadowMapDesc.MipLevels = 1;
-    shadowMapDesc.ArraySize = 1;
-
-    // WICHTIG: Format für bessere Tiefengenauigkeit
-    // R24G8_TYPELESS: 24-bit Depth + 8-bit Stencil (Standard, gut genug)
-    // R32_TYPELESS: 32-bit Depth (noch besser, aber größer)
-    // Wir nutzen R32 für höhere Genauigkeit
-    shadowMapDesc.Format = DXGI_FORMAT_R32_TYPELESS;
-
-    shadowMapDesc.SampleDesc.Count = 1;
-    shadowMapDesc.SampleDesc.Quality = 0;
-    shadowMapDesc.Usage = D3D11_USAGE_DEFAULT;
-
-    // ← WICHTIG: Depth-Stencil + Shader Resource Flags
-    shadowMapDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
-
-    shadowMapDesc.CPUAccessFlags = 0;
-    shadowMapDesc.MiscFlags = 0;
-
-    hr = m_pd3dDevice->CreateTexture2D(&shadowMapDesc, NULL, &m_pShadowMap);
-    if (FAILED(hr))
-    {
-        Debug::LogError("gdxdevice.cpp: Failed to create Shadow Map Texture: ", hr);
-        return hr;
-    }
-
-    Debug::Log("gdxdevice.cpp: Shadow Map Texture created successfully");
-    return hr;
-}
-
-HRESULT GDXDevice::CreateResourceViews()
-{
-    if (!m_pd3dDevice || !m_pShadowMap)
-        return E_INVALIDARG;
-
-    HRESULT hr = S_OK;
-
-    Debug::Log("gdxdevice.cpp: Creating Depth Stencil View for Shadow Map...");
-
-    D3D11_DEPTH_STENCIL_VIEW_DESC dsvDesc;
-    ZeroMemory(&dsvDesc, sizeof(dsvDesc));
-
-    // Format muss mit der Texture TYPELESS kompatibel sein
-    // Wenn Texture R32_TYPELESS ist → D32_FLOAT
-    // Wenn Texture R24G8_TYPELESS ist → D24_UNORM_S8_UINT
-    dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;  // ← Muss float sein für gute Genauigkeit!
-
-    dsvDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
-    dsvDesc.Texture2D.MipSlice = 0;
-
-    hr = m_pd3dDevice->CreateDepthStencilView(m_pShadowMap, &dsvDesc, &m_pShadowMapDepthView);
-    if (FAILED(hr))
-    {
-        Debug::LogError("gdxdevice.cpp: Failed to create Shadow Map DSV: ", hr);
-        return hr;
-    }
-
-    Debug::Log("gdxdevice.cpp: Depth Stencil View created successfully");
-
-    Debug::Log("gdxdevice.cpp: Creating Shader Resource View for Shadow Map...");
-
-    D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
-    ZeroMemory(&srvDesc, sizeof(srvDesc));
-
-    // Format muss mit der Texture TYPELESS kompatibel sein
-    // Wenn Texture R32_TYPELESS ist → R32_FLOAT
-    // Wenn Texture R24G8_TYPELESS ist → R24_UNORM_X8_TYPELESS
-    srvDesc.Format = DXGI_FORMAT_R32_FLOAT;  // ← Muss float sein!
-
-    srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-    srvDesc.Texture2D.MostDetailedMip = 0;
-    srvDesc.Texture2D.MipLevels = 1;
-
-    hr = m_pd3dDevice->CreateShaderResourceView(m_pShadowMap, &srvDesc, &m_pShadowMapSRView);
-    if (FAILED(hr))
-    {
-        Debug::LogError("gdxdevice.cpp: Failed to create Shadow Map SRV: ", hr);
-        Memory::SafeRelease(m_pShadowMapDepthView);
-        return hr;
-    }
-
-    Debug::Log("gdxdevice.cpp: Shader Resource View created successfully");
-    return hr;
-}
-
-HRESULT GDXDevice::CreateComparisonStatus()
-{
-    if (!m_pd3dDevice)
-        return E_INVALIDARG;
-
-    HRESULT hr = S_OK;
-
-    Debug::Log("gdxdevice.cpp: Creating Comparison Sampler for PCF...");
-
-    D3D11_SAMPLER_DESC comparisonSamplerDesc;
-    ZeroMemory(&comparisonSamplerDesc, sizeof(comparisonSamplerDesc));
-
-    // ← WICHTIG: COMPARISON Filter für PCF!
-    // POINT: Kein Filtering (schnell, aber qualitativ schlechter)
-    // LINEAR: Bilinear PCF (bessere Qualität, empfohlen)
-    comparisonSamplerDesc.Filter = D3D11_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
-
-    // Texture Addressing: CLAMP damit außerhalb der Shadow Map = nicht im Schatten
-    comparisonSamplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
-    comparisonSamplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
-    comparisonSamplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
-
-    // Wenn außerhalb: Border Color = 1.0 (hell, nicht im Schatten)
-    comparisonSamplerDesc.BorderColor[0] = 1.0f;
-    comparisonSamplerDesc.BorderColor[1] = 1.0f;
-    comparisonSamplerDesc.BorderColor[2] = 1.0f;
-    comparisonSamplerDesc.BorderColor[3] = 1.0f;
-
-    // LOD Settings
-    comparisonSamplerDesc.MinLOD = 0.0f;
-    comparisonSamplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
-    comparisonSamplerDesc.MipLODBias = 0.0f;
-    comparisonSamplerDesc.MaxAnisotropy = 1;
-
-    // ← WICHTIG: Comparison Function
-    // LESS: Wenn Depth < Sample dann im Licht (Standard)
-    // LESS_EQUAL: Leichte Variante
-    comparisonSamplerDesc.ComparisonFunc = D3D11_COMPARISON_LESS;
-
-    hr = m_pd3dDevice->CreateSamplerState(&comparisonSamplerDesc, &m_pComparisonSampler_point);
-    if (FAILED(hr))
-    {
-        Debug::LogError("gdxdevice.cpp: Failed to create Comparison Sampler: ", hr);
-        return hr;
-    }
-
-    Debug::Log("gdxdevice.cpp: Comparison Sampler created successfully (PCF enabled)");
-    return hr;
-}
-
-HRESULT GDXDevice::CreateRenderStats()
-{
-    if (!m_pd3dDevice)
-        return E_INVALIDARG;
-
-    HRESULT hr = S_OK;
-
-    Debug::Log("gdxdevice.cpp: Creating Rasterizer State for Shadow Pass...");
-
-    D3D11_RASTERIZER_DESC shadowRenderStateDesc;
-    ZeroMemory(&shadowRenderStateDesc, sizeof(shadowRenderStateDesc));
-
-    // Fill Mode
-    shadowRenderStateDesc.FillMode = D3D11_FILL_SOLID;
-
-    // ← WICHTIG: FRONT CULLING, nicht BACK!
-    // Das verhindert Self-Shadowing und ist wichtig für Shadow Mapping
-    shadowRenderStateDesc.CullMode = D3D11_CULL_FRONT;
-
-    shadowRenderStateDesc.FrontCounterClockwise = FALSE;
-
-    // ← OPTIONAL: Depth Bias zur Shadow Acne Vermeidung
-    // Alternativ: Bias im Shader berechnen (mehr Kontrolle)
-    shadowRenderStateDesc.DepthBias = 0;  // Oder: 100000
-    shadowRenderStateDesc.DepthBiasClamp = 0.0f;
-    shadowRenderStateDesc.SlopeScaledDepthBias = 1.5f;  // Wichtig!
-
-    shadowRenderStateDesc.DepthClipEnable = TRUE;
-    shadowRenderStateDesc.ScissorEnable = FALSE;
-    shadowRenderStateDesc.MultisampleEnable = FALSE;
-    shadowRenderStateDesc.AntialiasedLineEnable = FALSE;
-
-    hr = m_pd3dDevice->CreateRasterizerState(&shadowRenderStateDesc, &m_pShadowRenderState);
-    if (FAILED(hr))
-    {
-        Debug::LogError("gdxdevice.cpp: Failed to create Shadow Rasterizer State: ", hr);
-        return hr;
-    }
-
-    Debug::Log("gdxdevice.cpp: Shadow Rasterizer State created successfully (Front Face Culling enabled)");
-    return hr;
-}
-
-
-HRESULT GDXDevice::CreateShadowMatrixBuffer()
-{
-    if (!m_pd3dDevice)
-        return E_INVALIDARG;
-
-    // Two matrices (view + projection) = 2 * 64 bytes = 128 bytes (16-byte aligned)
-    D3D11_BUFFER_DESC bd{};
-    bd.Usage = D3D11_USAGE_DYNAMIC;
-    bd.ByteWidth = 128;
-    bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-    bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-
-    // Wichtig: auf nullptr setzen oder vorher releasen
-    if (m_shadowMatrixBuffer) {
-        m_shadowMatrixBuffer->Release();
-        m_shadowMatrixBuffer = nullptr;
-    }
-
-    HRESULT hr = m_pd3dDevice->CreateBuffer(&bd, nullptr, &m_shadowMatrixBuffer);
-    if (FAILED(hr))
-    {
-        Debug::LogError("gdxdevice.cpp: Failed to create Shadow Matrix constant buffer: ", hr);
-        return hr;
-    }
-
-    Debug::Log("gdxdevice.cpp: Shadow Matrix constant buffer created successfully (b3)");
-    return S_OK;
-}
+// Step 3:
+// Shadow resource creation moved to Dx11ShadowMap (owned by Dx11RenderBackend).

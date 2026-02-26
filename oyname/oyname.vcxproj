@@ -48,8 +48,8 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\examples\Multisurfaceexample.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\examples\Multitextur.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
@@ -60,8 +60,8 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\examples\MultitexturRTTExample.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\examples\Performance.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
@@ -97,6 +97,7 @@
     <ClCompile Include="..\src\CameraManager.cpp" />
     <ClCompile Include="..\src\core.cpp" />
     <ClCompile Include="..\src\Dx11RenderBackend.cpp" />
+    <ClCompile Include="..\src\Dx11ShadowMap.cpp" />
     <ClCompile Include="..\src\Entity.cpp" />
     <ClCompile Include="..\src\gdxdevice.cpp" />
     <ClCompile Include="..\src\gdxengine.cpp" />
@@ -135,6 +136,7 @@
     <ClInclude Include="..\include\CameraManager.h" />
     <ClInclude Include="..\include\core.h" />
     <ClInclude Include="..\include\Dx11RenderBackend.h" />
+    <ClInclude Include="..\include\Dx11ShadowMap.h" />
     <ClInclude Include="..\include\Entity.h" />
     <ClInclude Include="..\include\gdxdevice.h" />
     <ClInclude Include="..\include\gdxengine.h" />
@@ -143,6 +145,7 @@
     <ClInclude Include="..\include\GeometryHelper.h" />
     <ClInclude Include="..\include\gidx.h" />
     <ClInclude Include="..\include\gdxwin.h" />
+    <ClInclude Include="..\include\gxformat.h" />
     <ClInclude Include="..\include\IGpuResource.h" />
     <ClInclude Include="..\include\InputLayoutManager.h" />
     <ClInclude Include="..\include\IRenderBackend.h" />
@@ -167,6 +170,7 @@
     <ClInclude Include="..\include\TextureManager.h" />
     <ClInclude Include="..\include\Timer.h" />
     <ClInclude Include="..\include\Transform.h" />
+    <ClInclude Include="..\include\Viewport.h" />
     <ClInclude Include="..\third_party\stb_image.h" />
   </ItemGroup>
   <ItemGroup>
