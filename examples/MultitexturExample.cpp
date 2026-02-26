@@ -49,7 +49,7 @@ int main()
 
     Engine::MaterialColor(material, 1.0f, 1.0f, 1.0f);    // Diffuse-Farbe
     Engine::MaterialShininess(material, 100.0f);            // Specular-Schärfe
-    Engine::MaterialBlendMode(material, 1);      // multiply
+    Engine::MaterialBlendMode(material, 5);      // multiply
     Engine::MaterialBlendFactor(material, 0.0f); // 35% Einfluss der 2. Textur
 
     LPENTITY light = nullptr;

@@ -87,22 +87,7 @@
     <ClCompile Include="..\src\Texture.cpp">
       <Filter>01 Engine\scene</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\RenderCommand.cpp">
-      <Filter>01 Engine\render</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\RenderManager.cpp">
-      <Filter>01 Engine\render</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ShadowMapTarget.cpp">
-      <Filter>01 Engine\render</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\RenderTextureTarget.cpp">
-      <Filter>01 Engine\render</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\SurfaceGpuBuffer.cpp">
-      <Filter>01 Engine\render</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\BackbufferTarget.cpp">
       <Filter>01 Engine\render</Filter>
     </ClCompile>
     <ClCompile Include="..\src\Dx11RenderBackend.cpp">
@@ -189,6 +174,21 @@
     <ClCompile Include="..\src\main.cpp">
       <Filter>01 Engine\platform</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\BackbufferTarget.cpp">
+      <Filter>01 Engine\backend</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ShadowMapTarget.cpp">
+      <Filter>01 Engine\backend</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\RenderTextureTarget.cpp">
+      <Filter>01 Engine\backend</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\SurfaceGpuBuffer.cpp">
+      <Filter>01 Engine\backend</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\RenderCommand.cpp">
+      <Filter>01 Engine\render</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\examples\Neontimebuffer.h">
@@ -236,31 +236,13 @@
     <ClInclude Include="..\include\Texture.h">
       <Filter>01 Engine\scene</Filter>
     </ClInclude>
-    <ClInclude Include="..\include\RenderCommand.h">
-      <Filter>01 Engine\render</Filter>
-    </ClInclude>
     <ClInclude Include="..\include\RenderManager.h">
-      <Filter>01 Engine\render</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\ShadowMapTarget.h">
       <Filter>01 Engine\render</Filter>
     </ClInclude>
     <ClInclude Include="..\include\RenderQueue.h">
       <Filter>01 Engine\render</Filter>
     </ClInclude>
     <ClInclude Include="..\include\RenderLayers.h">
-      <Filter>01 Engine\render</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\RenderTextureTarget.h">
-      <Filter>01 Engine\render</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\SurfaceGpuBuffer.h">
-      <Filter>01 Engine\render</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\BackbufferTarget.h">
-      <Filter>01 Engine\render</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\IRenderTarget.h">
       <Filter>01 Engine\render</Filter>
     </ClInclude>
     <ClInclude Include="..\include\IRenderBackend.h">
@@ -310,6 +292,24 @@
     </ClInclude>
     <ClInclude Include="..\include\main.h">
       <Filter>01 Engine\platform</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\BackbufferTarget.h">
+      <Filter>01 Engine\backend</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\ShadowMapTarget.h">
+      <Filter>01 Engine\backend</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\RenderTextureTarget.h">
+      <Filter>01 Engine\backend</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\SurfaceGpuBuffer.h">
+      <Filter>01 Engine\backend</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\IRenderTarget.h">
+      <Filter>01 Engine\backend</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\RenderCommand.h">
+      <Filter>01 Engine\render</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

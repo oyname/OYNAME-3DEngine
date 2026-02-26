@@ -10,6 +10,8 @@ public:
     Dx11RenderBackend() = default;
     ~Dx11RenderBackend() override = default;
 
+    void BindEntityConstants(GDXDevice& device, const Entity& entity) override;
+
     // Step 1
     void UpdateShadowMatrixBuffer(
         GDXDevice& device,
@@ -26,7 +28,7 @@ public:
     void BeginMainPass(
         GDXDevice& device,
         BackbufferTarget& backbufferTarget,
-        const D3D11_VIEWPORT& cameraViewport) override;
+        const Viewport& cameraViewport) override;
 
     void BeginRttPass(GDXDevice& device, RenderTextureTarget& rttTarget) override;
 };

@@ -8,6 +8,7 @@ class Shader;
 class Material;
 class Mesh;
 class Surface;
+class IRenderBackend;
 
 // RenderQueue: flache Liste von RenderCommands.
 //
@@ -27,7 +28,8 @@ struct RenderQueue
     }
 
     void Submit(Shader* shader, int flagsVertex, Material* material,
-                Mesh* mesh, Surface* surface, const DirectX::XMMATRIX& world)
+                Mesh* mesh, Surface* surface, const DirectX::XMMATRIX& world,
+                IRenderBackend* backend)
     {
         RenderCommand cmd;
         cmd.mesh        = mesh;
@@ -36,6 +38,7 @@ struct RenderQueue
         cmd.shader      = shader;
         cmd.material    = material;
         cmd.flagsVertex = flagsVertex;
+        cmd.backend     = backend;
         commands.push_back(cmd);
     }
 

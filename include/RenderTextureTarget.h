@@ -26,11 +26,9 @@ public:
     // Alle Ressourcen freigeben.
     void Release();
 
-    // RenderTarget interface
-    void Bind()  override;
-    void Clear() override;
-    void UnbindFromShader(unsigned int slot = 0) override;
-    ID3D11ShaderResourceView* GetSRV() const override;
+    // Schritt 2: Bind/Clear/Viewport passieren im Backend.
+    // RenderTextureTarget liefert nur noch die nativen Handles/Infos.
+    void* GetNativeShaderResourceView() const override;
 
     // Gibt den Texture*-Wrapper zurück, der denselben SRV enthält.
     // Direkt nutzbar mit Engine::MaterialTexture(mat, GetTextureWrapper()).
@@ -38,6 +36,10 @@ public:
 
     UINT GetWidth()  const { return m_width; }
     UINT GetHeight() const { return m_height; }
+
+    ID3D11RenderTargetView*   GetRTV() const { return m_rttRTV; }
+    ID3D11DepthStencilView*   GetDSV() const { return m_depthView; }
+    const float*              GetClearColor() const { return m_clearColor; }
 
     // Viewport für den RTT-Pass (automatisch auf m_width x m_height gesetzt nach Create)
     D3D11_VIEWPORT GetViewport() const;

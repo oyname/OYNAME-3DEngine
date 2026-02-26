@@ -1,5 +1,6 @@
 #include "gdxengine.h"
 #include "RenderManager.h"
+#include "Viewport.h"
 #include "Light.h"
 
 #include "Dx11RenderBackend.h"
@@ -8,9 +9,6 @@ RenderManager::RenderManager(ObjectManager& objectManager, LightManager& lightMa
     : m_objectManager(objectManager), m_lightManager(lightManager), m_device(device),
     m_currentCam(nullptr), m_directionLight(nullptr)
 {
-    m_shadowTarget.SetDevice(&m_device);
-    m_backbufferTarget.SetDevice(&m_device);
-
     // Schritt 1: DX11-Backend verwenden (copy + redirect, keine Behaviour-Aenderung)
     m_backend = std::make_unique<Dx11RenderBackend>();
 
@@ -109,7 +107,18 @@ void RenderManager::RenderNormalPass()
     {
         // Standard-Pass: in den Backbuffer rendern
         // Schritt 2: RenderTargets ins Backend verschoben (copy + redirect, keine Behaviour-Aenderung)
-        if (m_backend) m_backend->BeginMainPass(m_device, m_backbufferTarget, m_currentCam->viewport);
+        if (m_backend)
+        {
+            const D3D11_VIEWPORT& dxVp = m_currentCam->viewport;
+            Viewport vp;
+            vp.x        = dxVp.TopLeftX;
+            vp.y        = dxVp.TopLeftY;
+            vp.width    = dxVp.Width;
+            vp.height   = dxVp.Height;
+            vp.minDepth = dxVp.MinDepth;
+            vp.maxDepth = dxVp.MaxDepth;
+            m_backend->BeginMainPass(m_device, m_backbufferTarget, vp);
+        }
     }
 
     // Schritt 1: Shadow SRV + Comparison-Sampler binden (copy + redirect, Slots unveraendert)
@@ -167,7 +176,7 @@ void RenderManager::BuildRenderQueue()
             Shader* shader = material->pRenderShader;
             if (!shader) continue;
 
-            m_opaque.Submit(shader, shader->flagsVertex, material, mesh, surface, world);
+            m_opaque.Submit(shader, shader->flagsVertex, material, mesh, surface, world, m_backend.get());
         }
     }
 

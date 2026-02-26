@@ -152,72 +152,7 @@ void RenderTextureTarget::Release()
     m_height = 0;
 }
 
-// ── RenderTarget interface ────────────────────────────────────────────────────
-
-void RenderTextureTarget::Bind()
-{
-    if (!m_context || !m_rttRTV || !m_depthView)
-    {
-        Debug::LogError("RenderTextureTarget.cpp: Bind() – Ressourcen nicht initialisiert");
-        return;
-    }
-
-    // Alle relevanten SRV-Slots freigeben bevor RTV gebunden wird.
-    // Slot 0 = Farbtextur, Slot 7 = Shadow Map SRV.
-    // Ohne diesen Reset entsteht ein D3D11-SRV-Hazard und der Shadow SRV
-    // kann danach in RenderNormalPass() nicht korrekt gebunden werden.
-    ID3D11ShaderResourceView* nullSRVs[8] = { nullptr };
-    m_context->PSSetShaderResources(0, 8, nullSRVs);
-
-    m_context->OMSetRenderTargets(1, &m_rttRTV, m_depthView);
-
-    // Rasterizer-Reset: Der Shadow-Pass setzt Front-Face-Culling (D3D11_CULL_FRONT).
-    // Ohne Reset sieht man im RTT-Pass die Innenseite aller Meshes.
-    // Bevorzugt: Engine-eigener Default-Rasterizer über GDXDevice.
-    // Fallback: nullptr → D3D11-Garantierter Default (CULL_BACK, FILL_SOLID).
-    if (m_gdxDevice)
-    {
-        ID3D11RasterizerState* rsDefault = m_gdxDevice->GetRasterizerState();
-        m_context->RSSetState(rsDefault);  // nullptr ist hier ebenfalls gültig (D3D11 Default)
-        Debug::LogOnce("RenderTextureTarget_RSReset",
-            "RenderTextureTarget.cpp: Bind() – Rasterizer via GDXDevice zurueckgesetzt");
-    }
-    else
-    {
-        // RSSetState(nullptr) setzt D3D11 auf den garantierten Default zurück:
-        // CullMode=BACK, FillMode=SOLID, FrontCounterClockwise=FALSE
-        m_context->RSSetState(nullptr);
-        Debug::LogOnce("RenderTextureTarget_RSResetFallback",
-            "RenderTextureTarget.cpp: Bind() – Rasterizer via nullptr (D3D11 Default) zurueckgesetzt");
-    }
-
-    D3D11_VIEWPORT vp = GetViewport();
-    m_context->RSSetViewports(1, &vp);
-
-    Debug::LogOnce("RenderTextureTarget_Bind",
-        "RenderTextureTarget.cpp: Bind() – RTT aktiv (", m_width, "x", m_height, ")");
-}
-
-void RenderTextureTarget::Clear()
-{
-    if (!m_context) return;
-
-    if (m_rttRTV)
-        m_context->ClearRenderTargetView(m_rttRTV, m_clearColor);
-
-    if (m_depthView)
-        m_context->ClearDepthStencilView(m_depthView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL,
-            1.0f, 0);
-}
-
-void RenderTextureTarget::UnbindFromShader(unsigned int slot)
-{
-    if (!m_context) return;
-    ID3D11ShaderResourceView* nullSRV = nullptr;
-    m_context->PSSetShaderResources(slot, 1, &nullSRV);
-}
-
-ID3D11ShaderResourceView* RenderTextureTarget::GetSRV() const
+void* RenderTextureTarget::GetNativeShaderResourceView() const
 {
     return m_rttSRV;
 }

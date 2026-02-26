@@ -1,20 +1,11 @@
 #pragma once
 #include "IRenderTarget.h"
-#include <d3d11.h>
 
-class GDXDevice;
-
+// Schritt 2: ShadowMapTarget ist nur noch ein "Tag"/Handle fuer das Shadow-Target.
+// Alle DX11-Aufrufe (OMSetRenderTargets, Clear, SRV-Hazard, Viewport) laufen ueber das Backend.
 class ShadowMapTarget : public IRenderTarget
 {
 public:
-    void SetDevice(GDXDevice* device) { m_device = device; }
-
-    // IRenderTarget
-    void Bind()                               override;
-    void Clear()                              override;
-    void UnbindFromShader(unsigned int slot = 7) override;
-    ID3D11ShaderResourceView* GetSRV() const  override;
-
-private:
-    GDXDevice* m_device = nullptr; // non-owning
+    // ShadowMap SRV wird vom Backend (DX11) aus dem GDXDevice geholt.
+    // Damit bleibt dieses Interface hier API-neutral.
 };

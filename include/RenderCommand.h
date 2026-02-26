@@ -6,6 +6,7 @@ class Material;
 class Mesh;
 class Surface;
 class GDXDevice;
+class IRenderBackend;
 
 // Ein RenderCommand beschreibt einen einzelnen Draw-Aufruf vollstaendig.
 // Er ist selbst ausfuehrbar (Execute) und sortierbar (SortKey).
@@ -26,6 +27,9 @@ struct RenderCommand
     Shader*                shader      = nullptr;
     Material*              material    = nullptr;
     int                    flagsVertex = 0;
+
+    // Backend-Hook (API-neutral). RenderCommand selbst bleibt frei von DX11/VK Calls.
+    IRenderBackend*        backend     = nullptr;
 
     // Sortierkriterium: Shader-Pointer -> Material-Pointer -> Tiefe
     // Minimiert GPU-State-Wechsel beim geordneten Flush.

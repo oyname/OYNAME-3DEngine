@@ -3,10 +3,15 @@
 #include "Surface.h"
 #include "Shader.h"
 #include "gdxdevice.h"
+#include "IRenderBackend.h"
 
 void RenderCommand::Execute(const GDXDevice* device) const
 {
     if (!mesh || !surface || !device) return;
+
+    // Backend ist fuer Bindings zustaendig.
+    // Ohne Backend: wir koennen trotzdem zeichnen, aber dann fehlen ggf. CB-Bindings.
+    GDXDevice& dev = *const_cast<GDXDevice*>(device);
 
     // Mesh-Matrix hochladen (nur beim ersten Auftritt pro Frame)
     if (!mesh->IsUpdatedThisFrame())
@@ -18,13 +23,8 @@ void RenderCommand::Execute(const GDXDevice* device) const
     }
     else
     {
-        // Bereits hochgeladen: nur Constant Buffer binden
-        ID3D11Buffer* cb = mesh->constantBuffer;
-        if (cb)
-        {
-            device->GetDeviceContext()->VSSetConstantBuffers(0, 1, &cb);
-            device->GetDeviceContext()->PSSetConstantBuffers(0, 1, &cb);
-        }
+        // Bereits hochgeladen: nur Constant Buffer binden (backend-spezifisch)
+        if (backend) backend->BindEntityConstants(dev, *mesh);
     }
 
     surface->gpu->Draw(device, flagsVertex);
