@@ -7,12 +7,15 @@
 #include "BackbufferTarget.h"
 #include "RenderTextureTarget.h"
 #include <d3d11.h>
+#include <memory>
+
+class IRenderBackend;
 
 class RenderManager
 {
 public:
     RenderManager(ObjectManager& objectManager, LightManager& lightManager, GDXDevice& device);
-    ~RenderManager() = default;
+    ~RenderManager();
 
     void SetCamera(LPENTITY camera);
     void SetDirectionalLight(LPENTITY dirLight);
@@ -26,8 +29,6 @@ public:
     // Setzt den aktiven RTT-Target und optional eine andere Kamera für den Pass.
     // Wenn rtt == nullptr, wird bei RenderNormalPass wieder der Backbuffer verwendet.
     void SetRTTTarget(RenderTextureTarget* rtt, LPENTITY rttCamera = nullptr);
-
-
 
 private:
     RenderQueue m_opaque;
@@ -44,6 +45,8 @@ private:
     ObjectManager& m_objectManager;
     LightManager&  m_lightManager;
     GDXDevice&     m_device;
+
+    std::unique_ptr<IRenderBackend> m_backend;
 
     // Render Targets
     ShadowMapTarget  m_shadowTarget;

@@ -2,6 +2,8 @@
 #include "RenderManager.h"
 #include "Light.h"
 
+#include "Dx11RenderBackend.h"
+
 RenderManager::RenderManager(ObjectManager& objectManager, LightManager& lightManager, GDXDevice& device)
     : m_objectManager(objectManager), m_lightManager(lightManager), m_device(device),
     m_currentCam(nullptr), m_directionLight(nullptr)
@@ -9,8 +11,13 @@ RenderManager::RenderManager(ObjectManager& objectManager, LightManager& lightMa
     m_shadowTarget.SetDevice(&m_device);
     m_backbufferTarget.SetDevice(&m_device);
 
+    // Schritt 1: DX11-Backend verwenden (copy + redirect, keine Behaviour-Aenderung)
+    m_backend = std::make_unique<Dx11RenderBackend>();
+
     Debug::Log("RenderManager.cpp: RenderManager erstellt - ShadowMapTarget + BackbufferTarget initialisiert");
 }
+
+RenderManager::~RenderManager() = default;
 
 void RenderManager::SetCamera(LPENTITY camera)
 {
@@ -31,38 +38,10 @@ void RenderManager::SetRTTTarget(RenderTextureTarget* rtt, LPENTITY rttCamera)
 void RenderManager::UpdateShadowMatrixBuffer(const DirectX::XMMATRIX& viewMatrix,
     const DirectX::XMMATRIX& projMatrix)
 {
-    if (!m_device.IsInitialized()) return;
-
-    ID3D11Buffer* shadowMatrixBuffer = m_device.GetShadowMatrixBuffer();
-    if (!shadowMatrixBuffer) return;
-
-    D3D11_MAPPED_SUBRESOURCE mappedResource;
-    HRESULT hr = m_device.GetDeviceContext()->Map(
-        shadowMatrixBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
-    if (FAILED(hr)) return;
-
-    struct ShadowMatrixBuffer
-    {
-        DirectX::XMMATRIX lightViewMatrix;
-        DirectX::XMMATRIX lightProjectionMatrix;
-    };
-
-    constexpr bool HLSL_USES_ROW_MAJOR = true;
-
-    ShadowMatrixBuffer* bufferData = reinterpret_cast<ShadowMatrixBuffer*>(mappedResource.pData);
-    if (HLSL_USES_ROW_MAJOR)
-    {
-        bufferData->lightViewMatrix = viewMatrix;
-        bufferData->lightProjectionMatrix = projMatrix;
-    }
-    else
-    {
-        bufferData->lightViewMatrix = DirectX::XMMatrixTranspose(viewMatrix);
-        bufferData->lightProjectionMatrix = DirectX::XMMatrixTranspose(projMatrix);
-    }
-
-    m_device.GetDeviceContext()->Unmap(shadowMatrixBuffer, 0);
+    // Schritt 1: copy + redirect (keine Behaviour-Aenderung)
+    if (m_backend) m_backend->UpdateShadowMatrixBuffer(m_device, viewMatrix, projMatrix);
 }
+
 
 void RenderManager::RenderShadowPass()
 {
@@ -72,15 +51,14 @@ void RenderManager::RenderShadowPass()
     Light* light = (m_directionLight->IsLight() ? m_directionLight->AsLight() : nullptr);
     if (!light) return;
 
-    m_shadowTarget.Bind();
-    m_shadowTarget.Clear();
+    // Schritt 2: RenderTargets ins Backend verschoben (copy + redirect, keine Behaviour-Aenderung)
+    if (m_backend) m_backend->BeginShadowPass(m_device, m_shadowTarget);
 
     const DirectX::XMMATRIX lightViewMatrix = light->GetLightViewMatrix();
     const DirectX::XMMATRIX lightProjMatrix = light->GetLightProjectionMatrix();
     UpdateShadowMatrixBuffer(lightViewMatrix, lightProjMatrix);
 
-    if (ID3D11Buffer* shadowMatrixBuffer = m_device.GetShadowMatrixBuffer())
-        m_device.GetDeviceContext()->VSSetConstantBuffers(3, 1, &shadowMatrixBuffer);
+    m_backend->BindShadowMatrixConstantBufferVS(m_device);
 
     for (Mesh* mesh : m_objectManager.GetMeshes())
     {
@@ -118,14 +96,11 @@ void RenderManager::RenderNormalPass()
     if (!m_currentCam || !m_device.IsInitialized())
         return;
 
-    ID3D11DeviceContext* ctx = m_device.GetDeviceContext();
-    if (!ctx) return;
-
     if (m_activeRTT)
     {
         // RTT-Pass: in die Render-Textur rendern
-        m_activeRTT->Bind();
-        m_activeRTT->Clear();
+        // Schritt 2: RenderTargets ins Backend verschoben (copy + redirect, keine Behaviour-Aenderung)
+        if (m_backend) m_backend->BeginRttPass(m_device, *m_activeRTT);
 
         Debug::LogOnce("RenderNormalPass_RTT",
             "RenderManager.cpp: RenderNormalPass - RTT-Pass aktiv");
@@ -133,25 +108,21 @@ void RenderManager::RenderNormalPass()
     else
     {
         // Standard-Pass: in den Backbuffer rendern
-        m_backbufferTarget.SetViewport(m_currentCam->viewport);
-        m_backbufferTarget.Bind();
+        // Schritt 2: RenderTargets ins Backend verschoben (copy + redirect, keine Behaviour-Aenderung)
+        if (m_backend) m_backend->BeginMainPass(m_device, m_backbufferTarget, m_currentCam->viewport);
     }
 
-    constexpr UINT SHADOW_TEX_SLOT = 7;
-    ID3D11ShaderResourceView* shadowSRV = m_shadowTarget.GetSRV();
-    ID3D11SamplerState* shadowSmp = m_device.GetComparisonSampler();
-    ctx->PSSetShaderResources(SHADOW_TEX_SLOT, 1, &shadowSRV);
-    ctx->PSSetSamplers(SHADOW_TEX_SLOT, 1, &shadowSmp);
+    // Schritt 1: Shadow SRV + Comparison-Sampler binden (copy + redirect, Slots unveraendert)
+    if (m_backend) m_backend->BindShadowResourcesPS(m_device, m_shadowTarget);
 
     if (m_directionLight)
     {
         Light* light = (m_directionLight->IsLight() ? m_directionLight->AsLight() : nullptr);
         if (light)
         {
+            // Schritt 1: Shadow-Matrix-Buffer updaten + binden (copy + redirect, Slot b3 unveraendert)
             UpdateShadowMatrixBuffer(light->GetLightViewMatrix(), light->GetLightProjectionMatrix());
-
-            if (ID3D11Buffer* shadowMatrixBuffer = m_device.GetShadowMatrixBuffer())
-                ctx->VSSetConstantBuffers(3, 1, &shadowMatrixBuffer);
+            if (m_backend) m_backend->BindShadowMatrixConstantBufferVS(m_device);
         }
     }
 }

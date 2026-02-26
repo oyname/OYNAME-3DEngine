@@ -1,383 +1,329 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="04 Shader">
-      <UniqueIdentifier>{6310a97e-5fc5-4d73-82f1-45f08c5b0a7b}</UniqueIdentifier>
+    <Filter Include="01 Engine">
+      <UniqueIdentifier>{6c7f2e10-ae45-4dc2-9f47-8a51aaeaa114}</UniqueIdentifier>
     </Filter>
-    <Filter Include="05 Example">
-      <UniqueIdentifier>{7a9d120d-87b8-4abd-9eaf-8e446d482981}</UniqueIdentifier>
+    <Filter Include="01 Engine\api">
+      <UniqueIdentifier>{97cfc990-b4ba-4987-b5e6-9e5e03b09334}</UniqueIdentifier>
     </Filter>
-    <Filter Include="03 Engine">
-      <UniqueIdentifier>{80106f27-a53d-4679-804c-e6c752e20c42}</UniqueIdentifier>
+    <Filter Include="01 Engine\core">
+      <UniqueIdentifier>{693b6b88-4f63-4977-83ee-7b71bf948dd8}</UniqueIdentifier>
     </Filter>
-    <Filter Include="02 DirectX">
-      <UniqueIdentifier>{fb61c909-32ee-4abc-a804-46a280b6ac7a}</UniqueIdentifier>
+    <Filter Include="01 Engine\scene">
+      <UniqueIdentifier>{30aa9f19-f56d-4ed1-9742-0d297c768506}</UniqueIdentifier>
     </Filter>
-    <Filter Include="01 Windows">
-      <UniqueIdentifier>{bdda119b-8005-419a-abb8-306307f1ce77}</UniqueIdentifier>
+    <Filter Include="01 Engine\render">
+      <UniqueIdentifier>{059a82fb-ba14-4dab-914a-2ec6d20d2aba}</UniqueIdentifier>
     </Filter>
-    <Filter Include="03 Engine\00 Utils">
-      <UniqueIdentifier>{e8861ccc-d5f0-4a91-b946-531627655e50}</UniqueIdentifier>
+    <Filter Include="01 Engine\backend">
+      <UniqueIdentifier>{9f63035c-44da-4e9c-8c65-b545f98eca72}</UniqueIdentifier>
     </Filter>
-    <Filter Include="03 Engine\01 Core">
-      <UniqueIdentifier>{d67d75aa-d10d-44d1-8204-fda36803c457}</UniqueIdentifier>
+    <Filter Include="01 Engine\platform">
+      <UniqueIdentifier>{f20e19b0-4059-49be-9459-db6e6a09d86a}</UniqueIdentifier>
     </Filter>
-    <Filter Include="06 Third_party">
-      <UniqueIdentifier>{4433cd0e-38d8-499b-9994-3591c9a4d02d}</UniqueIdentifier>
+    <Filter Include="01 Engine\app">
+      <UniqueIdentifier>{1dc05df3-32da-432c-af87-30ae5a7faed0}</UniqueIdentifier>
     </Filter>
-    <Filter Include="03 Engine\02 Engine">
-      <UniqueIdentifier>{8d9dcfa2-55fa-492a-b7d0-c7bae370e5d0}</UniqueIdentifier>
+    <Filter Include="01 Engine\third_party">
+      <UniqueIdentifier>{6d3bacc7-da20-4f8e-99b3-247bb79a0867}</UniqueIdentifier>
     </Filter>
-    <Filter Include="03 Engine\03 Manager">
-      <UniqueIdentifier>{1c8298c1-6b31-4d2c-b6a5-73f031c1a1aa}</UniqueIdentifier>
+    <Filter Include="01 Engine\shader">
+      <UniqueIdentifier>{33c6ba7e-bc00-47d2-91aa-f2c6d9339bcb}</UniqueIdentifier>
     </Filter>
-    <Filter Include="03 Engine\03 Manager\01 LightManager">
-      <UniqueIdentifier>{1d7578f3-255b-48b5-afb1-00a450c09288}</UniqueIdentifier>
+    <Filter Include="01 Engine\core\assets">
+      <UniqueIdentifier>{4efa5b2c-6d59-4923-8a1c-7fc0b0690836}</UniqueIdentifier>
     </Filter>
-    <Filter Include="03 Engine\03 Manager\00 Objects">
-      <UniqueIdentifier>{831d8765-efe7-427b-bc6b-7903a750ee46}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="03 Engine\03 Manager\02 CameraManager">
-      <UniqueIdentifier>{0074fd9c-dac5-4849-b987-005c955868ee}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="03 Engine\03 Manager\03 ObjectManager">
-      <UniqueIdentifier>{ac7a7a5e-4fb4-4faa-a6b7-ad53c1639fdc}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="03 Engine\04 Transform">
-      <UniqueIdentifier>{78912823-fd0c-43ff-8685-ae7373c53489}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="03 Engine\03 Manager\04 ShaderManager">
-      <UniqueIdentifier>{32b5d446-6e07-4ba3-9677-6e649161a84f}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="03 Engine\03 Manager\05 BufferManager">
-      <UniqueIdentifier>{4154e97b-46f1-47d8-92f7-72d7a7dc156c}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="03 Engine\03 Manager\06 RenderManager">
-      <UniqueIdentifier>{ce6832ad-1fce-4767-a764-2862af829e02}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="03 Engine\03 Manager\07 TexturManager">
-      <UniqueIdentifier>{c8875f1f-f060-41b1-a484-47b134f89519}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="03 Engine\03 Manager\08 InputLayoutManager">
-      <UniqueIdentifier>{b12912a0-da6c-40b7-a781-9dec879f936e}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="05 Example\MultiShader">
+    <Filter Include="01 Engine\app\MultiShader">
       <UniqueIdentifier>{3022191d-48bc-4207-b23e-8df35bf97e9b}</UniqueIdentifier>
     </Filter>
-    <Filter Include="04 Shader\05 Timer">
-      <UniqueIdentifier>{ee902689-32f5-4e8f-a878-2cc295085e4f}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="03 Engine\05 Geomentry">
-      <UniqueIdentifier>{d502e388-c68a-4d1c-96a4-7df6f921e050}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="03 Engine\03 Manager\06 RenderManager\07 ShadowmapTarget">
-      <UniqueIdentifier>{51f7bcd2-14b9-4916-b3ac-4a1c2a3b1b9d}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="03 Engine\03 Manager\06 RenderManager\08 RenderCommand">
-      <UniqueIdentifier>{47bd6a87-50b4-4009-a84e-c3999397ecb8}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="03 Engine\03 Manager\06 RenderManager\02 BackbufferTarget">
-      <UniqueIdentifier>{03fb1a65-489f-461c-a1fd-2251afe781a7}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="03 Engine\03 Manager\06 RenderManager\03 SurfaceGPUBuffer">
-      <UniqueIdentifier>{3dc6c440-e9f0-40c7-88c5-cf7a356c8951}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="03 Engine\03 Manager\06 RenderManager\04 RenderTextureTarget">
-      <UniqueIdentifier>{8bb97810-9cf2-4071-aaf0-312f3825c06d}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="03 Engine\03 Manager\06 RenderManager\05 RenderLayers">
-      <UniqueIdentifier>{c15ab25d-5ff7-46a4-afe3-2dd13af81fdc}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="03 Engine\03 Manager\06 RenderManager\06 RenderQueue">
-      <UniqueIdentifier>{9fe2fe8e-3338-4943-a6f5-d57e97ea57cb}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="03 Engine\03 Manager\06 RenderManager\01 Interfaces">
-      <UniqueIdentifier>{dd0f3cba-8f91-4229-8d03-2d3be291f5d3}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02 DirectX\02 Interface">
-      <UniqueIdentifier>{2057a197-ac2a-4249-9c21-68c4be7563be}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02 DirectX\01 Device">
-      <UniqueIdentifier>{e0f18073-c779-412b-b9f7-3cbab514c31c}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\Camera.cpp">
-      <Filter>03 Engine\03 Manager\00 Objects</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\Entity.cpp">
-      <Filter>03 Engine\03 Manager\00 Objects</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\Material.cpp">
-      <Filter>03 Engine\03 Manager\00 Objects</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\Shader.cpp">
-      <Filter>03 Engine\03 Manager\00 Objects</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\Surface.cpp">
-      <Filter>03 Engine\03 Manager\00 Objects</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\Light.cpp">
-      <Filter>03 Engine\03 Manager\00 Objects</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\LightManager.cpp">
-      <Filter>03 Engine\03 Manager\01 LightManager</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\CameraManager.cpp">
-      <Filter>03 Engine\03 Manager\02 CameraManager</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ObjectManager.cpp">
-      <Filter>03 Engine\03 Manager\03 ObjectManager</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\RenderManager.cpp">
-      <Filter>03 Engine\03 Manager\06 RenderManager</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\TextureManager.cpp">
-      <Filter>03 Engine\03 Manager\07 TexturManager</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\Transform.cpp">
-      <Filter>03 Engine\04 Transform</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\Timer.cpp">
-      <Filter>04 Shader\05 Timer</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ShaderManager.cpp">
-      <Filter>03 Engine\03 Manager\04 ShaderManager</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\BufferManager.cpp">
-      <Filter>03 Engine\03 Manager\05 BufferManager</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\Mesh.cpp">
-      <Filter>03 Engine\03 Manager\00 Objects</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\Texture.cpp">
-      <Filter>03 Engine\03 Manager\00 Objects</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\gdxdevice.cpp">
-      <Filter>02 DirectX\01 Device</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\gdxinterface.cpp">
-      <Filter>02 DirectX\02 Interface</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\gdxwin.cpp">
-      <Filter>01 Windows</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\main.cpp">
-      <Filter>01 Windows</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\InputLayoutManager.cpp">
-      <Filter>03 Engine\03 Manager\08 InputLayoutManager</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\gdxengine.cpp">
-      <Filter>03 Engine\02 Engine</Filter>
-    </ClCompile>
-    <ClCompile Include="..\examples\Adapter.cpp">
-      <Filter>05 Example</Filter>
-    </ClCompile>
-    <ClCompile Include="..\examples\EntityTest.cpp">
-      <Filter>05 Example</Filter>
-    </ClCompile>
-    <ClCompile Include="..\examples\GridWave.cpp">
-      <Filter>05 Example</Filter>
-    </ClCompile>
-    <ClCompile Include="..\examples\LightExamplescene.cpp">
-      <Filter>05 Example</Filter>
-    </ClCompile>
-    <ClCompile Include="..\examples\Performance.cpp">
-      <Filter>05 Example</Filter>
-    </ClCompile>
-    <ClCompile Include="..\examples\Simple.cpp">
-      <Filter>05 Example</Filter>
-    </ClCompile>
-    <ClCompile Include="..\examples\TextureExample.cpp">
-      <Filter>05 Example</Filter>
-    </ClCompile>
-    <ClCompile Include="..\examples\ShaderExample.cpp">
-      <Filter>05 Example</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\core.cpp">
-      <Filter>03 Engine\01 Core</Filter>
-    </ClCompile>
-    <ClCompile Include="..\examples\game.cpp">
-      <Filter>05 Example</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\gdxutil.cpp">
-      <Filter>03 Engine\00 Utils</Filter>
-    </ClCompile>
-    <ClCompile Include="..\examples\Multitextur.cpp">
-      <Filter>05 Example</Filter>
-    </ClCompile>
-    <ClCompile Include="..\examples\Multisurfaceexample.cpp">
-      <Filter>05 Example</Filter>
-    </ClCompile>
-    <ClCompile Include="..\examples\MultitexturExample.cpp">
-      <Filter>05 Example</Filter>
-    </ClCompile>
-    <ClCompile Include="..\examples\Speculartest.cpp">
-      <Filter>05 Example</Filter>
-    </ClCompile>
     <ClCompile Include="..\examples\Multishaderexample.cpp">
-      <Filter>05 Example\MultiShader</Filter>
+      <Filter>01 Engine\app\MultiShader</Filter>
     </ClCompile>
     <ClCompile Include="..\examples\Neontimebuffer.cpp">
-      <Filter>05 Example\MultiShader</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ShadowMapTarget.cpp">
-      <Filter>03 Engine\03 Manager\06 RenderManager\07 ShadowmapTarget</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\BackbufferTarget.cpp">
-      <Filter>03 Engine\03 Manager\06 RenderManager\02 BackbufferTarget</Filter>
-    </ClCompile>
-    <ClCompile Include="..\examples\Layerexample.cpp">
-      <Filter>05 Example</Filter>
-    </ClCompile>
-    <ClCompile Include="..\examples\Rendertotexture.cpp">
-      <Filter>05 Example</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\RenderTextureTarget.cpp">
-      <Filter>03 Engine\03 Manager\06 RenderManager\04 RenderTextureTarget</Filter>
+      <Filter>01 Engine\app\MultiShader</Filter>
     </ClCompile>
     <ClCompile Include="..\examples\MultitexturRTTExample.cpp">
-      <Filter>05 Example\MultiShader</Filter>
+      <Filter>01 Engine\app\MultiShader</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\GeometryHelper.cpp">
-      <Filter>03 Engine\05 Geomentry</Filter>
+    <ClCompile Include="..\src\gdxdevice.cpp">
+      <Filter>01 Engine\api</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\SurfaceGpuBuffer.cpp">
-      <Filter>03 Engine\03 Manager\06 RenderManager\03 SurfaceGPUBuffer</Filter>
+    <ClCompile Include="..\src\gdxinterface.cpp">
+      <Filter>01 Engine\api</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\gdxengine.cpp">
+      <Filter>01 Engine\api</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\gdxutil.cpp">
+      <Filter>01 Engine\core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\core.cpp">
+      <Filter>01 Engine\core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Camera.cpp">
+      <Filter>01 Engine\scene</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Entity.cpp">
+      <Filter>01 Engine\scene</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Light.cpp">
+      <Filter>01 Engine\scene</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Material.cpp">
+      <Filter>01 Engine\scene</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Mesh.cpp">
+      <Filter>01 Engine\scene</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Shader.cpp">
+      <Filter>01 Engine\scene</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Surface.cpp">
+      <Filter>01 Engine\scene</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Texture.cpp">
+      <Filter>01 Engine\scene</Filter>
     </ClCompile>
     <ClCompile Include="..\src\RenderCommand.cpp">
-      <Filter>03 Engine\03 Manager\06 RenderManager\08 RenderCommand</Filter>
+      <Filter>01 Engine\render</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\RenderManager.cpp">
+      <Filter>01 Engine\render</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ShadowMapTarget.cpp">
+      <Filter>01 Engine\render</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\RenderTextureTarget.cpp">
+      <Filter>01 Engine\render</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\SurfaceGpuBuffer.cpp">
+      <Filter>01 Engine\render</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\BackbufferTarget.cpp">
+      <Filter>01 Engine\render</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Dx11RenderBackend.cpp">
+      <Filter>01 Engine\backend</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ObjectManager.cpp">
+      <Filter>01 Engine\scene</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\LightManager.cpp">
+      <Filter>01 Engine\scene</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\CameraManager.cpp">
+      <Filter>01 Engine\scene</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\TextureManager.cpp">
+      <Filter>01 Engine\scene</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\GeometryHelper.cpp">
+      <Filter>01 Engine\core\assets</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Timer.cpp">
+      <Filter>01 Engine\core\assets</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Transform.cpp">
+      <Filter>01 Engine\core\assets</Filter>
+    </ClCompile>
+    <ClCompile Include="..\examples\Adapter.cpp">
+      <Filter>01 Engine\app</Filter>
+    </ClCompile>
+    <ClCompile Include="..\examples\EntityTest.cpp">
+      <Filter>01 Engine\app</Filter>
+    </ClCompile>
+    <ClCompile Include="..\examples\game.cpp">
+      <Filter>01 Engine\app</Filter>
+    </ClCompile>
+    <ClCompile Include="..\examples\GridWave.cpp">
+      <Filter>01 Engine\app</Filter>
+    </ClCompile>
+    <ClCompile Include="..\examples\Layerexample.cpp">
+      <Filter>01 Engine\app</Filter>
+    </ClCompile>
+    <ClCompile Include="..\examples\LightExamplescene.cpp">
+      <Filter>01 Engine\app</Filter>
+    </ClCompile>
+    <ClCompile Include="..\examples\Multisurfaceexample.cpp">
+      <Filter>01 Engine\app</Filter>
+    </ClCompile>
+    <ClCompile Include="..\examples\Multitextur.cpp">
+      <Filter>01 Engine\app</Filter>
+    </ClCompile>
+    <ClCompile Include="..\examples\MultitexturExample.cpp">
+      <Filter>01 Engine\app</Filter>
+    </ClCompile>
+    <ClCompile Include="..\examples\Performance.cpp">
+      <Filter>01 Engine\app</Filter>
+    </ClCompile>
+    <ClCompile Include="..\examples\Rendertotexture.cpp">
+      <Filter>01 Engine\app</Filter>
+    </ClCompile>
+    <ClCompile Include="..\examples\ShaderExample.cpp">
+      <Filter>01 Engine\app</Filter>
+    </ClCompile>
+    <ClCompile Include="..\examples\Simple.cpp">
+      <Filter>01 Engine\app</Filter>
+    </ClCompile>
+    <ClCompile Include="..\examples\Speculartest.cpp">
+      <Filter>01 Engine\app</Filter>
+    </ClCompile>
+    <ClCompile Include="..\examples\TextureExample.cpp">
+      <Filter>01 Engine\app</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ShaderManager.cpp">
+      <Filter>01 Engine\backend</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\BufferManager.cpp">
+      <Filter>01 Engine\backend</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\InputLayoutManager.cpp">
+      <Filter>01 Engine\backend</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\gdxwin.cpp">
+      <Filter>01 Engine\platform</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\main.cpp">
+      <Filter>01 Engine\platform</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\third_party\stb_image.h">
-      <Filter>06 Third_party</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\ObjectManager.h">
-      <Filter>03 Engine\03 Manager\03 ObjectManager</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\BufferManager.h">
-      <Filter>03 Engine\03 Manager\05 BufferManager</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\Camera.h">
-      <Filter>03 Engine\03 Manager\00 Objects</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\CameraManager.h">
-      <Filter>03 Engine\03 Manager\02 CameraManager</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\Entity.h">
-      <Filter>03 Engine\03 Manager\00 Objects</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\gdxdevice.h">
-      <Filter>02 DirectX\01 Device</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\gdxengine.h">
-      <Filter>03 Engine\02 Engine</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\gdxinterface.h">
-      <Filter>02 DirectX\02 Interface</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\gdxwin.h">
-      <Filter>01 Windows</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\InputLayoutManager.h">
-      <Filter>03 Engine\03 Manager\08 InputLayoutManager</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\Light.h">
-      <Filter>03 Engine\03 Manager\00 Objects</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\LightManager.h">
-      <Filter>03 Engine\03 Manager\01 LightManager</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\main.h">
-      <Filter>01 Windows</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\Material.h">
-      <Filter>03 Engine\03 Manager\00 Objects</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\Mesh.h">
-      <Filter>03 Engine\03 Manager\00 Objects</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\RenderManager.h">
-      <Filter>03 Engine\03 Manager\06 RenderManager</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\Shader.h">
-      <Filter>03 Engine\03 Manager\00 Objects</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\ShaderManager.h">
-      <Filter>03 Engine\03 Manager\04 ShaderManager</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\Surface.h">
-      <Filter>03 Engine\03 Manager\00 Objects</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\Texture.h">
-      <Filter>03 Engine\03 Manager\00 Objects</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\TextureManager.h">
-      <Filter>03 Engine\03 Manager\07 TexturManager</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\Timer.h">
-      <Filter>04 Shader\05 Timer</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\Transform.h">
-      <Filter>03 Engine\04 Transform</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\core.h">
-      <Filter>03 Engine\01 Core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\gdxutil.h">
-      <Filter>03 Engine\00 Utils</Filter>
+    <ClInclude Include="..\examples\Neontimebuffer.h">
+      <Filter>01 Engine\app\MultiShader</Filter>
     </ClInclude>
     <ClInclude Include="..\include\gidx.h">
-      <Filter>03 Engine</Filter>
+      <Filter>01 Engine\api</Filter>
     </ClInclude>
-    <ClInclude Include="..\examples\Neontimebuffer.h">
-      <Filter>05 Example\MultiShader</Filter>
+    <ClInclude Include="..\include\gdxdevice.h">
+      <Filter>01 Engine\api</Filter>
     </ClInclude>
-    <ClInclude Include="..\include\RenderQueue.h">
-      <Filter>03 Engine\03 Manager\06 RenderManager\06 RenderQueue</Filter>
+    <ClInclude Include="..\include\gdxinterface.h">
+      <Filter>01 Engine\api</Filter>
     </ClInclude>
-    <ClInclude Include="..\include\BackbufferTarget.h">
-      <Filter>03 Engine\03 Manager\06 RenderManager\02 BackbufferTarget</Filter>
+    <ClInclude Include="..\include\gdxengine.h">
+      <Filter>01 Engine\api</Filter>
     </ClInclude>
-    <ClInclude Include="..\include\ShadowMapTarget.h">
-      <Filter>03 Engine\03 Manager\06 RenderManager\07 ShadowmapTarget</Filter>
+    <ClInclude Include="..\include\gdxutil.h">
+      <Filter>01 Engine\core</Filter>
     </ClInclude>
-    <ClInclude Include="..\include\IRenderTarget.h">
-      <Filter>03 Engine\03 Manager\06 RenderManager\01 Interfaces</Filter>
+    <ClInclude Include="..\include\core.h">
+      <Filter>01 Engine\core</Filter>
     </ClInclude>
-    <ClInclude Include="..\include\RenderLayers.h">
-      <Filter>03 Engine\03 Manager\06 RenderManager\05 RenderLayers</Filter>
+    <ClInclude Include="..\include\Camera.h">
+      <Filter>01 Engine\scene</Filter>
     </ClInclude>
-    <ClInclude Include="..\include\RenderTextureTarget.h">
-      <Filter>03 Engine\03 Manager\06 RenderManager\04 RenderTextureTarget</Filter>
+    <ClInclude Include="..\include\Entity.h">
+      <Filter>01 Engine\scene</Filter>
     </ClInclude>
-    <ClInclude Include="..\include\GeometryHelper.h">
-      <Filter>03 Engine\05 Geomentry</Filter>
+    <ClInclude Include="..\include\Light.h">
+      <Filter>01 Engine\scene</Filter>
     </ClInclude>
-    <ClInclude Include="..\include\SurfaceGpuBuffer.h">
-      <Filter>03 Engine\03 Manager\06 RenderManager\03 SurfaceGPUBuffer</Filter>
+    <ClInclude Include="..\include\Material.h">
+      <Filter>01 Engine\scene</Filter>
     </ClInclude>
-    <ClInclude Include="..\include\IGpuResource.h">
-      <Filter>03 Engine\03 Manager\06 RenderManager\01 Interfaces</Filter>
+    <ClInclude Include="..\include\Mesh.h">
+      <Filter>01 Engine\scene</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\Shader.h">
+      <Filter>01 Engine\scene</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\Surface.h">
+      <Filter>01 Engine\scene</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\Texture.h">
+      <Filter>01 Engine\scene</Filter>
     </ClInclude>
     <ClInclude Include="..\include\RenderCommand.h">
-      <Filter>03 Engine\03 Manager\06 RenderManager\08 RenderCommand</Filter>
+      <Filter>01 Engine\render</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\RenderManager.h">
+      <Filter>01 Engine\render</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\ShadowMapTarget.h">
+      <Filter>01 Engine\render</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\RenderQueue.h">
+      <Filter>01 Engine\render</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\RenderLayers.h">
+      <Filter>01 Engine\render</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\RenderTextureTarget.h">
+      <Filter>01 Engine\render</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\SurfaceGpuBuffer.h">
+      <Filter>01 Engine\render</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\BackbufferTarget.h">
+      <Filter>01 Engine\render</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\IRenderTarget.h">
+      <Filter>01 Engine\render</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\IRenderBackend.h">
+      <Filter>01 Engine\render</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\IGpuResource.h">
+      <Filter>01 Engine\render</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\Dx11RenderBackend.h">
+      <Filter>01 Engine\backend</Filter>
+    </ClInclude>
+    <ClInclude Include="..\third_party\stb_image.h">
+      <Filter>01 Engine\third_party</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\ObjectManager.h">
+      <Filter>01 Engine\scene</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\LightManager.h">
+      <Filter>01 Engine\scene</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\CameraManager.h">
+      <Filter>01 Engine\scene</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\TextureManager.h">
+      <Filter>01 Engine\scene</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\GeometryHelper.h">
+      <Filter>01 Engine\core\assets</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\Timer.h">
+      <Filter>01 Engine\core\assets</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\Transform.h">
+      <Filter>01 Engine\core\assets</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\ShaderManager.h">
+      <Filter>01 Engine\backend</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\BufferManager.h">
+      <Filter>01 Engine\backend</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\InputLayoutManager.h">
+      <Filter>01 Engine\backend</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\gdxwin.h">
+      <Filter>01 Engine\platform</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\main.h">
+      <Filter>01 Engine\platform</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <Text Include="..\shaders\VertexShader.hlsl">
-      <Filter>04 Shader</Filter>
-    </Text>
     <Text Include="..\shaders\PixelShader.hlsl">
-      <Filter>04 Shader</Filter>
+      <Filter>01 Engine\shader</Filter>
     </Text>
     <Text Include="..\shaders\PixelShaderNeon.hlsl">
-      <Filter>04 Shader</Filter>
+      <Filter>01 Engine\shader</Filter>
+    </Text>
+    <Text Include="..\shaders\VertexShader.hlsl">
+      <Filter>01 Engine\shader</Filter>
     </Text>
     <Text Include="..\shaders\VertexShaderNeon.hlsl">
-      <Filter>04 Shader</Filter>
+      <Filter>01 Engine\shader</Filter>
     </Text>
   </ItemGroup>
 </Project>
