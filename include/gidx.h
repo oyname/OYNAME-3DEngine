@@ -1147,16 +1147,10 @@ namespace Engine
         return cam->cullMask;
     }
 
-    // ════════════════════════════════════════════════════════════════════════════
-    // RTT – Render to Texture API
-    // Diese Funktionen in gidx.h einfügen (z.B. nach dem LoadTexture-Block).
-    // RenderTextureTarget.h muss über den RenderManager-Include-Pfad erreichbar sein.
-    // ════════════════════════════════════════════════════════════════════════════
-
-        // ── Render-Textur anlegen ─────────────────────────────────────────────────
-        // Erzeugt eine RTT-Instanz und schreibt den Zeiger nach *rtt.
-        // width/height: Auflösung der Textur (unabhängig vom Screen).
-        // Verwendung als Textur: Engine::GetRTTTexture(rtt).
+    // ── Render-Textur anlegen ─────────────────────────────────────────────────
+    // Erzeugt eine RTT-Instanz und schreibt den Zeiger nach *rtt.
+    // width/height: Auflösung der Textur (unabhängig vom Screen).
+    // Verwendung als Textur: Engine::GetRTTTexture(rtt).
     inline void CreateRenderTexture(LPRENDERTARGET* rtt, UINT width, UINT height)
     {
         if (!engine || !rtt) return;

@@ -12,7 +12,7 @@ ObjectManager::~ObjectManager()
         shader->materials.clear();
     }
     for (auto& mesh : m_meshes) {
-        mesh->surfaces.clear();
+        mesh->m_surfaces.clear();
     }
 
     // 2. Objekte löschen
@@ -84,7 +84,7 @@ void ObjectManager::AddSurfaceToMesh(Mesh* mesh, Surface* surface)
     if (!mesh || !surface) return;
 
     surface->pMesh = mesh;
-    mesh->AddSurfaceToMesh(surface);
+    mesh->AddSurface(surface);
 
     // optional (Übergang): surface->pShader weiter setzen, bis alles umgebaut ist
     // surface->pShader = mesh->pShader;
@@ -118,27 +118,20 @@ void ObjectManager::AddMaterialToShader(Shader* shader, Material* material)
 void ObjectManager::DeleteSurface(Surface* surface) {
     if (!surface) return;
 
-    // Fast path: surface knows its mesh.
-    if (surface->pMesh)
+    // Aus Mesh entfernen (wenn es einen Besitzer gibt)
+    if (surface->GetOwner())
     {
-        auto& v = surface->pMesh->surfaces;
-        v.erase(std::remove(v.begin(), v.end(), surface), v.end());
-        surface->pMesh = nullptr;
+        surface->GetOwner()->RemoveSurface(surface);
     }
     else
     {
-        // Fallback (legacy): search all meshes.
+        // Fallback: alle Meshes durchsuchen
         for (auto& mesh : m_meshes) {
-            auto& surfaces = mesh->surfaces;
-            for (auto it = surfaces.begin(); it != surfaces.end(); ++it) {
-                if (*it == surface) {
-                    surfaces.erase(it);
-                    break;
-                }
-            }
+            mesh->RemoveSurface(surface);
         }
     }
 
+    // Aus der globalen Liste entfernen und löschen
     auto it = std::find(m_surfaces.begin(), m_surfaces.end(), surface);
     if (it != m_surfaces.end()) {
         m_surfaces.erase(it);
@@ -149,32 +142,30 @@ void ObjectManager::DeleteSurface(Surface* surface) {
 void ObjectManager::DeleteMesh(Mesh* mesh) {
     if (!mesh) return;
 
-    UnregisterRenderable(mesh);
-
-    // Fallback-Material-Referenz nullen
-    mesh->pMaterial = nullptr;
-
-    // ObjectManager owns surfaces -> delete all surfaces of this mesh here.
-    for (auto* s : mesh->surfaces)
-    {
-        if (!s) continue;
-        s->pMesh = nullptr;
-
-        auto sit = std::find(m_surfaces.begin(), m_surfaces.end(), s);
-        if (sit != m_surfaces.end())
-            m_surfaces.erase(sit);
-
-        Memory::SafeDelete(s);
-    }
-    mesh->surfaces.clear();
-
-    // Remove from entities
+    // Zuerst aus Entities entfernen
     auto entIt = std::find(m_entities.begin(), m_entities.end(), mesh);
     if (entIt != m_entities.end()) {
         m_entities.erase(entIt);
     }
 
-    // Remove and delete mesh
+    // Aus renderMeshes entfernen
+    UnregisterRenderable(mesh);
+
+    // Surfaces vom Mesh trennen (aber nicht löschen!)
+    // Die Surfaces werden separat vom ObjectManager verwaltet
+    for (auto* s : mesh->m_surfaces)
+    {
+        if (s) {
+            s->SetOwner(nullptr);
+            s->pMesh = nullptr;
+        }
+    }
+    mesh->m_surfaces.clear();
+
+    // Material-Referenz nullen
+    mesh->pMaterial = nullptr;
+
+    // Mesh aus der globalen Liste entfernen und löschen
     auto it = std::find(m_meshes.begin(), m_meshes.end(), mesh);
     if (it != m_meshes.end()) {
         m_meshes.erase(it);
@@ -226,7 +217,7 @@ void ObjectManager::DeleteMaterial(Material* material)
 }
 
 void ObjectManager::RemoveSurfaceFromMesh(Mesh* mesh, Surface* surface) {
-    auto& surfaces = mesh->surfaces;
+    auto& surfaces = mesh->m_surfaces;
     for (auto it = surfaces.begin(); it != surfaces.end(); ++it) {
         if (*it == surface) {
             surfaces.erase(it);
@@ -243,6 +234,19 @@ void ObjectManager::RemoveMaterialFromShader(Shader* shader, Material* material)
             break;
         }
     }
+}
+
+void ObjectManager::MoveSurface(Surface* surface, Mesh* from, Mesh* to)
+{
+    if (!surface || !to)
+        return;
+
+    from = surface->GetOwner();
+    if (!from)
+        return;
+
+    from->RemoveSurface(surface);
+    to->AddSurface(surface);
 }
 
 Surface* ObjectManager::GetPreviousSurface(Surface* currentSurface) {
@@ -308,8 +312,8 @@ Shader* ObjectManager::GetPreviousShader(Shader* currentShader)
 
 Surface* ObjectManager::GetSurface(Mesh* mesh)
 {
-    if (!mesh->surfaces.empty()) {
-        return mesh->surfaces.front();
+    if (!mesh->m_surfaces.empty()) {
+        return mesh->m_surfaces.front();
     }
     return nullptr;
 }

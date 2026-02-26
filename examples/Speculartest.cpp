@@ -10,6 +10,8 @@ LPENTITY g_pointLight = nullptr;
 
 void CreateCube(LPENTITY* mesh, LPMATERIAL material);
 
+
+
 int main()
 {
     Engine::Graphics(1024, 768);

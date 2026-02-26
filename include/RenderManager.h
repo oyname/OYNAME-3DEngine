@@ -27,6 +27,8 @@ public:
     // Wenn rtt == nullptr, wird bei RenderNormalPass wieder der Backbuffer verwendet.
     void SetRTTTarget(RenderTextureTarget* rtt, LPENTITY rttCamera = nullptr);
 
+
+
 private:
     RenderQueue m_opaque;
 
@@ -56,6 +58,6 @@ private:
     void FlushRenderQueue();
     void UpdateShadowMatrixBuffer(const DirectX::XMMATRIX& viewMatrix,
                                   const DirectX::XMMATRIX& projMatrix);
-
+    void InvalidateFrame();
     RenderManager() = delete;
 };

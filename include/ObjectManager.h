@@ -51,6 +51,8 @@ public:
     // REMOVE
     void RemoveSurfaceFromMesh(Mesh* mesh, Surface* surface);
     void RemoveMaterialFromShader(Shader* shader, Material* material);
+    void MoveSurface(Surface* s, Mesh* from, Mesh* to);
+
 
     // GET PREVIOUS
     Surface* GetPreviousSurface(Surface* currentSurface);

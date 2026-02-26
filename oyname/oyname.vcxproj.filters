@@ -46,12 +46,6 @@
     <Filter Include="03 Engine\04 Transform">
       <UniqueIdentifier>{78912823-fd0c-43ff-8685-ae7373c53489}</UniqueIdentifier>
     </Filter>
-    <Filter Include="02 DirectX\00 Device">
-      <UniqueIdentifier>{e0f18073-c779-412b-b9f7-3cbab514c31c}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02 DirectX\01 Interface">
-      <UniqueIdentifier>{2057a197-ac2a-4249-9c21-68c4be7563be}</UniqueIdentifier>
-    </Filter>
     <Filter Include="03 Engine\03 Manager\04 ShaderManager">
       <UniqueIdentifier>{32b5d446-6e07-4ba3-9677-6e649161a84f}</UniqueIdentifier>
     </Filter>
@@ -99,6 +93,12 @@
     </Filter>
     <Filter Include="03 Engine\03 Manager\06 RenderManager\01 Interfaces">
       <UniqueIdentifier>{dd0f3cba-8f91-4229-8d03-2d3be291f5d3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02 DirectX\02 Interface">
+      <UniqueIdentifier>{2057a197-ac2a-4249-9c21-68c4be7563be}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02 DirectX\01 Device">
+      <UniqueIdentifier>{e0f18073-c779-412b-b9f7-3cbab514c31c}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -154,10 +154,10 @@
       <Filter>03 Engine\03 Manager\00 Objects</Filter>
     </ClCompile>
     <ClCompile Include="..\src\gdxdevice.cpp">
-      <Filter>02 DirectX\00 Device</Filter>
+      <Filter>02 DirectX\01 Device</Filter>
     </ClCompile>
     <ClCompile Include="..\src\gdxinterface.cpp">
-      <Filter>02 DirectX\01 Interface</Filter>
+      <Filter>02 DirectX\02 Interface</Filter>
     </ClCompile>
     <ClCompile Include="..\src\gdxwin.cpp">
       <Filter>01 Windows</Filter>
@@ -270,13 +270,13 @@
       <Filter>03 Engine\03 Manager\00 Objects</Filter>
     </ClInclude>
     <ClInclude Include="..\include\gdxdevice.h">
-      <Filter>02 DirectX\00 Device</Filter>
+      <Filter>02 DirectX\01 Device</Filter>
     </ClInclude>
     <ClInclude Include="..\include\gdxengine.h">
       <Filter>03 Engine\02 Engine</Filter>
     </ClInclude>
     <ClInclude Include="..\include\gdxinterface.h">
-      <Filter>02 DirectX\01 Interface</Filter>
+      <Filter>02 DirectX\02 Interface</Filter>
     </ClInclude>
     <ClInclude Include="..\include\gdxwin.h">
       <Filter>01 Windows</Filter>

@@ -84,7 +84,7 @@ void RenderManager::RenderShadowPass()
 
     for (Mesh* mesh : m_objectManager.GetMeshes())
     {
-        if (!mesh || mesh->surfaces.empty()) continue;
+        if (!mesh || mesh->m_surfaces.empty()) continue;
         if (!mesh->IsActive()) continue;
         if (!mesh->IsVisible()) continue;
 
@@ -97,7 +97,7 @@ void RenderManager::RenderShadowPass()
         ms.worldMatrix = mesh->transform.GetLocalTransformationMatrix();
         mesh->Update(&m_device, &ms);
 
-        for (Surface* s : mesh->surfaces)
+        for (Surface* s : mesh->m_surfaces)
         {
             if (!s) continue;
 
@@ -156,6 +156,12 @@ void RenderManager::RenderNormalPass()
     }
 }
 
+void RenderManager::InvalidateFrame()
+{
+    m_opaque.Clear();
+    //m_transparent.Clear();
+}
+
 void RenderManager::BuildRenderQueue()
 {
     m_opaque.Clear();
@@ -170,7 +176,7 @@ void RenderManager::BuildRenderQueue()
 
     for (Mesh* mesh : m_objectManager.GetMeshes())
     {
-        if (!mesh || mesh->surfaces.empty()) continue;
+        if (!mesh || mesh->m_surfaces.empty()) continue;
         if (!mesh->IsActive()) continue;
         if (!mesh->IsVisible()) continue;
         if (!(mesh->GetLayerMask() & cameraCullMask)) continue;
@@ -180,7 +186,7 @@ void RenderManager::BuildRenderQueue()
         // MatrixSet fuer Execute() vorbereiten -- world kommt aus dem Mesh-Transform
         mesh->matrixSet.worldMatrix = world;
 
-        for (Surface* surface : mesh->surfaces)
+        for (Surface* surface : mesh->m_surfaces)
         {
             if (!surface) continue;
 
