@@ -45,17 +45,21 @@ Material::Material() :
 
 Material::~Material()
 {
-    for (int i = 0; i < MAX_TEXTURES; i++)
-    {
-        if (m_textureView[i])
-        {
-            Memory::SafeRelease(m_imageSamplerState[i]);
-            Memory::SafeRelease(m_textureView[i]);
-            Memory::SafeRelease(m_texture[i]);
-        }
-    }
-
+    // GPU constant buffer
     Memory::SafeRelease(materialBuffer);
+
+    // Texturen/Sampler unabhängig voneinander releasen
+    for (int i = 0; i < MAX_TEXTURES; ++i)
+    {
+        Memory::SafeRelease(m_imageSamplerState[i]);
+        Memory::SafeRelease(m_textureView[i]);
+        Memory::SafeRelease(m_texture[i]);
+
+        // optional, aber robust:
+        m_imageSamplerState[i] = nullptr;
+        m_textureView[i] = nullptr;
+        m_texture[i] = nullptr;
+    }
 }
 
 void Material::SetTexture(const GDXDevice* device)
@@ -191,10 +195,8 @@ void Material::SetRoughness(float r)
 
 void Material::SetNormalScale(float s)
 {
-    // allow >1 for exaggerated normals
     if (s < 0.0f) s = 0.0f;
     properties.normalScale = s;
-    if (s > 0.0f) properties.flags |= MF_USE_NORMAL_MAP;
 }
 
 void Material::SetOcclusionStrength(float s)

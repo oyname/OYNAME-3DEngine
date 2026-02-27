@@ -466,15 +466,32 @@ int GDXEngine::GetVSyncInterval() const noexcept
 HRESULT GDXEngine::InitMaterialBuffer(Material* material)
 {
 	if (!material) return E_INVALIDARG;
-	if (material->materialBuffer) return S_OK; // schon vorhanden
+	if (material->materialBuffer) return S_OK;
+
+	// b2-Layout im Shader: 8 * 16 = 128 Bytes
+	constexpr UINT kMaterialCBSize = 128;
+
+	// Initialdaten: sauber 0 setzen, damit gTexIndex/gMisc nicht "random" sind
+	alignas(16) uint8_t zero[kMaterialCBSize] = {};
 
 	return GetBM().CreateBuffer(
-		&material->properties,
-		sizeof(Material::MaterialData),
+		zero,
+		kMaterialCBSize,
 		1,
 		D3D11_BIND_CONSTANT_BUFFER,
 		&material->materialBuffer
 	);
+
+	//if (!material) return E_INVALIDARG;
+	//if (material->materialBuffer) return S_OK; // schon vorhanden
+	//
+	//return GetBM().CreateBuffer(
+	//	&material->properties,
+	//	sizeof(Material::MaterialData),
+	//	1,
+	//	D3D11_BIND_CONSTANT_BUFFER,
+	//	&material->materialBuffer
+	//);
 }
 
 RenderManager& GDXEngine::GetRM() {

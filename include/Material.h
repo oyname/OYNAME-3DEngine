@@ -120,8 +120,22 @@ public:
     float GetAlphaCutoff() const { return properties.alphaCutoff; }
 
     void SetAlbedoIndex(uint32_t idx) noexcept { albedoIndex = idx; }
-    void SetNormalIndex(uint32_t idx) noexcept { normalIndex = idx; }
-    void SetOrmIndex(uint32_t idx)    noexcept { ormIndex = idx; }
+    void SetNormalIndex(uint32_t idx) noexcept
+    {
+        normalIndex = idx;
+
+        // 1u = flat normal (Default) => keine "echte" Normalmap
+        if (idx != 1u) properties.flags |= MF_USE_NORMAL_MAP;
+        else           properties.flags &= ~MF_USE_NORMAL_MAP;
+    }
+    void SetOrmIndex(uint32_t idx) noexcept
+    {
+        ormIndex = idx;
+
+        // 2u = default ORM
+        if (idx != 2u) properties.flags |= MF_USE_ORM_MAP;
+        else           properties.flags &= ~MF_USE_ORM_MAP;
+    }
     void SetDecalIndex(uint32_t idx)  noexcept { decalIndex = idx; }
 
     // ==================== SHADOW FLAGS ====================

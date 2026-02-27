@@ -29,11 +29,11 @@ cbuffer MaterialBuffer : register(b2)
     float4 gEmissiveColor;
     float4 gUvTilingOffset; // xy tiling, zw offset
 
-    float4 gPbr; // x=metallic y=roughness z=normalScale w=occlusionStrength
-    float4 gAlpha; // x=shininess y=transparency z=alphaCutoff w=receiveShadows
+    float4 gPbr;            // x=metallic y=roughness z=normalScale w=occlusionStrength
+    float4 gAlpha;          // x=shininess y=transparency z=alphaCutoff w=receiveShadows
 
-    uint4 gTexIndex; // x=albedo y=normal z=orm w=decal (Indizes fuer C++, im Shader nicht genutzt)
-    uint4 gMisc; // x=blendMode y=materialFlags z,w unused
+    uint4 gTexIndex;        // x=albedo y=normal z=orm w=decal (Indizes fuer C++, im Shader nicht genutzt)
+    uint4 gMisc;            // x=blendMode y=materialFlags z,w unused
 };
 
 #define MF_ALPHA_TEST      (1u<<0)
