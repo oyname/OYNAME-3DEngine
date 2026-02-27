@@ -31,7 +31,13 @@ HRESULT InputLayoutManager::CreateInputLayoutVertex(ID3D11InputLayout** layout, 
         layoutElements.push_back({ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, cnt, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 });
         currentOffset += sizeof(DirectX::XMFLOAT3); 
         cnt++;
-    }  
+    }
+
+    if (flags & D3DVERTEX_TANGENT) {
+        layoutElements.push_back({ "TANGENT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, cnt, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 });
+        currentOffset += sizeof(DirectX::XMFLOAT4);
+        cnt++;
+    }
 
     if (flags & D3DVERTEX_COLOR) {
         layoutElements.push_back({ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, cnt, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 });
@@ -53,6 +59,12 @@ HRESULT InputLayoutManager::CreateInputLayoutVertex(ID3D11InputLayout** layout, 
 
     void* bytecode = shader->blobVS->GetBufferPointer();
     unsigned int size = (unsigned int)shader->blobVS->GetBufferSize();
+
+    if (!shader || !shader->blobVS || shader->blobVS->GetBufferSize() == 0)
+    {
+        Debug::Log("CreateInputLayout: invalid VS blob");
+        return E_INVALIDARG;
+    }
 
     HRESULT hr = m_device->CreateInputLayout(layoutElements.data(), (unsigned int)layoutElements.size(), bytecode, size, layout);
     if (FAILED(hr))

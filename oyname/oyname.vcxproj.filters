@@ -37,6 +37,12 @@
     <Filter Include="01 Engine\app\MultiShader">
       <UniqueIdentifier>{3022191d-48bc-4207-b23e-8df35bf97e9b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="01 Engine\shader\Neon">
+      <UniqueIdentifier>{b66e25fa-7ff7-4eea-947a-6a45e01b1958}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01 Engine\shader\Unlite">
+      <UniqueIdentifier>{2a338c23-658e-4771-9430-ef50cf531017}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\examples\Multishaderexample.cpp">
@@ -102,7 +108,7 @@
     <ClCompile Include="..\src\CameraManager.cpp">
       <Filter>01 Engine\scene</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\TextureManager.cpp">
+    <ClCompile Include="..\src\TexturePool.cpp">
       <Filter>01 Engine\scene</Filter>
     </ClCompile>
     <ClCompile Include="..\src\GeometryHelper.cpp">
@@ -135,7 +141,7 @@
     <ClCompile Include="..\examples\Multisurfaceexample.cpp">
       <Filter>01 Engine\app</Filter>
     </ClCompile>
-    <ClCompile Include="..\examples\Multitextur.cpp">
+    <ClCompile Include="..\examples\UnlitShader.cpp">
       <Filter>01 Engine\app</Filter>
     </ClCompile>
     <ClCompile Include="..\examples\MultitexturExample.cpp">
@@ -191,6 +197,9 @@
     </ClCompile>
     <ClCompile Include="..\src\Dx11ShadowMap.cpp">
       <Filter>01 Engine\backend</Filter>
+    </ClCompile>
+    <ClCompile Include="..\examples\Material-Properties Demo.cpp">
+      <Filter>01 Engine\app</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -269,7 +278,7 @@
     <ClInclude Include="..\include\CameraManager.h">
       <Filter>01 Engine\scene</Filter>
     </ClInclude>
-    <ClInclude Include="..\include\TextureManager.h">
+    <ClInclude Include="..\include\TexturePool.h">
       <Filter>01 Engine\scene</Filter>
     </ClInclude>
     <ClInclude Include="..\include\GeometryHelper.h">
@@ -328,14 +337,20 @@
     <Text Include="..\shaders\PixelShader.hlsl">
       <Filter>01 Engine\shader</Filter>
     </Text>
-    <Text Include="..\shaders\PixelShaderNeon.hlsl">
-      <Filter>01 Engine\shader</Filter>
-    </Text>
     <Text Include="..\shaders\VertexShader.hlsl">
       <Filter>01 Engine\shader</Filter>
     </Text>
+    <Text Include="..\shaders\PixelShaderNeon.hlsl">
+      <Filter>01 Engine\shader\Neon</Filter>
+    </Text>
     <Text Include="..\shaders\VertexShaderNeon.hlsl">
-      <Filter>01 Engine\shader</Filter>
+      <Filter>01 Engine\shader\Neon</Filter>
+    </Text>
+    <Text Include="..\shaders\VertexShader_PosUv.hlsl">
+      <Filter>01 Engine\shader\Unlite</Filter>
+    </Text>
+    <Text Include="..\shaders\PixelShader_PosUv.hlsl">
+      <Filter>01 Engine\shader\Unlite</Filter>
     </Text>
   </ItemGroup>
 </Project>

@@ -501,7 +501,8 @@ namespace Engine
         bool hasNormal = false,
         bool hasColor = false,
         bool hasTexCoord1 = false,
-        bool hasTexCoord2 = false)
+        bool hasTexCoord2 = false,
+        bool hasTangent = false)
     {
         DWORD flags = 0;
         if (hasPosition)   flags |= D3DVERTEX_POSITION;
@@ -509,6 +510,7 @@ namespace Engine
         if (hasColor)      flags |= D3DVERTEX_COLOR;
         if (hasTexCoord1)  flags |= D3DVERTEX_TEX1;
         if (hasTexCoord2)  flags |= D3DVERTEX_TEX2;
+        if (hasTangent)    flags |= D3DVERTEX_TANGENT;
         return flags;
     }
 
@@ -615,6 +617,7 @@ namespace Engine
         // Stride-Werte und Index-Count setzen
         gpuDX11->stridePosition = sizeof(DirectX::XMFLOAT3);
         gpuDX11->strideNormal   = sizeof(DirectX::XMFLOAT3);
+        gpuDX11->strideTangent  = sizeof(DirectX::XMFLOAT4);
         gpuDX11->strideColor    = sizeof(DirectX::XMFLOAT4);
         gpuDX11->strideUV1      = sizeof(DirectX::XMFLOAT2);
         gpuDX11->strideUV2      = sizeof(DirectX::XMFLOAT2);
@@ -629,6 +632,20 @@ namespace Engine
             engine->GetBM().CreateBuffer(surface->GetNormals().data(), sizeof(DirectX::XMFLOAT3),
                 surface->CountNormals(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->normalBuffer);
         }
+
+        if (shader->flagsVertex & D3DVERTEX_TANGENT)
+        {
+            // Lazy tangent build (CPU) if missing
+            if (surface->CountTangents() != surface->CountVertices())
+                surface->ComputeTangents();
+
+            if (surface->CountTangents() > 0)
+            {
+                engine->GetBM().CreateBuffer(surface->GetTangents().data(), sizeof(DirectX::XMFLOAT4),
+                    surface->CountTangents(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->tangentBuffer);
+            }
+        }
+
         if (shader->flagsVertex & D3DVERTEX_COLOR && surface->CountColors() > 0) {
             engine->GetBM().CreateBuffer(surface->GetColors().data(), sizeof(DirectX::XMFLOAT4),
                 surface->CountColors(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->colorBuffer);
@@ -885,6 +902,80 @@ namespace Engine
             return;
         }
         material->SetShininess(shininess);
+    }
+
+
+    inline void MaterialMetallic(LPMATERIAL material, float metallic)
+    {
+        if (material == nullptr) {
+            Debug::Log("gidx.h: ERROR: MaterialMetallic - material is nullptr");
+            return;
+        }
+        material->SetMetallic(metallic);
+    }
+
+    inline void MaterialRoughness(LPMATERIAL material, float roughness)
+    {
+        if (material == nullptr) {
+            Debug::Log("gidx.h: ERROR: MaterialRoughness - material is nullptr");
+            return;
+        }
+        material->SetRoughness(roughness);
+    }
+
+    inline void MaterialNormalScale(LPMATERIAL material, float scale)
+    {
+        if (material == nullptr) {
+            Debug::Log("gidx.h: ERROR: MaterialNormalScale - material is nullptr");
+            return;
+        }
+        material->SetNormalScale(scale);
+    }
+
+    inline void MaterialOcclusionStrength(LPMATERIAL material, float strength)
+    {
+        if (material == nullptr) {
+            Debug::Log("gidx.h: ERROR: MaterialOcclusionStrength - material is nullptr");
+            return;
+        }
+        material->SetOcclusionStrength(strength);
+    }
+
+    inline void MaterialEmissiveColor(LPMATERIAL material, float r, float g, float b, float intensity = 1.0f)
+    {
+        if (material == nullptr) {
+            Debug::Log("gidx.h: ERROR: MaterialEmissiveColor - material is nullptr");
+            return;
+        }
+        material->SetEmissiveColor(r, g, b, intensity);
+    }
+
+    inline void MaterialUVTilingOffset(LPMATERIAL material, float tileU, float tileV, float offU = 0.0f, float offV = 0.0f)
+    {
+        if (material == nullptr) {
+            Debug::Log("gidx.h: ERROR: MaterialUVTilingOffset - material is nullptr");
+            return;
+        }
+        material->SetUVTilingOffset(tileU, tileV, offU, offV);
+    }
+
+    inline void MaterialAlphaCutoff(LPMATERIAL material, float cutoff)
+    {
+        if (material == nullptr) {
+            Debug::Log("gidx.h: ERROR: MaterialAlphaCutoff - material is nullptr");
+            return;
+        }
+        material->SetAlphaCutoff(cutoff);
+        material->SetAlphaTest(true);
+    }
+
+    inline void MaterialAlphaTest(LPMATERIAL material, bool enabled)
+    {
+        if (material == nullptr) {
+            Debug::Log("gidx.h: ERROR: MaterialAlphaTest - material is nullptr");
+            return;
+        }
+        material->SetAlphaTest(enabled);
     }
 
     inline void EntityMaterial(LPENTITY entity, LPMATERIAL material)

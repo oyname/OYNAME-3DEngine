@@ -40,7 +40,11 @@ public:
         BackbufferTarget& backbufferTarget,
         const Viewport& cameraViewport) override;
 
+    void EndMainPass() override;
+
     void BeginRttPass(GDXDevice& device, RenderTextureTarget& rttTarget) override;
+
+    void EndRttPass() override;
 
     // Internal: called by GDXDevice::CreateShadowBuffer (API-stable wrapper).
     bool EnsureShadowCreated(GDXDevice& device, unsigned int width, unsigned int height);

@@ -38,6 +38,7 @@ public:
     const std::vector<DirectX::XMFLOAT4>& GetColors()    const noexcept { return m_colors; }
     const std::vector<DirectX::XMFLOAT2>& GetUV1()       const noexcept { return m_uv1; }
     const std::vector<DirectX::XMFLOAT2>& GetUV2()       const noexcept { return m_uv2; }
+    const std::vector<DirectX::XMFLOAT4>& GetTangents()  const noexcept { return m_tangents; }
     const std::vector<unsigned int>& GetIndices()   const noexcept { return m_indices; }
 
     unsigned int CountVertices() const noexcept { return static_cast<unsigned int>(m_positions.size()); }
@@ -46,6 +47,11 @@ public:
     unsigned int CountColors()   const noexcept { return static_cast<unsigned int>(m_colors.size()); }
     unsigned int CountUV1()      const noexcept { return static_cast<unsigned int>(m_uv1.size()); }
     unsigned int CountUV2()      const noexcept { return static_cast<unsigned int>(m_uv2.size()); }
+    unsigned int CountTangents() const noexcept { return static_cast<unsigned int>(m_tangents.size()); }
+
+    // Berechnet Tangenten (xyz) + Handedness (w) pro Vertex aus Position + UV0 + Indices
+    // Voraussetzung: m_positions, m_normals, m_uv1, m_indices sind gefuellt.
+    void ComputeTangents();
 
 public:
     bool      isActive = true;
@@ -60,6 +66,7 @@ private:
     std::vector<DirectX::XMFLOAT4> m_colors;
     std::vector<DirectX::XMFLOAT2> m_uv1;
     std::vector<DirectX::XMFLOAT2> m_uv2;
+    std::vector<DirectX::XMFLOAT4> m_tangents;
     std::vector<unsigned int>      m_indices;
     Mesh* m_owner = nullptr;            // non-owning
 };

@@ -249,7 +249,7 @@ HRESULT GDXEngine::Graphic(unsigned int width, unsigned int height, bool windowe
 	hr = GetILM().CreateInputLayoutVertex(&GetSM().GetShader()->inputlayoutVertex,	// Store the layout
 		GetSM().GetShader(),														// The shader object
 		GetSM().GetShader()->flagsVertex,											// Store the flag
-		D3DVERTEX_POSITION | D3DVERTEX_COLOR | D3DVERTEX_NORMAL | D3DVERTEX_TEX1 | D3DVERTEX_TEX2);
+		D3DVERTEX_POSITION | D3DVERTEX_COLOR | D3DVERTEX_NORMAL | D3DVERTEX_TANGENT | D3DVERTEX_TEX1 | D3DVERTEX_TEX2);
 
 	if (FAILED(hr))
 	{
@@ -312,9 +312,6 @@ void GDXEngine::UpdateWorld()
 
 	// Funktioniert - cam ist Camera*
 	cam->UpdateCamera(position, forward, up);
-
-	// Light
-	// m_lightManager.Update(&m_device);
 }
 
 HRESULT GDXEngine::Cls(float r, float g, float b, float a)

@@ -49,5 +49,12 @@ public:
         BackbufferTarget& backbufferTarget,
         const Viewport& cameraViewport) = 0;
 
+    // Optional (default no-op): allows RenderManager to close the pass explicitly.
+    // Non-breaking: existing backends compile unchanged.
+    virtual void EndMainPass() {}
+
     virtual void BeginRttPass(GDXDevice& device, RenderTextureTarget& rttTarget) = 0;
+
+    // Optional (default no-op): restore/cleanup after RTT rendering.
+    virtual void EndRttPass() {}
 };

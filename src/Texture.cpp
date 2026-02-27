@@ -43,7 +43,7 @@ HRESULT Texture::AddTexture(ID3D11Device* device, ID3D11DeviceContext* deviceCon
         return E_FAIL;
     }
 
-    // Berechnung der maximalen Gr��e
+    // Berechnung der maximalen Groee
     UINT maxSize = imageWidth > imageHeight ? imageWidth : imageHeight;
 
     // Texturbeschreibung erstellen

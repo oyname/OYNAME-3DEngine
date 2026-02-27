@@ -11,29 +11,36 @@ int main()
 
     windowed == true ? Engine::Graphics(1200, 650) : Engine::Graphics(1980, 1080, false);
 
+    LPSHADER shaderUnlit = nullptr;
+    Engine::CreateShader(
+        &shaderUnlit,
+        L"..\\shaders\\VertexShader_PosUv.hlsl", "main",
+        L"..\\shaders\\PixelShader_PosUv.hlsl", "main",
+        D3DVERTEX_POSITION | D3DVERTEX_TEX1);
+
+    LPMATERIAL matUnlit = nullptr;
+    Engine::CreateMaterial(&matUnlit, shaderUnlit);
+
     // Textur laden
     LPTEXTURE texBrick = nullptr; Engine::LoadTexture(&texBrick, L"..\\media\\dx.bmp");
     LPTEXTURE texFace = nullptr; Engine::LoadTexture(&texFace, L"..\\media\\face.bmp");
     LPTEXTURE texBricks = nullptr; Engine::LoadTexture(&texBricks, L"..\\media\\bricks.bmp");
 
+    Engine::MaterialTexture(matUnlit, texFace);
+
     // Kamera erstellen
     Engine::CreateCamera(&quad_camera);
     Engine::PositionEntity(quad_camera, 0.0f, 0.0f, -5.0f);
     Engine::RotateEntity(quad_camera, 0.0f, 0.0f, 0.0f);
-
-    // Material mit Textur
-    LPMATERIAL material = nullptr;
-    Engine::CreateMaterial(&material);
-    Engine::MaterialTexture(material, texBrick);
     
     // Flaeche erstellen
     Engine::CreateMesh(&g_quadMesh);
-    CreateQuad(&g_quadMesh, material);
+    CreateQuad(&g_quadMesh, matUnlit);
 
     LPENTITY g_directionalLight = nullptr;
     Engine::CreateLight(&g_directionalLight, D3DLIGHT_DIRECTIONAL);  // ← DIRECTIONAL!
     Engine::PositionEntity(g_directionalLight, 0.0f, 0.0f, 0.0f);
-    Engine::LightColor(g_directionalLight, 1.0f, 1.0f, 1.0f);
+    Engine::LightColor(g_directionalLight, 1.0f, 0.0f, 0.0f);
 
     while (Windows::MainLoop() && !(GetAsyncKeyState(VK_ESCAPE) & 0x8000)) 
     {

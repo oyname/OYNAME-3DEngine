@@ -85,7 +85,6 @@ void Dx11RenderBackend::UpdateShadowMatrixBuffer(
     };
 
     // Original: constexpr bool HLSL_USES_ROW_MAJOR = true;
-    // -> keine Transpose-Änderung!
     constexpr bool HLSL_USES_ROW_MAJOR = true;
 
     ShadowMatrixBuffer* bufferData = reinterpret_cast<ShadowMatrixBuffer*>(mappedResource.pData);
@@ -127,11 +126,6 @@ void Dx11RenderBackend::BindShadowResourcesPS(GDXDevice& device, ShadowMapTarget
     ctx->PSSetShaderResources(SHADOW_TEX_SLOT, 1, &shadowSRV);
     ctx->PSSetSamplers(SHADOW_TEX_SLOT, 1, &shadowSmp);
 }
-
-
-// -----------------------------
-// Schritt 2: RenderTargets (Bind/Clear/Viewport) - copy + redirect
-// -----------------------------
 
 void Dx11RenderBackend::BeginShadowPass()
 {
@@ -233,6 +227,13 @@ void Dx11RenderBackend::BeginMainPass(
     ctx->RSSetViewports(1, &dxVp);
 }
 
+void Dx11RenderBackend::EndMainPass()
+{
+    // Intentionally minimal: the main pass usually targets the backbuffer and is the final pass.
+    // Keeping this as a hook enables RenderManager to enforce an "atomic" pass boundary.
+    // If you later add debug overlays / postfx, you can restore defaults here.
+}
+
 void Dx11RenderBackend::BeginRttPass(GDXDevice& device, RenderTextureTarget& rttTarget)
 {
     if (!device.IsInitialized()) return;
@@ -262,4 +263,44 @@ void Dx11RenderBackend::BeginRttPass(GDXDevice& device, RenderTextureTarget& rtt
 
     D3D11_VIEWPORT vp = rttTarget.GetViewport();
     ctx->RSSetViewports(1, &vp);
+}
+
+void Dx11RenderBackend::EndRttPass()
+{
+    if (!m_device || !m_device->IsInitialized()) return;
+    ID3D11DeviceContext* ctx = m_device->GetDeviceContext();
+    if (!ctx) return;
+
+    // Restore backbuffer RT/DS
+    ID3D11RenderTargetView* rtv = m_device->GetRenderTargetView();
+    ID3D11DepthStencilView* dsv = m_device->GetDepthStencilView();
+    if (rtv && dsv)
+        ctx->OMSetRenderTargets(1, &rtv, dsv);
+
+    // Restore full backbuffer viewport (same behaviour as EndShadowPass)
+    UINT w = 0, h = 0;
+    if (ID3D11Texture2D* bb = m_device->GetBackBuffer())
+    {
+        D3D11_TEXTURE2D_DESC desc{};
+        bb->GetDesc(&desc);
+        w = desc.Width;
+        h = desc.Height;
+    }
+    if (w > 0 && h > 0)
+    {
+        D3D11_VIEWPORT vp{};
+        vp.TopLeftX = 0.0f;
+        vp.TopLeftY = 0.0f;
+        vp.Width    = (float)w;
+        vp.Height   = (float)h;
+        vp.MinDepth = 0.0f;
+        vp.MaxDepth = 1.0f;
+        ctx->RSSetViewports(1, &vp);
+    }
+
+    // Restore default RS
+    if (ID3D11RasterizerState* rs = m_device->GetRasterizerState())
+        ctx->RSSetState(rs);
+    else
+        ctx->RSSetState(nullptr);
 }

@@ -43,15 +43,19 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="..\examples\Material-Properties Demo.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="..\examples\Multishaderexample.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\examples\Multisurfaceexample.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="..\examples\Multitextur.cpp">
+    <ClCompile Include="..\examples\UnlitShader.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </ClCompile>
@@ -80,8 +84,8 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\examples\Simple.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\examples\Speculartest.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
@@ -121,7 +125,7 @@
     <ClCompile Include="..\src\Surface.cpp" />
     <ClCompile Include="..\src\SurfaceGpuBuffer.cpp" />
     <ClCompile Include="..\src\Texture.cpp" />
-    <ClCompile Include="..\src\TextureManager.cpp" />
+    <ClCompile Include="..\src\TexturePool.cpp" />
     <ClCompile Include="..\src\Timer.cpp" />
     <ClCompile Include="..\src\Transform.cpp" />
   </ItemGroup>
@@ -167,7 +171,7 @@
     <ClInclude Include="..\include\Surface.h" />
     <ClInclude Include="..\include\SurfaceGpuBuffer.h" />
     <ClInclude Include="..\include\Texture.h" />
-    <ClInclude Include="..\include\TextureManager.h" />
+    <ClInclude Include="..\include\TexturePool.h" />
     <ClInclude Include="..\include\Timer.h" />
     <ClInclude Include="..\include\Transform.h" />
     <ClInclude Include="..\include\Viewport.h" />
@@ -186,6 +190,14 @@
       <FileType>Document</FileType>
     </Text>
     <Text Include="..\shaders\VertexShaderNeon.hlsl">
+      <FileType>Document</FileType>
+    </Text>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="..\shaders\PixelShader_PosUv.hlsl">
+      <FileType>Document</FileType>
+    </Text>
+    <Text Include="..\shaders\VertexShader_PosUv.hlsl">
       <FileType>Document</FileType>
     </Text>
   </ItemGroup>

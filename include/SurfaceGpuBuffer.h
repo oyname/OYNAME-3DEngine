@@ -25,6 +25,7 @@ public:
     // DX11-interne Buffer-Member -- nur fuer gidx.h::FillBuffer / UpdateBuffer
     ID3D11Buffer* positionBuffer = nullptr;
     ID3D11Buffer* normalBuffer   = nullptr;
+    ID3D11Buffer* tangentBuffer  = nullptr;
     ID3D11Buffer* colorBuffer    = nullptr;
     ID3D11Buffer* uv1Buffer      = nullptr;
     ID3D11Buffer* uv2Buffer      = nullptr;
@@ -32,6 +33,7 @@ public:
 
     unsigned int stridePosition = 0;
     unsigned int strideNormal   = 0;
+    unsigned int strideTangent  = 0;
     unsigned int strideColor    = 0;
     unsigned int strideUV1      = 0;
     unsigned int strideUV2      = 0;

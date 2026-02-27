@@ -56,7 +56,7 @@ void RenderManager::RenderShadowPass()
     const DirectX::XMMATRIX lightProjMatrix = light->GetLightProjectionMatrix();
     UpdateShadowMatrixBuffer(lightViewMatrix, lightProjMatrix);
 
-    m_backend->BindShadowMatrixConstantBufferVS(m_device);
+    if (m_backend) m_backend->BindShadowMatrixConstantBufferVS(m_device);
 
     for (Mesh* mesh : m_objectManager.GetMeshes())
     {
@@ -94,49 +94,63 @@ void RenderManager::RenderShadowPass()
 
 void RenderManager::RenderNormalPass()
 {
-    if (!m_currentCam || !m_device.IsInitialized())
+    // Kept for compatibility: historically this only did setup.
+    // Now it executes the full (atomic) main pass.
+    RenderMainPassAtomic();
+}
+
+void RenderManager::RenderMainPassAtomic()
+{
+    if (!m_currentCam || !m_device.IsInitialized() || !m_backend)
         return;
 
-    if (m_activeRTT)
-    {
-        // RTT-Pass: in die Render-Textur rendern
-        // Schritt 2: RenderTargets ins Backend verschoben (copy + redirect, keine Behaviour-Aenderung)
-        if (m_backend) m_backend->BeginRttPass(m_device, *m_activeRTT);
+    const bool isRtt = (m_activeRTT != nullptr);
 
-        Debug::LogOnce("RenderNormalPass_RTT",
-            "RenderManager.cpp: RenderNormalPass - RTT-Pass aktiv");
+    // 1) Begin pass (bind RT/DS, viewport, RS etc.)
+    if (isRtt)
+    {
+        m_backend->BeginRttPass(m_device, *m_activeRTT);
+        Debug::LogOnce("RenderMainPassAtomic_RTT",
+            "RenderManager.cpp: RenderMainPassAtomic - RTT-Pass aktiv");
     }
     else
     {
-        // Standard-Pass: in den Backbuffer rendern
-        // Schritt 2: RenderTargets ins Backend verschoben (copy + redirect, keine Behaviour-Aenderung)
-        if (m_backend)
-        {
-            const D3D11_VIEWPORT& dxVp = m_currentCam->viewport;
-            Viewport vp;
-            vp.x        = dxVp.TopLeftX;
-            vp.y        = dxVp.TopLeftY;
-            vp.width    = dxVp.Width;
-            vp.height   = dxVp.Height;
-            vp.minDepth = dxVp.MinDepth;
-            vp.maxDepth = dxVp.MaxDepth;
-            m_backend->BeginMainPass(m_device, m_backbufferTarget, vp);
-        }
+        const D3D11_VIEWPORT& dxVp = m_currentCam->viewport;
+        Viewport vp;
+        vp.x        = dxVp.TopLeftX;
+        vp.y        = dxVp.TopLeftY;
+        vp.width    = dxVp.Width;
+        vp.height   = dxVp.Height;
+        vp.minDepth = dxVp.MinDepth;
+        vp.maxDepth = dxVp.MaxDepth;
+        m_backend->BeginMainPass(m_device, m_backbufferTarget, vp);
     }
 
-    // Schritt 1: Shadow SRV + Comparison-Sampler binden (copy + redirect, Slots unveraendert)
-    if (m_backend) m_backend->BindShadowResourcesPS(m_device, m_shadowTarget);
+    // 2) Bind shadow resources / constants (unchanged slots + order)
+    m_backend->BindShadowResourcesPS(m_device, m_shadowTarget);
 
     if (m_directionLight)
     {
         Light* light = (m_directionLight->IsLight() ? m_directionLight->AsLight() : nullptr);
         if (light)
         {
-            // Schritt 1: Shadow-Matrix-Buffer updaten + binden (copy + redirect, Slot b3 unveraendert)
             UpdateShadowMatrixBuffer(light->GetLightViewMatrix(), light->GetLightProjectionMatrix());
-            if (m_backend) m_backend->BindShadowMatrixConstantBufferVS(m_device);
+            m_backend->BindShadowMatrixConstantBufferVS(m_device);
         }
     }
+
+    // 3) Per-frame lighting constants
+    m_lightManager.Update(&m_device);
+
+    // 4) Queue build + draw (kept)
+    BuildRenderQueue();
+    FlushRenderQueue();
+
+    // 5) End pass (optional restore hooks)
+    if (isRtt)
+        m_backend->EndRttPass();
+    else
+        m_backend->EndMainPass();
 }
 
 void RenderManager::InvalidateFrame()
@@ -230,6 +244,10 @@ void RenderManager::RenderScene()
     if (!m_currentCam)
         return;
 
+    EnsureBackend();
+    if (!m_backend)
+        return;
+
     //if (!m_backend)
     //{
     //    if (!m_device.GetDevice() || !m_device.GetDeviceContext())
@@ -248,14 +266,6 @@ void RenderManager::RenderScene()
 
     RenderShadowPass();
     RenderNormalPass();
-
-    m_lightManager.Update(&m_device);
-
-    Debug::LogOnce("RenderScene_Camera",
-        "RenderManager.cpp: RenderScene - Camera: ", Ptr(m_currentCam).c_str());
-
-    BuildRenderQueue();
-    FlushRenderQueue();
 
     // Kamera wiederherstellen
     m_currentCam = savedCam;

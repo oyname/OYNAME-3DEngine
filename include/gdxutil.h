@@ -50,6 +50,7 @@ enum D3DVERTEX_FLAGS {
     D3DVERTEX_TEX3 = (1 << 5),
     D3DVERTEX_DIFFUSE = (1 << 6),
     D3DVERTEX_SPECULAR = (1 << 7),
+    D3DVERTEX_TANGENT  = (1 << 8), // float4 (xyz + handedness)
 };
 
 

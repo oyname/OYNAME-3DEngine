@@ -1,5 +1,12 @@
-﻿#include "Material.h"
+#include "Material.h"
 #include "gdxdevice.h"
+
+static float Clamp01(float v)
+{
+    if (v < 0.0f) return 0.0f;
+    if (v > 1.0f) return 1.0f;
+    return v;
+}
 
 Material::Material() :
     isActive(false),
@@ -10,12 +17,25 @@ Material::Material() :
     pRenderShader(nullptr)
 {
     // Defaults
-    properties.diffuseColor = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-    properties.specularColor = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-    properties.shininess = 32.0f;
-    properties.transparency = 1.0f;
-    properties.blendMode = 0.0f;
-    properties.blendFactor = 1.0f;  // Standard: voller Einfluss
+    properties.baseColor        = DirectX::XMFLOAT4(1, 1, 1, 1);
+    properties.specularColor    = DirectX::XMFLOAT4(1, 1, 1, 1);
+    properties.emissiveColor    = DirectX::XMFLOAT4(0, 0, 0, 0);
+    properties.uvTilingOffset   = DirectX::XMFLOAT4(1, 1, 0, 0);
+
+    properties.metallic          = 0.0f;
+    properties.roughness         = 1.0f;
+    properties.normalScale       = 1.0f;
+    properties.occlusionStrength = 1.0f;
+
+    properties.shininess     = 32.0f;
+    properties.transparency  = 1.0f;
+    properties.alphaCutoff   = 0.5f;
+
+    properties.blendMode   = 0.0f;
+    properties.blendFactor = 1.0f;
+
+    properties.flags = MF_NONE;
+    properties._pad0 = 0.0f;
 
     // Shadow flags default
     castShadows = true;
@@ -23,8 +43,8 @@ Material::Material() :
     properties.receiveShadows = 1.0f;
 }
 
-Material::~Material() {
-
+Material::~Material()
+{
     for (int i = 0; i < MAX_TEXTURES; i++)
     {
         if (m_textureView[i])
@@ -32,7 +52,6 @@ Material::~Material() {
             Memory::SafeRelease(m_imageSamplerState[i]);
             Memory::SafeRelease(m_textureView[i]);
             Memory::SafeRelease(m_texture[i]);
-
         }
     }
 
@@ -41,7 +60,8 @@ Material::~Material() {
 
 void Material::SetTexture(const GDXDevice* device)
 {
-    ID3D11DeviceContext* ctx = device->GetDeviceContext();
+    ID3D11DeviceContext* ctx = device ? device->GetDeviceContext() : nullptr;
+    if (!ctx) return;
 
     for (int i = 0; i < MAX_TEXTURES; i++)
     {
@@ -86,12 +106,15 @@ void Material::UpdateConstantBuffer(ID3D11DeviceContext* context)
         context->Unmap(materialBuffer, 0);
     }
 
+    // b2 reserved for material
     context->PSSetConstantBuffers(2, 1, &materialBuffer);
 }
 
+// ==================== Setters ====================
+
 void Material::SetDiffuseColor(float r, float g, float b, float a)
 {
-    properties.diffuseColor = DirectX::XMFLOAT4(r, g, b, a);
+    properties.baseColor = DirectX::XMFLOAT4(r, g, b, a);
 }
 
 void Material::SetSpecularColor(float r, float g, float b, float a)
@@ -106,19 +129,62 @@ void Material::SetShininess(float shininess)
 
 void Material::SetTransparency(float transparency)
 {
-    properties.transparency = transparency;
+    properties.transparency = Clamp01(transparency);
 }
 
 void Material::SetColor(float r, float g, float b, float a)
 {
-    SetDiffuseColor(r, g, b, a); 
+    SetDiffuseColor(r, g, b, a);
 }
 
-// ==================== GETTERS ====================
+void Material::SetMetallic(float m)
+{
+    properties.metallic = Clamp01(m);
+}
+
+void Material::SetRoughness(float r)
+{
+    properties.roughness = Clamp01(r);
+}
+
+void Material::SetNormalScale(float s)
+{
+    // allow >1 for exaggerated normals
+    if (s < 0.0f) s = 0.0f;
+    properties.normalScale = s;
+    if (s > 0.0f) properties.flags |= MF_USE_NORMAL_MAP;
+}
+
+void Material::SetOcclusionStrength(float s)
+{
+    properties.occlusionStrength = Clamp01(s);
+}
+
+void Material::SetEmissiveColor(float r, float g, float b, float intensity)
+{
+    if (intensity < 0.0f) intensity = 0.0f;
+    properties.emissiveColor = DirectX::XMFLOAT4(r * intensity, g * intensity, b * intensity, 0.0f);
+    if ((r != 0.0f) || (g != 0.0f) || (b != 0.0f) || (intensity != 0.0f))
+        properties.flags |= MF_USE_EMISSIVE;
+    else
+        properties.flags &= ~MF_USE_EMISSIVE;
+}
+
+void Material::SetUVTilingOffset(float tileU, float tileV, float offU, float offV)
+{
+    properties.uvTilingOffset = DirectX::XMFLOAT4(tileU, tileV, offU, offV);
+}
+
+void Material::SetAlphaCutoff(float cutoff)
+{
+    properties.alphaCutoff = Clamp01(cutoff);
+}
+
+// ==================== Getters ====================
 
 DirectX::XMFLOAT4 Material::GetDiffuseColor() const
 {
-    return properties.diffuseColor;
+    return properties.baseColor;
 }
 
 DirectX::XMFLOAT4 Material::GetSpecularColor() const

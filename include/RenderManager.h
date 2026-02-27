@@ -60,6 +60,7 @@ private:
     LPENTITY             m_rttCamera    = nullptr;  // optionale RTT-Kamera (non-owning)
 
     // Helper Functions
+    void RenderMainPassAtomic();
     void BuildRenderQueue();
     void FlushRenderQueue();
     void UpdateShadowMatrixBuffer(const DirectX::XMMATRIX& viewMatrix,

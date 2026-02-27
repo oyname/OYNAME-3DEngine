@@ -31,11 +31,26 @@ cbuffer LightBuffer : register(b1)
 
 cbuffer MaterialBuffer : register(b2)
 {
-    float4 diffuseColor;
-    float4 specularColor;
-    float shininess;
-    float transparency;
-    float2 padding;
+    float4 gBaseColor;       // baseColor
+    float4 gSpecularColor;
+
+    float4 gEmissiveColor;
+    float4 gUvTilingOffset;  // xy tiling, zw offset
+
+    float  gMetallic;
+    float  gRoughness;
+    float  gNormalScale;
+    float  gOcclusionStrength;
+
+    float  gShininess;
+    float  gTransparency;
+    float  gAlphaCutoff;
+    float  gReceiveShadows;
+
+    float  gBlendMode;
+    float  gBlendFactor;
+    uint   gMaterialFlags;
+    float  _pad0;
 };
 
 // ==================== SHADOW MAPPING BUFFER ====================
@@ -52,6 +67,7 @@ struct VS_INPUT
 {
     float3 position : POSITION;
     float3 normal : NORMAL;
+    float4 tangent : TANGENT; // xyz + handedness
     float4 color : COLOR;
     float2 texCoord  : TEXCOORD0;   // Albedo UV
     float2 texCoord2 : TEXCOORD1;   // Lightmap / Detail UV
@@ -61,6 +77,7 @@ struct VS_OUTPUT
 {
     float4 position : SV_POSITION;
     float3 normal : NORMAL;
+    float4 tangent : TANGENT; // xyz + handedness
     float3 worldPosition : TEXCOORD1;
     float4 color : COLOR;
     float2 texCoord  : TEXCOORD0;   // Albedo UV
@@ -86,6 +103,10 @@ VS_OUTPUT main(VS_INPUT input)
 
     // Normale in den Welt-Raum transformieren (ohne Translation)
     o.normal = normalize(mul(input.normal, (float3x3) _worldMatrix));
+
+    // Tangente in Welt-Raum (xyz) + Handedness (w)
+    float3 tW = normalize(mul(input.tangent.xyz, (float3x3)_worldMatrix));
+    o.tangent = float4(tW, input.tangent.w);
 
     // Vertex-Attribute kopieren
     o.color = input.color;

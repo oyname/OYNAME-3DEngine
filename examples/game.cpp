@@ -84,8 +84,6 @@ int main(LPVOID hwnd)
 
         const float dt = static_cast<float>(Core::GetDeltaTime());
 
-        Engine::Cls(0, 64, 128);
-
         if ((GetAsyncKeyState(VK_UP) & 0x8000)) {
             Engine::MoveEntity(g_cubeMesh, 0.0f, 0.0f, 50.0f * dt);
         }
@@ -101,6 +99,7 @@ int main(LPVOID hwnd)
 
             Engine::TurnEntity(g_cubeMesh, speed * dt, speed * dt, 0.0f);
 
+            Engine::Cls(0, 64, 128);
             Engine::UpdateWorld();
             Engine::RenderWorld();
             Engine::Flip();

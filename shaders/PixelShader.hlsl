@@ -1,9 +1,12 @@
 // PixelShader.hlsl - Lighting + Shadow Mapping (PCF)
 // Registers:
-//  - t0/s0 : diffuse texture
-//  - t7/s7 : shadow map (comparison sampler)   <<< FIXED (was t1/s1)
+//  - t0/s0 : base color (albedo)
+//  - t1/s1 : detail/lightmap/extra (optional)
+//  - t2/s2 : roughness map (optional)
+//  - t3/s3 : metallic map  (optional)
+//  - t7/s7 : shadow map (comparison sampler)
 //  - b1    : LightBuffer
-//  - b2    : MaterialBuffer
+//  - b2    : MaterialBuffer (keep in sync with Material::MaterialData)
 
 struct LightData
 {
@@ -22,29 +25,53 @@ cbuffer LightBuffer : register(b1)
 
 cbuffer MaterialBuffer : register(b2)
 {
-    float4 diffuseColor;
-    float4 specularColor;
-    float shininess;
-    float transparency;
-    float receiveShadows; // 1 = use shadow map, 0 = ignore shadows
-    float blendMode; // 0=off 1=multiply 2=multiply×2 3=additive 4=lerp(alpha) 5=luminanz
+    float4 gBaseColor;       // baseColor
+    float4 gSpecularColor;
+
+    float4 gEmissiveColor;
+    float4 gUvTilingOffset;  // xy tiling, zw offset
+
+    float  gMetallic;
+    float  gRoughness;
+    float  gNormalScale;
+    float  gOcclusionStrength;
+
+    float  gShininess;
+    float  gTransparency;
+    float  gAlphaCutoff;
+    float  gReceiveShadows;
+
+    float  gBlendMode;
+    float  gBlendFactor;
+    uint   gMaterialFlags;
+    float  _pad0;
 };
+
+// Flags (must match Material::MaterialFlags)
+#define MF_ALPHA_TEST      (1u<<0)
+#define MF_DOUBLE_SIDED    (1u<<1)
+#define MF_UNLIT           (1u<<2)
+#define MF_USE_NORMAL_MAP  (1u<<3)
+#define MF_USE_ORM_MAP     (1u<<4)
+#define MF_USE_EMISSIVE    (1u<<5)
 
 struct PS_INPUT
 {
     float4 position : SV_POSITION;
     float3 normal : NORMAL;
+    float4 tangent : TEXCOORD5; // world tangent xyz + handedness
     float3 worldPosition : TEXCOORD1;
     float4 color : COLOR;
     float2 texCoord : TEXCOORD0;
     float4 positionLightSpace : TEXCOORD2;
+    float3 viewDirection : TEXCOORD3;
     float2 texCoord2 : TEXCOORD4; // Lightmap / Detail UV
 };
 
 Texture2D textureMap : register(t0); // Albedo / Diffuse
 SamplerState samplerState : register(s0);
 
-// Slot 1: Detail / Lightmap / Normal Map  (eigene UV via TEXCOORD1)
+// Slot 1: Normal Map (Tangent Space)  (uses UV0 / TEXCOORD0)
 Texture2D textureMap2 : register(t1);
 SamplerState samplerState2 : register(s1);
 
@@ -122,6 +149,25 @@ float CalculateShadowFactor(float4 positionLightSpace, float3 normal, float3 lig
 float4 main(PS_INPUT input) : SV_Target
 {
     float3 normal = normalize(input.normal);
+    float3 viewDir = normalize(input.viewDirection);
+
+    // --- Normal Mapping (Tangent Space) ---
+    if ((gMaterialFlags & MF_USE_NORMAL_MAP) != 0u && gNormalScale > 0.0001f)
+    {
+        // Sample tangent-space normal and unpack [0..1] -> [-1..1]
+        float3 nTS = textureMap2.Sample(samplerState2, input.texCoord).xyz * 2.0f - 1.0f;
+
+        // Scale strength (XY is typical; Z stays to keep length)
+        nTS.xy *= gNormalScale;
+        nTS = normalize(nTS);
+
+        float3 N = normalize(input.normal);
+        float3 T = normalize(input.tangent.xyz);
+        float3 B = normalize(cross(N, T) * input.tangent.w);
+
+        // Transform to world space
+        normal = normalize(nTS.x * T + nTS.y * B + nTS.z * N);
+    }
 
     float3 ambient = float3(0.0, 0.0, 0.0);
     float3 diffuseAccum = float3(0.0, 0.0, 0.0);
@@ -166,22 +212,21 @@ float4 main(PS_INPUT input) : SV_Target
 
         // Shadow nur fuer das Directional Light das Schatten wirft
         float shadowFactor = 1.0f;
-        if (receiveShadows > 0.5f && (int) i == shadowLightIndex)
+        if (gReceiveShadows > 0.5f && (int) i == shadowLightIndex)
             shadowFactor = CalculateShadowFactor(input.positionLightSpace, normal, shadowLightDir);
 
         // Diffuse (Lambert)
         float diffuse_factor = max(dot(normal, -lightDir), 0.0f);
         diffuseAccum += lights[i].lightDiffuseColor.rgb * diffuse_factor * lightIntensity * shadowFactor;
 
-        // Specular (FIX: specular must be modulated by light color, otherwise it shines even when light is black)
-        // NOTE: view vector is currently faked as (0,1,0). For physically correct highlights, pass a real viewDir.
-        float3 halfVec = normalize(-lightDir + float3(0, 1, 0));
-        float specular_factor = pow(max(dot(normal, halfVec), 0.0f), max(shininess, 1.0f));
+        // Specular
+        float3 halfVec = normalize(-lightDir + viewDir);
+        float specular_factor = pow(max(dot(normal, halfVec), 0.0f), max(gShininess, 1.0f));
 
         // Optional but recommended: gate specular by NdotL so back-facing light doesn't create highlights.
         float NdotL = diffuse_factor;
 
-        specularAccum += specularColor.rgb
+        specularAccum += gSpecularColor.rgb
                        * specular_factor
                        * lights[i].lightDiffuseColor.rgb
                        * lightIntensity
@@ -189,49 +234,38 @@ float4 main(PS_INPUT input) : SV_Target
                        * NdotL;
     }
 
-    float3 lighting = saturate(ambient + diffuseAccum + specularAccum);
+    float2 uv0 = input.texCoord * gUvTilingOffset.xy + gUvTilingOffset.zw;
 
-    float4 texColor = textureMap.Sample(samplerState, input.texCoord);
-
-    // Zweite Textur mit eigenen UV-Koordinaten (Lightmap / Detail)
-    float4 texColor2 = textureMap2.Sample(samplerState2, input.texCoord2);
-
-    // Blend-Modi für zweite Textur
-    // 0 = off (Standard, keine zweite Textur)
-    // 1 = Multiplicative         A * B               Lightmaps, Schatten
-    // 2 = Multiplicative ×2      A * B * 2           Detail-Maps, Helligkeitskorrektur
-    // 3 = Additive               A + B               Glühen, Feuer, Licht
-    // 4 = Lerp (Alpha-basiert)   lerp(A,B, B.alpha)  Decals, Aufkleber
-    // 5 = Luminanz-Lerp          lerp(A,B, lum(B))   Overlay mit schwarzem Hintergrund
-    if (blendMode >= 0.5f)
+    // Ambient occlusion (optional, cheapest possible integration)
+    float ao = 1.0f;
+    if ((gMaterialFlags & MF_USE_ORM_MAP) != 0u)
     {
-        int mode = (int) (blendMode + 0.5f);
-
-        if (mode == 1)
-            texColor.rgb *= texColor2.rgb;
-        else if (mode == 2)
-            texColor.rgb = saturate(texColor.rgb * texColor2.rgb * 2.0f);
-        else if (mode == 3)
-            texColor.rgb = saturate(texColor.rgb + texColor2.rgb);
-        else if (mode == 4)
-            texColor.rgb = lerp(texColor.rgb, texColor2.rgb, texColor2.a);
-        else if (mode == 5)
-        {
-            float lum = dot(texColor2.rgb, float3(0.299f, 0.587f, 0.114f));
-            texColor.rgb = lerp(texColor.rgb, texColor2.rgb, lum);
-        }
+        float4 roughSamp = textureMap3.Sample(samplerState3, uv0);
+        // Convention: roughness in .r, AO in .g (if present)
+        ao = lerp(1.0f, roughSamp.g, saturate(gOcclusionStrength));
     }
 
-    bool hasMaterialColor = (diffuseColor.r > 0.01 || diffuseColor.g > 0.01 || diffuseColor.b > 0.01);
-    float3 matColor = hasMaterialColor ? diffuseColor.rgb : float3(1.0, 1.0, 1.0);
+    float3 lighting = ((gMaterialFlags & MF_UNLIT) != 0u)
+        ? float3(1.0f, 1.0f, 1.0f)
+        : saturate(ambient * ao + diffuseAccum + specularAccum);
+    float4 texColor = textureMap.Sample(samplerState, uv0);
+    // (slot1 is now NormalMap; detail/lightmap blending removed here)
 
-    float3 final_color;
-    if (texColor.a > 0.0)
-        final_color = texColor.rgb * matColor * lighting * input.color.rgb;
-    else
-        final_color = matColor * lighting * input.color.rgb;
+    // Optional alpha test (classic cutout)
+    if ((gMaterialFlags & MF_ALPHA_TEST) != 0u)
+    {
+        float a = texColor.a * gBaseColor.a;
+        if (a < gAlphaCutoff)
+            discard;
+    }
 
-    float finalAlpha = hasMaterialColor ? (diffuseColor.a * transparency) : 1.0;
-    return float4(final_color, finalAlpha);
+    float3 albedo = texColor.rgb * gBaseColor.rgb * input.color.rgb;
+    float3 final_color = albedo * lighting;
+
+    if ((gMaterialFlags & MF_USE_EMISSIVE) != 0u)
+        final_color += gEmissiveColor.rgb;
+
+    float finalAlpha = saturate(texColor.a * gBaseColor.a * gTransparency);
+    return float4(saturate(final_color), finalAlpha);
 }
 
