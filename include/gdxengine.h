@@ -12,7 +12,7 @@
 #include "ShaderManager.h"
 #include "RenderManager.h"
 #include "LightManager.h"
-#include "TexturePool.h"
+#include "TextureManager.h"
 #include "CameraManager.h"
 #include "Transform.h"
 #include "Timer.h"

@@ -108,7 +108,7 @@
     <ClCompile Include="..\src\CameraManager.cpp">
       <Filter>01 Engine\scene</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\TexturePool.cpp">
+    <ClCompile Include="..\src\TextureManager.cpp">
       <Filter>01 Engine\scene</Filter>
     </ClCompile>
     <ClCompile Include="..\src\GeometryHelper.cpp">
@@ -162,7 +162,7 @@
     <ClCompile Include="..\examples\Speculartest.cpp">
       <Filter>01 Engine\app</Filter>
     </ClCompile>
-    <ClCompile Include="..\examples\TextureExample.cpp">
+    <ClCompile Include="..\examples\TextureTestAlt.cpp">
       <Filter>01 Engine\app</Filter>
     </ClCompile>
     <ClCompile Include="..\src\ShaderManager.cpp">
@@ -278,7 +278,7 @@
     <ClInclude Include="..\include\CameraManager.h">
       <Filter>01 Engine\scene</Filter>
     </ClInclude>
-    <ClInclude Include="..\include\TexturePool.h">
+    <ClInclude Include="..\include\TextureManager.h">
       <Filter>01 Engine\scene</Filter>
     </ClInclude>
     <ClInclude Include="..\include\GeometryHelper.h">

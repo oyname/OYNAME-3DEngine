@@ -1,4 +1,4 @@
-#include "TexturePool.h"
+#include "TextureManager.h"
 
 using namespace DirectX;
 

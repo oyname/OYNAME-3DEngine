@@ -21,7 +21,8 @@ int main()
     // -------------------------------------------------
     LPENTITY directionalLight = nullptr;
     Engine::CreateLight(&directionalLight, D3DLIGHT_DIRECTIONAL);
-    Engine::PositionEntity(directionalLight, 0.0f, 0.0f, 0.0f);
+    Engine::PositionEntity(directionalLight, 5.0f, 0.0f, 0.0f);
+    Engine::LookAt(directionalLight, 0.0f, 0.0f, 5.0f);
     Engine::LightColor(directionalLight, 0.8f, 0.8f, 0.8f);
     Engine::SetDirectionalLight(directionalLight);
     Engine::SetAmbientColor(0.2f, 0.1f, 0.1f);
@@ -32,7 +33,7 @@ int main()
     LPTEXTURE albedoTex = nullptr;
     LPTEXTURE normalTex = nullptr;
     LPTEXTURE ormTex = nullptr;
-    Engine::LoadTexture(&albedoTex, L"..\\media\\albedo.png");
+    Engine::LoadTexture(&albedoTex, L"..\\media\\albedo_orange.png");
     Engine::LoadTexture(&normalTex, L"..\\media\\normal.png");
     Engine::LoadTexture(&ormTex, L"..\\media\\orm.png");
 
@@ -64,6 +65,11 @@ int main()
     CreateCube(&cube, matCube);
     Engine::PositionEntity(cube, 0.0f, 0.0f, 5.0f);
 
+    LPENTITY cube2;
+    CreateCube(&cube2, matCube);
+    Engine::PositionEntity(cube2, 1.0f, 0.0f, 3.0f);
+    Engine::ScaleEntity(cube2, 0.3f, 0.3f, 0.3f);
+
     while (Windows::MainLoop())
     {
         Core::BeginFrame(); // liefert DeltaTime/FPS/FrameCount über Core
@@ -72,6 +78,7 @@ int main()
 
         // Rotation
         Engine::RotateEntity(cube, 10.0f * dt, 45.0f * dt, 2.0f * dt);
+        Engine::RotateEntity(cube2, -10.0f * dt, -45.0f * dt, -2.0f * dt);
 
         Engine::Cls(0, 64, 128);
 

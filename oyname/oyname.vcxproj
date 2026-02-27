@@ -64,8 +64,8 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\examples\MultitexturRTTExample.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\examples\Performance.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
@@ -84,14 +84,14 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\examples\Simple.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\examples\Speculartest.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="..\examples\TextureExample.cpp">
+    <ClCompile Include="..\examples\TextureTestAlt.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </ClCompile>
@@ -125,7 +125,7 @@
     <ClCompile Include="..\src\Surface.cpp" />
     <ClCompile Include="..\src\SurfaceGpuBuffer.cpp" />
     <ClCompile Include="..\src\Texture.cpp" />
-    <ClCompile Include="..\src\TexturePool.cpp" />
+    <ClCompile Include="..\src\TextureManager.cpp" />
     <ClCompile Include="..\src\Timer.cpp" />
     <ClCompile Include="..\src\Transform.cpp" />
   </ItemGroup>
@@ -171,7 +171,7 @@
     <ClInclude Include="..\include\Surface.h" />
     <ClInclude Include="..\include\SurfaceGpuBuffer.h" />
     <ClInclude Include="..\include\Texture.h" />
-    <ClInclude Include="..\include\TexturePool.h" />
+    <ClInclude Include="..\include\TextureManager.h" />
     <ClInclude Include="..\include\Timer.h" />
     <ClInclude Include="..\include\Transform.h" />
     <ClInclude Include="..\include\Viewport.h" />
