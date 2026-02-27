@@ -1,5 +1,6 @@
 #pragma once
 #include "ObjectManager.h"
+#include "TexturePool.h"
 #include "LightManager.h"
 #include "RenderQueue.h"
 #include "gdxdevice.h"
@@ -32,6 +33,7 @@ public:
     void SetRTTTarget(RenderTextureTarget* rtt, LPENTITY rttCamera = nullptr);
 
     void EnsureBackend();
+    void SetTexturePool(TexturePool* pool) noexcept { m_texturePool = pool; }
 
 private:
     RenderQueue m_opaque;
@@ -54,6 +56,15 @@ private:
     // Render Targets
     ShadowMapTarget  m_shadowTarget;
     BackbufferTarget m_backbufferTarget;
+
+    // TexturePool (non-owning, gesetzt von GDXEngine nach Init)
+    TexturePool* m_texturePool = nullptr;
+
+    // Default-Sampler fuer gSampler (s0) – linear wrap
+    ID3D11SamplerState* m_defaultSampler = nullptr;
+
+    // Caching: zuletzt gebundene SRVs fuer t0/t1/t2 – vermeidet redundante PSSetShaderResources
+    ID3D11ShaderResourceView* m_boundSRVs[3] = {};
 
     // RTT-Support: wenn gesetzt, rendert RenderNormalPass in dieses Target (statt Backbuffer)
     RenderTextureTarget* m_activeRTT    = nullptr;

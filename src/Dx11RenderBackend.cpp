@@ -9,7 +9,11 @@
 #include <d3d11.h>
 
 #ifndef SHADOW_TEX_SLOT
-#define SHADOW_TEX_SLOT 7
+#define SHADOW_TEX_SLOT 16   // must match PixelShader.hlsl register(t16)
+#endif
+
+#ifndef SHADOW_SMP_SLOT
+#define SHADOW_SMP_SLOT 7    // must match PixelShader.hlsl register(s7)
 #endif
 
 Dx11RenderBackend::Dx11RenderBackend(GDXDevice& device)
@@ -18,10 +22,7 @@ Dx11RenderBackend::Dx11RenderBackend(GDXDevice& device)
     device.AttachDx11Backend(this);
     m_shadow = std::make_unique<Dx11ShadowMap>();
     
-    if (ID3D11Device* dev = device.GetDevice())
-        m_texturePool.InitializeDefaults(dev);
-
-    Debug::Log("Texture Pool Size: ", m_texturePool.Size());
+    Debug::Log("Dx11RenderBackend.cpp: Backend erstellt");
 }
 
 Dx11RenderBackend::~Dx11RenderBackend()
@@ -129,7 +130,7 @@ void Dx11RenderBackend::BindShadowResourcesPS(GDXDevice& device, ShadowMapTarget
 
     // Slot unverändert: SHADOW_TEX_SLOT (im Originalcode 7)
     ctx->PSSetShaderResources(SHADOW_TEX_SLOT, 1, &shadowSRV);
-    ctx->PSSetSamplers(SHADOW_TEX_SLOT, 1, &shadowSmp);
+    ctx->PSSetSamplers(SHADOW_SMP_SLOT, 1, &shadowSmp);
 }
 
 void Dx11RenderBackend::BeginShadowPass()

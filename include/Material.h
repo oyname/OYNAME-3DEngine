@@ -29,18 +29,18 @@ public:
         DirectX::XMFLOAT4 emissiveColor;   // rgb * intensity
         DirectX::XMFLOAT4 uvTilingOffset;  // xy = tiling, zw = offset
 
-        // pack 16 bytes
+        // pack 16 bytes (PBR – GPU-Daten kommen aus den einzelnen Feldern unten)
         float metallic;          // 0..1
         float roughness;         // 0..1
         float normalScale;       // 0..2
         float occlusionStrength; // 0..1
-
+        
         // pack 16 bytes
         float shininess;         // legacy phong
         float transparency;      // 0..1 (legacy)
         float alphaCutoff;       // 0..1 (alpha test)
         float receiveShadows;    // 1.0 = receive, 0.0 = ignore
-
+        
         // pack 16 bytes
         float    blendMode;      // 0=off 1=multiply 2=multiply*2 3=additive 4=lerp(alpha) 5=luminance
         float    blendFactor;    // used by blendMode in PS
@@ -100,7 +100,12 @@ public:
     }
     inline bool IsDoubleSided() const { return (properties.flags & MF_DOUBLE_SIDED) != 0; }
 
-    // ==================== MATERIAL PROPERTY GETTERS ====================
+    // ==================== MATERIAL PROPERTY GETTERS/SETTERS ====================
+    uint32_t albedoIndex = 0;   // default: white
+    uint32_t normalIndex = 1;   // default: flat normal
+    uint32_t ormIndex = 2;      // default: ORM default
+    uint32_t decalIndex = 0;    // optional
+
     DirectX::XMFLOAT4 GetDiffuseColor() const;
     DirectX::XMFLOAT4 GetSpecularColor() const;
     float GetShininess() const;
@@ -113,6 +118,11 @@ public:
     DirectX::XMFLOAT4 GetEmissiveColor() const { return properties.emissiveColor; }
     DirectX::XMFLOAT4 GetUVTilingOffset() const { return properties.uvTilingOffset; }
     float GetAlphaCutoff() const { return properties.alphaCutoff; }
+
+    void SetAlbedoIndex(uint32_t idx) noexcept { albedoIndex = idx; }
+    void SetNormalIndex(uint32_t idx) noexcept { normalIndex = idx; }
+    void SetOrmIndex(uint32_t idx)    noexcept { ormIndex = idx; }
+    void SetDecalIndex(uint32_t idx)  noexcept { decalIndex = idx; }
 
     // ==================== SHADOW FLAGS ====================
     // CPU-side flags

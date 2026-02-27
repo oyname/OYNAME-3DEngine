@@ -245,6 +245,18 @@ HRESULT GDXEngine::Graphic(unsigned int width, unsigned int height, bool windowe
 		return hr;
 	}
 
+	// TexturePool: Defaults (white / flat-normal / ORM) anlegen
+	if (!m_texturePool.InitializeDefaults(m_device.GetDevice()))
+	{
+		Debug::LogError("gdxengine.cpp: TexturePool::InitializeDefaults fehlgeschlagen");
+	}
+	else
+	{
+		Debug::Log("gdxengine.cpp: TexturePool initialisiert – Defaults bei Index 0/1/2");
+		m_renderManager.SetTexturePool(&m_texturePool);
+		Debug::Log("gdxengine.cpp: TexturePool an RenderManager uebergeben");
+	}
+
 	// Create layout for the vertices
 	hr = GetILM().CreateInputLayoutVertex(&GetSM().GetShader()->inputlayoutVertex,	// Store the layout
 		GetSM().GetShader(),														// The shader object
@@ -385,6 +397,10 @@ InputLayoutManager& GDXEngine::GetILM() {
 
 TextureManager& GDXEngine::GetTM() {
 	return m_texturManager;
+}
+
+TexturePool& GDXEngine::GetTP() {
+	return m_texturePool;
 }
 
 CameraManager& GDXEngine::GetCam() {

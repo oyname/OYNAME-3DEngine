@@ -861,12 +861,110 @@ namespace Engine
         }
     }
 
+    // ── MaterialTexture (Legacy-API, bleibt erhalten) ───────────────────────────
+    // Speichert Textur im Material-Slot (slot 0..7) und registriert die SRV
+    // automatisch im globalen TexturePool.
     inline void MaterialTexture(LPMATERIAL material, LPTEXTURE texture, int slot = 0)
     {
         if (!material || !texture) return;
+        // Legacy-Slot-Speicherung bleibt
         material->SetTexture(slot, texture->m_texture,
             texture->m_textureView,
             texture->m_imageSamplerState);
+        // TexturePool-Registrierung: SRV bekommt einen stabilen Index
+        if (engine && texture->m_textureView)
+        {
+            uint32_t idx = engine->GetTP().GetOrAdd(texture->m_textureView);
+            // Slot-Semantik: 0=Albedo, 1=Normal, 2=ORM, 3=Decal
+            switch (slot)
+            {
+            case 0: material->SetAlbedoIndex(idx); break;
+            case 1: material->SetNormalIndex(idx); break;
+            case 2: material->SetOrmIndex(idx);    break;
+            case 3: material->SetDecalIndex(idx);  break;
+            default: break;
+            }
+        }
+    }
+
+    // ── MaterialSetAlbedo ─────────────────────────────────────────────────────
+    // Weist dem Material die Albedo-Textur zu und registriert sie im TexturePool.
+    inline void MaterialSetAlbedo(LPMATERIAL material, LPTEXTURE texture)
+    {
+        if (!material) return;
+        if (!texture || !texture->m_textureView)
+        {
+            material->SetAlbedoIndex(engine ? engine->GetTP().WhiteIndex() : 0u);
+            return;
+        }
+        material->SetTexture(0, texture->m_texture, texture->m_textureView, texture->m_imageSamplerState);
+        if (engine)
+        {
+            uint32_t idx = engine->GetTP().GetOrAdd(texture->m_textureView);
+            material->SetAlbedoIndex(idx);
+            Debug::Log("gidx.h: MaterialSetAlbedo – Index ", idx);
+        }
+    }
+
+    // ── MaterialSetNormal ─────────────────────────────────────────────────────
+    // Weist dem Material die Normal-Map zu. Setzt MF_USE_NORMAL_MAP automatisch.
+    inline void MaterialSetNormal(LPMATERIAL material, LPTEXTURE texture)
+    {
+        if (!material) return;
+        if (!texture || !texture->m_textureView)
+        {
+            material->SetNormalIndex(engine ? engine->GetTP().FlatNormalIndex() : 1u);
+            return;
+        }
+        material->SetTexture(1, texture->m_texture, texture->m_textureView, texture->m_imageSamplerState);
+        material->SetNormalScale(material->GetNormalScale() > 0.0001f ? material->GetNormalScale() : 1.0f);
+        if (engine)
+        {
+            uint32_t idx = engine->GetTP().GetOrAdd(texture->m_textureView);
+            material->SetNormalIndex(idx);
+            Debug::Log("gidx.h: MaterialSetNormal – Index ", idx);
+        }
+    }
+
+    // ── MaterialSetORM ────────────────────────────────────────────────────────
+    // Weist dem Material die ORM-Textur (Occlusion/Roughness/Metallic) zu.
+    // Setzt MF_USE_ORM_MAP automatisch.
+    inline void MaterialSetORM(LPMATERIAL material, LPTEXTURE texture)
+    {
+        if (!material) return;
+        if (!texture || !texture->m_textureView)
+        {
+            material->SetOrmIndex(engine ? engine->GetTP().OrmIndex() : 2u);
+            return;
+        }
+        material->SetTexture(2, texture->m_texture, texture->m_textureView, texture->m_imageSamplerState);
+        if (engine)
+        {
+            uint32_t idx = engine->GetTP().GetOrAdd(texture->m_textureView);
+            material->SetOrmIndex(idx);
+            // ORM-Flag aktivieren
+            material->properties.flags |= Material::MF_USE_ORM_MAP;
+            Debug::Log("gidx.h: MaterialSetORM – Index ", idx);
+        }
+    }
+
+    // ── MaterialSetDecal ──────────────────────────────────────────────────────
+    // Weist dem Material eine optionale Decal-Textur zu.
+    inline void MaterialSetDecal(LPMATERIAL material, LPTEXTURE texture)
+    {
+        if (!material) return;
+        if (!texture || !texture->m_textureView)
+        {
+            material->SetDecalIndex(engine ? engine->GetTP().WhiteIndex() : 0u);
+            return;
+        }
+        material->SetTexture(3, texture->m_texture, texture->m_textureView, texture->m_imageSamplerState);
+        if (engine)
+        {
+            uint32_t idx = engine->GetTP().GetOrAdd(texture->m_textureView);
+            material->SetDecalIndex(idx);
+            Debug::Log("gidx.h: MaterialSetDecal – Index ", idx);
+        }
     }
 
 

@@ -15,7 +15,14 @@ RenderManager::RenderManager(ObjectManager& objectManager, LightManager& lightMa
     Debug::Log("RenderManager.cpp: RenderManager erstellt - ShadowMapTarget + BackbufferTarget initialisiert");
 }
 
-RenderManager::~RenderManager() = default;
+RenderManager::~RenderManager()
+{
+    if (m_defaultSampler)
+    {
+        m_defaultSampler->Release();
+        m_defaultSampler = nullptr;
+    }
+}
 
 void RenderManager::SetCamera(LPENTITY camera)
 {
@@ -83,6 +90,11 @@ void RenderManager::RenderShadowPass()
             Shader* shader = mat->pRenderShader;
             if (!shader) continue;
 
+            if (!shader->IsValid(ShaderBindMode::VS_ONLY))
+            {
+                Debug::LogError("RenderManager.cpp: RenderShadowPass – Shader ungueltig, Draw uebersprungen");
+                continue;
+            }
             shader->UpdateShader(&m_device, ShaderBindMode::VS_ONLY);
             s->gpu->Draw(&m_device, shader->flagsVertex);
         }
@@ -212,6 +224,11 @@ void RenderManager::FlushRenderQueue()
 {
     Shader*   lastShader   = nullptr;
     Material* lastMaterial = nullptr;
+    ID3D11DeviceContext* ctx = m_device.GetDeviceContext();
+
+    // Sampler s0 einmalig binden (gilt fuer alle Materials / gSampler in PS)
+    if (m_defaultSampler && ctx)
+        ctx->PSSetSamplers(0, 1, &m_defaultSampler);
 
     for (RenderCommand& cmd : m_opaque.commands)
     {
@@ -220,6 +237,11 @@ void RenderManager::FlushRenderQueue()
         // Shader nur binden wenn gewechselt
         if (cmd.shader != lastShader)
         {
+            if (!cmd.shader->IsValid(ShaderBindMode::VS_PS))
+            {
+                Debug::LogError("RenderManager.cpp: FlushRenderQueue – Shader ungueltig, Draw uebersprungen");
+                continue;
+            }
             cmd.shader->UpdateShader(&m_device);
             lastShader = cmd.shader;
         }
@@ -227,7 +249,36 @@ void RenderManager::FlushRenderQueue()
         // Material nur binden wenn gewechselt
         if (cmd.material != lastMaterial)
         {
-            cmd.material->SetTexture(&m_device);
+            // --- TexturePool-Pfad: feste Slots t0/t1/t2 aus Pool-Indizes ---
+            // SM5.0 erlaubt kein dynamisches Texture-Array-Indexing im Shader.
+            // Loesung: Pool verwaltet SRVs + Indizes, C++ bindet pro Material die
+            // richtigen SRVs auf feste Slots (t0=Albedo, t1=Normal, t2=ORM).
+            if (m_texturePool && ctx)
+            {
+                ID3D11ShaderResourceView* srvs[3] = {
+                    m_texturePool->GetSRV(cmd.material->albedoIndex),
+                    m_texturePool->GetSRV(cmd.material->normalIndex),
+                    m_texturePool->GetSRV(cmd.material->ormIndex)
+                };
+
+                // Fallback auf White/FlatNormal/ORM falls Index ausserhalb Pool
+                if (!srvs[0]) srvs[0] = m_texturePool->GetSRV(m_texturePool->WhiteIndex());
+                if (!srvs[1]) srvs[1] = m_texturePool->GetSRV(m_texturePool->FlatNormalIndex());
+                if (!srvs[2]) srvs[2] = m_texturePool->GetSRV(m_texturePool->OrmIndex());
+
+                // Nur neu binden wenn sich die Slots geaendert haben (State-Cache)
+                if (memcmp(srvs, m_boundSRVs, sizeof(srvs)) != 0)
+                {
+                    ctx->PSSetShaderResources(0, 3, srvs);
+                    memcpy(m_boundSRVs, srvs, sizeof(srvs));
+                }
+            }
+            else
+            {
+                // Fallback: alter Slot-Pfad (kein Pool aktiv)
+                cmd.material->SetTexture(&m_device);
+            }
+
             cmd.material->UpdateConstantBuffer(m_device.GetDeviceContext());
             lastMaterial = cmd.material;
         }
@@ -284,4 +335,22 @@ void RenderManager::EnsureBackend()
     }
 
     m_backend = std::make_unique<Dx11RenderBackend>(m_device);
+
+    // Default-Sampler fuer gSampler (s0): linear, wrap, aniso 1
+    if (!m_defaultSampler && m_device.GetDevice())
+    {
+        D3D11_SAMPLER_DESC sd{};
+        sd.Filter   = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+        sd.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+        sd.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+        sd.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+        sd.MaxAnisotropy = 1;
+        sd.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
+        sd.MaxLOD = D3D11_FLOAT32_MAX;
+        HRESULT hr = m_device.GetDevice()->CreateSamplerState(&sd, &m_defaultSampler);
+        if (SUCCEEDED(hr))
+            Debug::Log("RenderManager.cpp: Default-Sampler fuer s0 erstellt");
+        else
+            Debug::LogError("RenderManager.cpp: Default-Sampler Erstellung fehlgeschlagen");
+    }
 }

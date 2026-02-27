@@ -29,28 +29,19 @@ cbuffer LightBuffer : register(b1)
     float3 lightPadding; // Padding fuer 16-Byte Alignment
 };
 
+// MaterialBuffer: 128 Bytes – identisch mit PixelShader.hlsl (b2)
 cbuffer MaterialBuffer : register(b2)
 {
-    float4 gBaseColor;       // baseColor
+    float4 gBaseColor;
     float4 gSpecularColor;
-
     float4 gEmissiveColor;
-    float4 gUvTilingOffset;  // xy tiling, zw offset
+    float4 gUvTilingOffset; // xy=tiling, zw=offset
 
-    float  gMetallic;
-    float  gRoughness;
-    float  gNormalScale;
-    float  gOcclusionStrength;
+    float4 gPbr; // x=metallic y=roughness z=normalScale w=occlusionStrength
+    float4 gAlpha; // x=shininess y=transparency z=alphaCutoff w=receiveShadows
 
-    float  gShininess;
-    float  gTransparency;
-    float  gAlphaCutoff;
-    float  gReceiveShadows;
-
-    float  gBlendMode;
-    float  gBlendFactor;
-    uint   gMaterialFlags;
-    float  _pad0;
+    uint4 gTexIndex; // x=albedo y=normal z=orm w=decal
+    uint4 gMisc; // x=blendMode y=materialFlags z,w unused
 };
 
 // ==================== SHADOW MAPPING BUFFER ====================
@@ -69,21 +60,21 @@ struct VS_INPUT
     float3 normal : NORMAL;
     float4 tangent : TANGENT; // xyz + handedness
     float4 color : COLOR;
-    float2 texCoord  : TEXCOORD0;   // Albedo UV
-    float2 texCoord2 : TEXCOORD1;   // Lightmap / Detail UV
+    float2 texCoord : TEXCOORD0; // Albedo UV
+    float2 texCoord2 : TEXCOORD1; // Lightmap / Detail UV
 };
 
 struct VS_OUTPUT
 {
     float4 position : SV_POSITION;
     float3 normal : NORMAL;
-    float4 tangent : TANGENT; // xyz + handedness
+    float4 tangent : TEXCOORD5; // xyz + handedness
     float3 worldPosition : TEXCOORD1;
     float4 color : COLOR;
-    float2 texCoord  : TEXCOORD0;   // Albedo UV
+    float2 texCoord : TEXCOORD0; // Albedo UV
     float4 positionLightSpace : TEXCOORD2;
     float3 viewDirection : TEXCOORD3;
-    float2 texCoord2 : TEXCOORD4;   // Lightmap / Detail UV
+    float2 texCoord2 : TEXCOORD4; // Lightmap / Detail UV
 };
 
 // ==================== MAIN VERTEX SHADER ====================
@@ -105,12 +96,12 @@ VS_OUTPUT main(VS_INPUT input)
     o.normal = normalize(mul(input.normal, (float3x3) _worldMatrix));
 
     // Tangente in Welt-Raum (xyz) + Handedness (w)
-    float3 tW = normalize(mul(input.tangent.xyz, (float3x3)_worldMatrix));
+    float3 tW = normalize(mul(input.tangent.xyz, (float3x3) _worldMatrix));
     o.tangent = float4(tW, input.tangent.w);
 
     // Vertex-Attribute kopieren
     o.color = input.color;
-    o.texCoord  = input.texCoord;
+    o.texCoord = input.texCoord;
     o.texCoord2 = input.texCoord2;
 
     // Shadow Mapping: Welt-Position in Light-Space transformieren

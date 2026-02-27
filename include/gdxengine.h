@@ -13,6 +13,7 @@
 #include "RenderManager.h"
 #include "LightManager.h"
 #include "TextureManager.h"
+#include "TexturePool.h"
 #include "CameraManager.h"
 #include "Transform.h"
 #include "Timer.h"
@@ -56,7 +57,8 @@ private:
 	BufferManager		m_bufferManager;
 	LightManager		m_lightManager;
 	TextureManager		m_texturManager;
-	CameraManager		m_cameraManager;
+	TexturePool			m_texturePool;
+	CameraManager			m_cameraManager;
 
 	int m_vsyncInterval = 1; // 1=ON, 0=OFF
 
@@ -92,6 +94,7 @@ public:
 	LightManager& GetLM();			// LightManager
 	InputLayoutManager& GetILM();	// InputManager
 	TextureManager& GetTM();		// TextureManager
+	TexturePool& GetTP();			// TexturePool
 	CameraManager& GetCam();		// KameraManager
 	RenderManager& GetRM();			// RenderManager
 
