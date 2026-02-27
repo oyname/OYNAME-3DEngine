@@ -1,5 +1,6 @@
 #pragma once
 #include "IRenderBackend.h"
+#include "TexturePool.h""
 #include "Dx11ShadowMap.h"   
 
 #include <memory>
@@ -12,6 +13,9 @@ class GDXDevice;
 // Keine Slot-Aenderung, keine Reihenfolge-Aenderung.
 class Dx11RenderBackend : public IRenderBackend
 {
+public:
+    TexturePool m_texturePool;
+
 public:
     explicit Dx11RenderBackend(GDXDevice& device);
     ~Dx11RenderBackend() override;

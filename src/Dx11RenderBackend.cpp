@@ -17,6 +17,11 @@ Dx11RenderBackend::Dx11RenderBackend(GDXDevice& device)
     m_device = &device;
     device.AttachDx11Backend(this);
     m_shadow = std::make_unique<Dx11ShadowMap>();
+    
+    if (ID3D11Device* dev = device.GetDevice())
+        m_texturePool.InitializeDefaults(dev);
+
+    Debug::Log("Texture Pool Size: ", m_texturePool.Size());
 }
 
 Dx11RenderBackend::~Dx11RenderBackend()

@@ -201,6 +201,9 @@
     <ClCompile Include="..\examples\Material-Properties Demo.cpp">
       <Filter>01 Engine\app</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\TexturePool.cpp">
+      <Filter>01 Engine\backend</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\examples\Neontimebuffer.h">
@@ -330,6 +333,9 @@
       <Filter>01 Engine\core</Filter>
     </ClInclude>
     <ClInclude Include="..\include\Dx11ShadowMap.h">
+      <Filter>01 Engine\backend</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\TexturePool.h">
       <Filter>01 Engine\backend</Filter>
     </ClInclude>
   </ItemGroup>

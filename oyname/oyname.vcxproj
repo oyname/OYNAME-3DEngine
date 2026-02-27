@@ -126,6 +126,7 @@
     <ClCompile Include="..\src\SurfaceGpuBuffer.cpp" />
     <ClCompile Include="..\src\Texture.cpp" />
     <ClCompile Include="..\src\TextureManager.cpp" />
+    <ClCompile Include="..\src\TexturePool.cpp" />
     <ClCompile Include="..\src\Timer.cpp" />
     <ClCompile Include="..\src\Transform.cpp" />
   </ItemGroup>
@@ -172,6 +173,7 @@
     <ClInclude Include="..\include\SurfaceGpuBuffer.h" />
     <ClInclude Include="..\include\Texture.h" />
     <ClInclude Include="..\include\TextureManager.h" />
+    <ClInclude Include="..\include\TexturePool.h" />
     <ClInclude Include="..\include\Timer.h" />
     <ClInclude Include="..\include\Transform.h" />
     <ClInclude Include="..\include\Viewport.h" />
