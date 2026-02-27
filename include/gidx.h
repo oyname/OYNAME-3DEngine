@@ -1102,34 +1102,16 @@ namespace Engine
         engine->GetOM().AddMaterialToSurface(material, surface);
     }
 
-    // ===========================================================---------------------------->  FUNKTION ->SetTexture überarbeiten!!!!
     inline void EntityTexture(LPENTITY entity, LPTEXTURE texture)
     {
-        if (entity == nullptr) {
-            Debug::Log("gidx.h: ERROR: EntityTexture - entity is nullptr");
+        if (!entity || !entity->IsMesh())
             return;
-        }
 
-        if (texture == nullptr) {
-            Debug::Log("gidx.h: ERROR: EntityTexture - texture is nullptr");
+        Mesh* mesh = entity->AsMesh();
+        if (!mesh || !mesh->pMaterial)
             return;
-        }
 
-        // Prüfe ob Entity ein Mesh ist
-        Mesh* mesh = (entity->IsMesh()   ? entity->AsMesh()   : nullptr);
-        if (mesh == nullptr) {
-            Debug::Log("gidx.h: ERROR: EntityTexture - Entity is not a Mesh!");
-            return;
-        }
-
-        if (mesh->pMaterial != nullptr)
-        {
-            Material* material = mesh->pMaterial;
-            material->SetTexture(0, texture->m_texture, texture->m_textureView, texture->m_imageSamplerState);
-        }
-        else {
-            Debug::Log("gidx.h: ERROR: EntityTexture - Mesh has no material");
-        }
+        MaterialSetAlbedo(mesh->pMaterial, texture);
     }
 
     inline HRESULT  CreateTexture(LPLPTEXTURE texture, int width, int height)
