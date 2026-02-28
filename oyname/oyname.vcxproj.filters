@@ -180,16 +180,7 @@
     <ClCompile Include="..\src\Texture.cpp">
       <Filter>01 Engine\backend</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\CameraManager.cpp">
-      <Filter>01 Engine\scene\manager</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\LightManager.cpp">
-      <Filter>01 Engine\scene\manager</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\ObjectManager.cpp">
-      <Filter>01 Engine\scene\manager</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\TextureManager.cpp">
       <Filter>01 Engine\scene\manager</Filter>
     </ClCompile>
     <ClCompile Include="..\src\gdxengine.cpp">
@@ -209,6 +200,12 @@
     </ClCompile>
     <ClCompile Include="..\src\gdxinterface.cpp">
       <Filter>01 Engine\platform</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Dx11EntityGpuData.cpp">
+      <Filter>01 Engine\backend</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Dx11LightManagerGpuData.cpp">
+      <Filter>01 Engine\backend</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -314,16 +311,7 @@
     <ClInclude Include="..\include\Texture.h">
       <Filter>01 Engine\backend</Filter>
     </ClInclude>
-    <ClInclude Include="..\include\CameraManager.h">
-      <Filter>01 Engine\scene\manager</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\LightManager.h">
-      <Filter>01 Engine\scene\manager</Filter>
-    </ClInclude>
     <ClInclude Include="..\include\ObjectManager.h">
-      <Filter>01 Engine\scene\manager</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\TextureManager.h">
       <Filter>01 Engine\scene\manager</Filter>
     </ClInclude>
     <ClInclude Include="..\include\gdxengine.h">
@@ -349,6 +337,12 @@
     </ClInclude>
     <ClInclude Include="..\include\Viewport.h">
       <Filter>01 Engine\render</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\Dx11EntityGpuData.h">
+      <Filter>01 Engine\backend</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\Dx11LightManagerGpuData.h">
+      <Filter>01 Engine\backend</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

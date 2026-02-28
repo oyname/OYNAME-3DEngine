@@ -11,10 +11,8 @@
 #include "BufferManager.h"
 #include "ShaderManager.h"
 #include "RenderManager.h"
-#include "LightManager.h"
-#include "TextureManager.h"
 #include "TexturePool.h"
-#include "CameraManager.h"
+#include "Camera.h"
 #include "Transform.h"
 #include "Timer.h"
 #include <thread>
@@ -55,10 +53,8 @@ private:
 	ShaderManager		m_shaderManager;
 	InputLayoutManager	m_inputLayoutManager;
 	BufferManager		m_bufferManager;
-	LightManager		m_lightManager;
-	TextureManager		m_texturManager;
 	TexturePool			m_texturePool;
-	CameraManager			m_cameraManager;
+	Camera*				m_currentCam = nullptr;
 
 	int m_vsyncInterval = 1; // 1=ON, 0=OFF
 
@@ -91,11 +87,9 @@ public:
 	BufferManager& GetBM();			// BufferManager
 	ObjectManager& GetOM();			// ObjectManager
 	ShaderManager& GetSM();			// ShaderManager
-	LightManager& GetLM();			// LightManager
 	InputLayoutManager& GetILM();	// InputManager
-	TextureManager& GetTM();		// TextureManager
 	TexturePool& GetTP();			// TexturePool
-	CameraManager& GetCam();		// KameraManager
+	Camera* GetCurrentCam() const { return m_currentCam; }
 	RenderManager& GetRM();			// RenderManager
 
 	// Setter-Funktionen fÃ¼r private Variablen

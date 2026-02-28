@@ -98,9 +98,10 @@
     <ClCompile Include="..\src\BackbufferTarget.cpp" />
     <ClCompile Include="..\src\BufferManager.cpp" />
     <ClCompile Include="..\src\Camera.cpp" />
-    <ClCompile Include="..\src\CameraManager.cpp" />
     <ClCompile Include="..\src\core.cpp" />
+    <ClCompile Include="..\src\Dx11EntityGpuData.cpp" />
     <ClCompile Include="..\src\Dx11LightGpuData.cpp" />
+    <ClCompile Include="..\src\Dx11LightManagerGpuData.cpp" />
     <ClCompile Include="..\src\Dx11MaterialGpuData.cpp" />
     <ClCompile Include="..\src\Dx11RenderBackend.cpp" />
     <ClCompile Include="..\src\Dx11ShadowMap.cpp" />
@@ -113,7 +114,6 @@
     <ClCompile Include="..\src\GeometryHelper.cpp" />
     <ClCompile Include="..\src\InputLayoutManager.cpp" />
     <ClCompile Include="..\src\Light.cpp" />
-    <ClCompile Include="..\src\LightManager.cpp" />
     <ClCompile Include="..\src\main.cpp" />
     <ClCompile Include="..\src\Material.cpp" />
     <ClCompile Include="..\src\Mesh.cpp" />
@@ -127,7 +127,6 @@
     <ClCompile Include="..\src\Surface.cpp" />
     <ClCompile Include="..\src\SurfaceGpuBuffer.cpp" />
     <ClCompile Include="..\src\Texture.cpp" />
-    <ClCompile Include="..\src\TextureManager.cpp" />
     <ClCompile Include="..\src\TexturePool.cpp" />
     <ClCompile Include="..\src\Timer.cpp" />
     <ClCompile Include="..\src\Transform.cpp" />
@@ -140,9 +139,10 @@
     <ClInclude Include="..\include\BackbufferTarget.h" />
     <ClInclude Include="..\include\BufferManager.h" />
     <ClInclude Include="..\include\Camera.h" />
-    <ClInclude Include="..\include\CameraManager.h" />
     <ClInclude Include="..\include\core.h" />
+    <ClInclude Include="..\include\Dx11EntityGpuData.h" />
     <ClInclude Include="..\include\Dx11LightGpuData.h" />
+    <ClInclude Include="..\include\Dx11LightManagerGpuData.h" />
     <ClInclude Include="..\include\Dx11MaterialGpuData.h" />
     <ClInclude Include="..\include\Dx11RenderBackend.h" />
     <ClInclude Include="..\include\Dx11ShadowMap.h" />
@@ -162,7 +162,6 @@
     <ClInclude Include="..\include\RenderLayers.h" />
     <ClInclude Include="..\include\IRenderTarget.h" />
     <ClInclude Include="..\include\Light.h" />
-    <ClInclude Include="..\include\LightManager.h" />
     <ClInclude Include="..\include\main.h" />
     <ClInclude Include="..\include\Material.h" />
     <ClInclude Include="..\include\Mesh.h" />
@@ -176,7 +175,6 @@
     <ClInclude Include="..\include\Surface.h" />
     <ClInclude Include="..\include\SurfaceGpuBuffer.h" />
     <ClInclude Include="..\include\Texture.h" />
-    <ClInclude Include="..\include\TextureManager.h" />
     <ClInclude Include="..\include\TexturePool.h" />
     <ClInclude Include="..\include\Timer.h" />
     <ClInclude Include="..\include\Transform.h" />

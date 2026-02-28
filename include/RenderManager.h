@@ -1,7 +1,8 @@
 #pragma once
 #include "ObjectManager.h"
 #include "TexturePool.h"
-#include "LightManager.h"
+#include "Dx11LightManagerGpuData.h"
+#include "LightArrayBuffer.h"
 #include "RenderQueue.h"
 #include "gdxdevice.h"
 #include "ShadowMapTarget.h"
@@ -16,7 +17,7 @@ class Dx11RenderBackend;
 class RenderManager
 {
 public:
-    RenderManager(ObjectManager& objectManager, LightManager& lightManager, GDXDevice& device);
+    RenderManager(ObjectManager& objectManager, GDXDevice& device);
     ~RenderManager();
 
     void SetCamera(LPENTITY camera);
@@ -48,7 +49,8 @@ private:
 
     // Manager-Klassen (Referenzen)
     ObjectManager& m_objectManager;
-    LightManager&  m_lightManager;
+    Dx11LightManagerGpuData m_lightGpuData;
+    LightArrayBuffer        m_lightCBData;
     GDXDevice&     m_device;
 
     std::unique_ptr<IRenderBackend> m_backend;

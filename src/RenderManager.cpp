@@ -1,12 +1,14 @@
 #include "gdxengine.h"
 #include "RenderManager.h"
+#include "gdxengine.h"
+#include "LightArrayBuffer.h"
 #include "Viewport.h"
 #include "Light.h"
 #include "Dx11RenderBackend.h"
 #include "Dx11MaterialGpuData.h" 
 
-RenderManager::RenderManager(ObjectManager& objectManager, LightManager& lightManager, GDXDevice& device)
-    : m_objectManager(objectManager), m_lightManager(lightManager), m_device(device),
+RenderManager::RenderManager(ObjectManager& objectManager, GDXDevice& device)
+    : m_objectManager(objectManager), m_device(device),
     m_currentCam(nullptr), m_directionLight(nullptr)
 {
     // Schritt 1: DX11-Backend verwenden (copy + redirect, keine Behaviour-Aenderung)
@@ -127,15 +129,7 @@ void RenderManager::RenderMainPassAtomic()
     }
     else
     {
-        const D3D11_VIEWPORT& dxVp = m_currentCam->viewport;
-        Viewport vp;
-        vp.x        = dxVp.TopLeftX;
-        vp.y        = dxVp.TopLeftY;
-        vp.width    = dxVp.Width;
-        vp.height   = dxVp.Height;
-        vp.minDepth = dxVp.MinDepth;
-        vp.maxDepth = dxVp.MaxDepth;
-        m_backend->BeginMainPass(m_device, m_backbufferTarget, vp);
+        m_backend->BeginMainPass(m_device, m_backbufferTarget, m_currentCam->viewport);
     }
 
     // 2) Bind shadow resources / constants (unchanged slots + order)
@@ -152,7 +146,32 @@ void RenderManager::RenderMainPassAtomic()
     }
 
     // 3) Per-frame lighting constants
-    m_lightManager.Update(&m_device);
+    // Licht-GPU-Upload (ehemals LightManager::Update)
+    {
+        auto& lights = m_objectManager.GetLights();
+
+        if (!m_lightGpuData.IsReady())
+            m_lightGpuData.Init(&m_device, sizeof(LightArrayBuffer));
+
+        DirectX::XMFLOAT4 globalAmbient(0.2f, 0.2f, 0.2f, 1.0f);
+        if (GDXEngine::GetInstance())
+            globalAmbient = GDXEngine::GetInstance()->GetGlobalAmbient();
+
+        for (size_t i = 0; i < lights.size(); ++i)
+        {
+            lights[i]->Update(&m_device);
+            DirectX::XMFLOAT4 ambient = (i == 0)
+                ? globalAmbient
+                : DirectX::XMFLOAT4(0.f, 0.f, 0.f, 0.f);
+
+            m_lightCBData.lights[i].lightPosition     = lights[i]->cbLight.lightPosition;
+            m_lightCBData.lights[i].lightDirection    = lights[i]->cbLight.lightDirection;
+            m_lightCBData.lights[i].lightDiffuseColor = lights[i]->cbLight.lightDiffuseColor;
+            m_lightCBData.lights[i].lightAmbientColor = ambient;
+        }
+        m_lightCBData.lightCount = static_cast<unsigned int>(lights.size());
+        m_lightGpuData.Upload(&m_device, m_lightCBData);
+    }
 
     // 4) Queue build + draw (kept)
     BuildRenderQueue();

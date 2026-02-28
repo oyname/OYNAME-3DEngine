@@ -2,7 +2,8 @@
 #include "Entity.h"
 
 // Light.h kennt kein ID3D11Buffer mehr.
-// Der GPU-Constant-Buffer lebt in LightGpuData.
+// Der cbLight-GPU-Buffer lebt in lightGpuData (LightGpuData).
+// Der Matrix-Buffer lebt in gpuData (EntityGpuData) - geerbt von Entity.
 class LightGpuData;
 
 __declspec(align(16))
@@ -47,11 +48,11 @@ public:
     void SetShadowFov(float fovRadians);
 
 public:
-    LightBufferData  cbLight;
-    LightType        lightType;
+    LightBufferData cbLight;
+    LightType       lightType;
 
-    // GPU-Ressourcen ausgelagert – Zugriff ueber light->gpuData->...
-    LightGpuData* gpuData = nullptr;
+    // cbLight-GPU-Buffer (b1) – getrennt von Entity::gpuData (b0)
+    LightGpuData* lightGpuData = nullptr;
 
 private:
     float m_shadowOrthoSize = 50.0f;

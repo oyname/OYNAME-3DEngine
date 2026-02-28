@@ -1,6 +1,7 @@
 // Material.cpp: reiner Daten-Container. Kein DX11.
 #include "gdxutil.h"
 #include "Material.h"
+#include "Dx11MaterialGpuData.h"
 
 static float Clamp01(float v)
 {

@@ -55,8 +55,7 @@ GDXEngine* GDXEngine::s_instance = nullptr;
 //
 GDXEngine::GDXEngine(HWND hwnd, HINSTANCE hinst, unsigned int bpp, unsigned int screenX, unsigned int screenY, int* result) :
 	m_objectManager(),
-	m_lightManager(),
-	m_renderManager(m_objectManager, m_lightManager, m_device)
+	m_renderManager(m_objectManager, m_device)
 {
 	m_colorDepth = bpp;
 	m_screenWidth = screenX;
@@ -287,7 +286,7 @@ HRESULT GDXEngine::RenderWorld()
 		return E_FAIL;
 	}
 
-	auto* pCamera = m_cameraManager.GetCurrentCam();
+	auto* pCamera = m_currentCam;
 	if (!pCamera)
 	{
 		Debug::Log("gdxengine.cpp: RenderWorld - No valid camera found.");
@@ -312,7 +311,7 @@ HRESULT GDXEngine::RenderWorld()
 
 void GDXEngine::UpdateWorld()
 {
-	auto* cam = m_cameraManager.GetCurrentCam();
+	auto* cam = m_currentCam;
 
 	if (cam == nullptr) {
 		Debug::Log("gdxengine.cpp: ERROR - UpdateWorld - No camera set");
@@ -388,24 +387,12 @@ ShaderManager& GDXEngine::GetSM() {
 	return m_shaderManager;
 }
 
-LightManager& GDXEngine::GetLM() {
-	return m_lightManager;
-}
-
 InputLayoutManager& GDXEngine::GetILM() {
 	return m_inputLayoutManager;
 }
 
-TextureManager& GDXEngine::GetTM() {
-	return m_texturManager;
-}
-
 TexturePool& GDXEngine::GetTP() {
 	return m_texturePool;
-}
-
-CameraManager& GDXEngine::GetCam() {
-	return m_cameraManager;
 }
 
 void GDXEngine::SetAdapter(unsigned int index)
@@ -432,7 +419,7 @@ void GDXEngine::SetCamera(LPENTITY entity)
 		return;
 	}
 
-	GetCam().SetCamera(camera);         // Camera* an CameraManager
+	m_currentCam = camera;
 	m_renderManager.SetCamera(entity);  // Entity* an RenderManager (OK)
 }
 

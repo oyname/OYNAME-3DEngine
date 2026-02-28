@@ -7,6 +7,7 @@
 #include "gdxengine.h"
 #include "Dx11MaterialGpuData.h"
 #include "Dx11LightGpuData.h"
+#include "Dx11EntityGpuData.h"
 #include "SurfaceGpuBuffer.h"
 
 extern Timer Time;
@@ -267,8 +268,15 @@ namespace Engine
     inline void PositionLightAtCamera(Light* light, class Camera* camera,
         DirectX::XMVECTOR offset = DirectX::XMVectorZero())
     {
-        engine->GetLM().PositionLightAtCamera(light, camera, offset);
-        engine->GetLM().Update(&engine->m_device);  // GPU-Buffer aktualisieren
+        // Licht an Kamera synchronisieren
+        if (light && camera)
+        {
+            DirectX::XMVECTOR camPos = camera->transform.GetPosition();
+            DirectX::XMVECTOR lightPos = DirectX::XMVectorAdd(camPos, offset);
+            light->transform.SetPosition(lightPos);
+            light->transform.SetRotationQuaternion(camera->transform.GetRotationQuaternion());
+            Debug::Log("gidx.h: PositionLightAtCamera ausgefuehrt");
+        }
     }
 
     // ==================== LIGHT ====================
@@ -280,26 +288,22 @@ namespace Engine
             return;
         }
 
-        // ← GEÄNDERT: Nutze LightManager statt ObjectManager
-        Light* l = engine->GetLM().CreateLight(type);
+        Light* l = engine->GetOM().CreateLight(type);
         if (l == nullptr) {
             Debug::Log("gidx.h: ERROR: CreateLight - Failed to create light");
             return;
         }
 
-        // View/Projection für Shadow-Mapping
         l->GenerateViewMatrix(
             DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f),
             DirectX::XMVectorSet(0.0f, 0.0f, 1.0f, 10.0f),
             DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)
         );
-
         l->GenerateProjectionMatrix(
             DirectX::XMConvertToRadians(90.0f),
             (static_cast<float>(engine->GetWidth()) / static_cast<float>(engine->GetHeight())),
             1.0f, 1000.0f
         );
-
         l->GenerateViewport(
             0.0f, 0.0f,
             static_cast<float>(engine->GetWidth()),
@@ -307,29 +311,29 @@ namespace Engine
             0.0f, 1.0f
         );
 
-        // Light Buffer erstellen
-        if (!l->gpuData) l->gpuData = new LightGpuData();
+        // cbLight-Buffer (b1): licht-spezifische Daten
+        if (!l->lightGpuData) l->lightGpuData = new LightGpuData();
         HRESULT hr = engine->GetBM().CreateBuffer(
             &l->cbLight,
             sizeof(LightBufferData),
             1,
             D3D11_BIND_CONSTANT_BUFFER,
-            &l->gpuData->lightBuffer
+            &l->lightGpuData->lightBuffer
         );
-
         if (FAILED(hr))
         {
             Debug::LogHr(__FILE__, __LINE__, hr);
             return;
         }
 
-        // Constant Buffer für Matrizen
+        // Matrix-Buffer (b0): geerbt von Entity
+        if (!l->gpuData) l->gpuData = new EntityGpuData();
         hr = engine->GetBM().CreateBuffer(
             &l->matrixSet,
             sizeof(MatrixSet),
             1,
             D3D11_BIND_CONSTANT_BUFFER,
-            &l->constantBuffer
+            &l->gpuData->constantBuffer
         );
         if (FAILED(hr))
         {
@@ -404,12 +408,13 @@ namespace Engine
 
         engine->GetOM().AddMeshToMaterial(material, m);
 
+        if (!m->gpuData) m->gpuData = new EntityGpuData();
         HRESULT hr = engine->GetBM().CreateBuffer(
             &m->matrixSet,
             sizeof(MatrixSet),
             1,
             D3D11_BIND_CONSTANT_BUFFER,
-            &m->constantBuffer
+            &m->gpuData->constantBuffer
         );
         if (FAILED(hr))
         {
@@ -852,7 +857,7 @@ namespace Engine
 
         *texture = new TEXTURE;
 
-        HRESULT hr = engine->GetTM().LoadTexture(
+        HRESULT hr = engine->GetTP().LoadTexture(
             engine->m_device.GetDevice(),
             engine->m_device.GetDeviceContext(),
             filename,

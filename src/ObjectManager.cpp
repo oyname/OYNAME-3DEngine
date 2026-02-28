@@ -1,4 +1,5 @@
 ﻿#include "ObjectManager.h"
+#include "Memory.h"
 #include <algorithm>
 using namespace DirectX;
 
@@ -410,3 +411,49 @@ void ObjectManager::UnregisterRenderable(Mesh* mesh)
 }
 
 
+
+static LightType ConvertD3DType(D3DLIGHTTYPE d3dType)
+{
+    return (d3dType == D3DLIGHT_POINT) ? LightType::Point : LightType::Directional;
+}
+
+Light* ObjectManager::CreateLight(D3DLIGHTTYPE type)
+{
+    return CreateLight(ConvertD3DType(type));
+}
+
+Light* ObjectManager::CreateLight(LightType type)
+{
+    if (m_lights.size() >= MAX_LIGHTS)
+    {
+        Debug::Log("objectmanager.cpp: WARNING - MAX_LIGHTS (32) erreicht");
+        return nullptr;
+    }
+
+    Light* light = new Light;
+    light->SetLightType(type);
+
+    if (type == LightType::Point)
+        light->SetRadius(100.0f);
+
+    m_lights.push_back(light);
+    m_entities.push_back(light);
+    Debug::Log("objectmanager.cpp: Light erstellt (Gesamt: ", static_cast<int>(m_lights.size()), ")");
+    return light;
+}
+
+void ObjectManager::DeleteLight(Light* light)
+{
+    if (!light) return;
+
+    auto entIt = std::find(m_entities.begin(), m_entities.end(), (Entity*)light);
+    if (entIt != m_entities.end())
+        m_entities.erase(entIt);
+
+    auto it = std::find(m_lights.begin(), m_lights.end(), light);
+    if (it != m_lights.end())
+    {
+        m_lights.erase(it);
+        Memory::SafeDelete(light);
+    }
+}

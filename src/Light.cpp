@@ -1,4 +1,4 @@
-// Light.cpp: kein DX11. GPU-Upload laeuft ueber gpuData->Upload().
+// Light.cpp: kein DX11. GPU-Upload ueber lightGpuData->Upload().
 #include "Light.h"
 #include "Dx11LightGpuData.h"
 
@@ -6,21 +6,17 @@ Light::Light() : Entity(EntityType::Light), lightType(LightType::Directional)
 {
     DirectX::XMStoreFloat4(&cbLight.lightPosition,
         DirectX::XMVECTOR{ 0.0f, 0.0f, 0.0f, 0.0f });
-
     DirectX::XMStoreFloat4(&cbLight.lightDirection,
         DirectX::XMVECTOR{ 0.0f, 1.0f, 0.0f, 0.0f });
-
     SetDiffuseColor(DirectX::XMFLOAT4(1.0f, 0.8f, 1.0f, 100.0f));
     SetAmbientColor(DirectX::XMFLOAT4(0.2f, 0.2f, 0.2f, 1.0f));
 }
 
 Light::~Light()
 {
-    delete gpuData;
-    gpuData = nullptr;
+    delete lightGpuData;
+    lightGpuData = nullptr;
 }
-
-// ==================== SHADOW MAPPING HELPERS ====================
 
 static DirectX::XMVECTOR ChooseSafeUp(DirectX::XMVECTOR dir)
 {
@@ -134,5 +130,5 @@ void Light::UpdateLight(const GDXDevice* device, DirectX::XMVECTOR position, Dir
 
     DirectX::XMStoreFloat4(&cbLight.lightDirection, lookAt);
 
-    if (gpuData) gpuData->Upload(device, cbLight);
+    if (lightGpuData) lightGpuData->Upload(device, cbLight);
 }
