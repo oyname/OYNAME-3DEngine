@@ -7,6 +7,7 @@
 #include "gdxengine.h"
 #include "Dx11MaterialGpuData.h"
 #include "Dx11LightGpuData.h"
+#include "Dx11EntityGpuData.h"
 #include "SurfaceGpuBuffer.h"
 
 extern Timer Time;
@@ -280,26 +281,22 @@ namespace Engine
             return;
         }
 
-        // ← GEÄNDERT: Nutze LightManager statt ObjectManager
         Light* l = engine->GetLM().CreateLight(type);
         if (l == nullptr) {
             Debug::Log("gidx.h: ERROR: CreateLight - Failed to create light");
             return;
         }
 
-        // View/Projection für Shadow-Mapping
         l->GenerateViewMatrix(
             DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f),
             DirectX::XMVectorSet(0.0f, 0.0f, 1.0f, 10.0f),
             DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)
         );
-
         l->GenerateProjectionMatrix(
             DirectX::XMConvertToRadians(90.0f),
             (static_cast<float>(engine->GetWidth()) / static_cast<float>(engine->GetHeight())),
             1.0f, 1000.0f
         );
-
         l->GenerateViewport(
             0.0f, 0.0f,
             static_cast<float>(engine->GetWidth()),
@@ -307,29 +304,29 @@ namespace Engine
             0.0f, 1.0f
         );
 
-        // Light Buffer erstellen
-        if (!l->gpuData) l->gpuData = new LightGpuData();
+        // cbLight-Buffer (b1): licht-spezifische Daten
+        if (!l->lightGpuData) l->lightGpuData = new LightGpuData();
         HRESULT hr = engine->GetBM().CreateBuffer(
             &l->cbLight,
             sizeof(LightBufferData),
             1,
             D3D11_BIND_CONSTANT_BUFFER,
-            &l->gpuData->lightBuffer
+            &l->lightGpuData->lightBuffer
         );
-
         if (FAILED(hr))
         {
             Debug::LogHr(__FILE__, __LINE__, hr);
             return;
         }
 
-        // Constant Buffer für Matrizen
+        // Matrix-Buffer (b0): geerbt von Entity
+        if (!l->gpuData) l->gpuData = new EntityGpuData();
         hr = engine->GetBM().CreateBuffer(
             &l->matrixSet,
             sizeof(MatrixSet),
             1,
             D3D11_BIND_CONSTANT_BUFFER,
-            &l->constantBuffer
+            &l->gpuData->constantBuffer
         );
         if (FAILED(hr))
         {
@@ -404,12 +401,13 @@ namespace Engine
 
         engine->GetOM().AddMeshToMaterial(material, m);
 
+        if (!m->gpuData) m->gpuData = new EntityGpuData();
         HRESULT hr = engine->GetBM().CreateBuffer(
             &m->matrixSet,
             sizeof(MatrixSet),
             1,
             D3D11_BIND_CONSTANT_BUFFER,
-            &m->constantBuffer
+            &m->gpuData->constantBuffer
         );
         if (FAILED(hr))
         {

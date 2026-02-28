@@ -210,6 +210,9 @@
     <ClCompile Include="..\src\gdxinterface.cpp">
       <Filter>01 Engine\platform</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\Dx11EntityGpuData.cpp">
+      <Filter>01 Engine\backend</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\examples\Neontimebuffer.h">
@@ -349,6 +352,9 @@
     </ClInclude>
     <ClInclude Include="..\include\Viewport.h">
       <Filter>01 Engine\render</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\Dx11EntityGpuData.h">
+      <Filter>01 Engine\backend</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -2,6 +2,7 @@
 #include "Dx11ShadowMap.h"
 #include "gdxdevice.h"
 #include "Entity.h"
+#include "Dx11EntityGpuData.h"
 #include "ShadowMapTarget.h"
 #include "BackbufferTarget.h"
 #include "RenderTextureTarget.h"
@@ -59,7 +60,8 @@ void Dx11RenderBackend::BindEntityConstants(GDXDevice& device, const Entity& ent
 {
     if (!device.IsInitialized()) return;
 
-    ID3D11Buffer* cb = entity.constantBuffer;
+    if (!entity.gpuData) return;
+    ID3D11Buffer* cb = entity.gpuData->constantBuffer;
     if (!cb) return;
 
     ID3D11DeviceContext* ctx = device.GetDeviceContext();

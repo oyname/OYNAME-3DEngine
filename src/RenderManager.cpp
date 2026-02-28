@@ -127,15 +127,7 @@ void RenderManager::RenderMainPassAtomic()
     }
     else
     {
-        const D3D11_VIEWPORT& dxVp = m_currentCam->viewport;
-        Viewport vp;
-        vp.x        = dxVp.TopLeftX;
-        vp.y        = dxVp.TopLeftY;
-        vp.width    = dxVp.Width;
-        vp.height   = dxVp.Height;
-        vp.minDepth = dxVp.MinDepth;
-        vp.maxDepth = dxVp.MaxDepth;
-        m_backend->BeginMainPass(m_device, m_backbufferTarget, vp);
+        m_backend->BeginMainPass(m_device, m_backbufferTarget, m_currentCam->viewport);
     }
 
     // 2) Bind shadow resources / constants (unchanged slots + order)

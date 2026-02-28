@@ -1,8 +1,8 @@
-﻿#include "Memory.h"
+// Mesh.cpp: kein direktes DX11. GPU-Upload ueber gpuData->Upload().
 #include "Mesh.h"
 #include "Surface.h"
 #include "GeometryHelper.h"
-#include "gdxdevice.h"
+#include "Dx11EntityGpuData.h"
 using namespace DirectX;
 
 Mesh::Mesh() :
@@ -12,7 +12,6 @@ Mesh::Mesh() :
 }
 
 Mesh::~Mesh() {
-    // Nur die Referenzen clearen, nicht die Surfaces löschen!
     m_surfaces.clear();
 }
 
@@ -20,9 +19,8 @@ void Mesh::Update(const GDXDevice* device)
 {
     Entity::Update(device);
 
-    if (collisionType != COLLISION::NONE) {
+    if (collisionType != COLLISION::NONE)
         CalculateOBB(0);
-    }
 }
 
 void Mesh::Update(const GDXDevice* device, const MatrixSet* inMatrixSet)
@@ -30,37 +28,19 @@ void Mesh::Update(const GDXDevice* device, const MatrixSet* inMatrixSet)
     if (!isActive) return;
     if (!device || !inMatrixSet) return;
 
-    if (collisionType != COLLISION::NONE) {
+    if (collisionType != COLLISION::NONE)
         CalculateOBB(0);
-    }
 
     MatrixSet ms = *inMatrixSet;
     ms.worldMatrix = transform.GetLocalTransformationMatrix();
 
-    if (constantBuffer)
-    {
-        D3D11_MAPPED_SUBRESOURCE mapped{};
-        HRESULT hr = device->GetDeviceContext()->Map(
-            constantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
-
-        if (FAILED(hr)) {
-            Debug::LogHr(__FILE__, __LINE__, hr);
-            return;
-        }
-
-        memcpy(mapped.pData, &ms, sizeof(MatrixSet));
-        device->GetDeviceContext()->Unmap(constantBuffer, 0);
-
-        device->GetDeviceContext()->VSSetConstantBuffers(0, 1, &constantBuffer);
-        device->GetDeviceContext()->PSSetConstantBuffers(0, 1, &constantBuffer);
-    }
+    if (gpuData) gpuData->Upload(device, ms);
 }
 
 Surface* Mesh::GetSurface(unsigned int n)
 {
-    if (n < m_surfaces.size()) {
+    if (n < m_surfaces.size())
         return m_surfaces[n];
-    }
     return nullptr;
 }
 
@@ -123,8 +103,7 @@ void Mesh::CalculateOBB(unsigned int index)
 
 bool Mesh::CheckCollision(Mesh* mesh)
 {
-    if (collisionType == COLLISION::NONE || mesh->collisionType == COLLISION::NONE) {
+    if (collisionType == COLLISION::NONE || mesh->collisionType == COLLISION::NONE)
         return false;
-    }
     return obb.Intersects(mesh->obb);
 }

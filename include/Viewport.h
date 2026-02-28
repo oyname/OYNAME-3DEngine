@@ -1,7 +1,7 @@
 #pragma once
 
 // API-neutrales Viewport-Struct.
-// Wird im Backend (DX11/Vulkan/...) in die jeweilige API-Struktur konvertiert.
+// Wird im Backend in die jeweilige API-Struktur konvertiert.
 struct Viewport
 {
     float x        = 0.0f;

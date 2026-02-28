@@ -100,6 +100,7 @@
     <ClCompile Include="..\src\Camera.cpp" />
     <ClCompile Include="..\src\CameraManager.cpp" />
     <ClCompile Include="..\src\core.cpp" />
+    <ClCompile Include="..\src\Dx11EntityGpuData.cpp" />
     <ClCompile Include="..\src\Dx11LightGpuData.cpp" />
     <ClCompile Include="..\src\Dx11MaterialGpuData.cpp" />
     <ClCompile Include="..\src\Dx11RenderBackend.cpp" />
@@ -142,6 +143,7 @@
     <ClInclude Include="..\include\Camera.h" />
     <ClInclude Include="..\include\CameraManager.h" />
     <ClInclude Include="..\include\core.h" />
+    <ClInclude Include="..\include\Dx11EntityGpuData.h" />
     <ClInclude Include="..\include\Dx11LightGpuData.h" />
     <ClInclude Include="..\include\Dx11MaterialGpuData.h" />
     <ClInclude Include="..\include\Dx11RenderBackend.h" />
