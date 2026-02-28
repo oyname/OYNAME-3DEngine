@@ -7,6 +7,7 @@
 #include "gdxutil.h"
 #include "Material.h"
 
+class GDXDevice;
 
 // Shader-Klasse - Verwaltet Vertex und Pixel Shader mit Blobs und Input Layout
 // 

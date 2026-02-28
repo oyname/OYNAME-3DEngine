@@ -54,7 +54,7 @@ int main()
     // PBR Parameter
     Engine::MaterialMetallic(matCube, 0.5f);
     Engine::MaterialRoughness(matCube, 0.4f);
-    Engine::MaterialNormalScale(matCube, 0.5f);
+    Engine::MaterialNormalScale(matCube, 1.5f);
     Engine::MaterialOcclusionStrength(matCube, 0.3f);
 
     // Emissive (leichtes Glühen)

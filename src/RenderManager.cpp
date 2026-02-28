@@ -2,8 +2,8 @@
 #include "RenderManager.h"
 #include "Viewport.h"
 #include "Light.h"
-
 #include "Dx11RenderBackend.h"
+#include "Dx11MaterialGpuData.h" 
 
 RenderManager::RenderManager(ObjectManager& objectManager, LightManager& lightManager, GDXDevice& device)
     : m_objectManager(objectManager), m_lightManager(lightManager), m_device(device),
@@ -276,10 +276,30 @@ void RenderManager::FlushRenderQueue()
             else
             {
                 // Fallback: alter Slot-Pfad (kein Pool aktiv)
-                cmd.material->SetTexture(&m_device);
+                if (cmd.material->gpuData) cmd.material->gpuData->SetTexture(&m_device);
             }
 
-            cmd.material->UpdateConstantBuffer(m_device.GetDeviceContext());
+            if (cmd.material->gpuData) cmd.material->gpuData->UpdateConstantBuffer(
+                m_device.GetDeviceContext(),
+                cmd.material->properties.baseColor,
+                cmd.material->properties.specularColor,
+                cmd.material->properties.emissiveColor,
+                cmd.material->properties.uvTilingOffset,
+                cmd.material->properties.metallic,
+                cmd.material->properties.roughness,
+                cmd.material->properties.normalScale,
+                cmd.material->properties.occlusionStrength,
+                cmd.material->properties.shininess,
+                cmd.material->properties.transparency,
+                cmd.material->properties.alphaCutoff,
+                cmd.material->properties.receiveShadows,
+                cmd.material->albedoIndex,
+                cmd.material->normalIndex,
+                cmd.material->ormIndex,
+                cmd.material->decalIndex,
+                cmd.material->properties.blendMode,
+                cmd.material->properties.flags
+            );
             lastMaterial = cmd.material;
         }
 

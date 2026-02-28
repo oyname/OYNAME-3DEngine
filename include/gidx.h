@@ -5,6 +5,8 @@
 #include <fstream>  
 
 #include "gdxengine.h"
+#include "Dx11MaterialGpuData.h"
+#include "Dx11LightGpuData.h"
 #include "SurfaceGpuBuffer.h"
 
 extern Timer Time;
@@ -306,12 +308,13 @@ namespace Engine
         );
 
         // Light Buffer erstellen
+        if (!l->gpuData) l->gpuData = new LightGpuData();
         HRESULT hr = engine->GetBM().CreateBuffer(
             &l->cbLight,
             sizeof(LightBufferData),
             1,
             D3D11_BIND_CONSTANT_BUFFER,
-            &l->lightBuffer
+            &l->gpuData->lightBuffer
         );
 
         if (FAILED(hr))
@@ -868,9 +871,7 @@ namespace Engine
     {
         if (!material || !texture) return;
         // Legacy-Slot-Speicherung bleibt
-        material->SetTexture(slot, texture->m_texture,
-            texture->m_textureView,
-            texture->m_imageSamplerState);
+        if (material->gpuData) material->gpuData->SetTexture(slot, texture->m_texture, texture->m_textureView, texture->m_imageSamplerState);
         // TexturePool-Registrierung: SRV bekommt einen stabilen Index
         if (engine && texture->m_textureView)
         {
@@ -897,7 +898,7 @@ namespace Engine
             material->SetAlbedoIndex(engine ? engine->GetTP().WhiteIndex() : 0u);
             return;
         }
-        material->SetTexture(0, texture->m_texture, texture->m_textureView, texture->m_imageSamplerState);
+        if (material->gpuData) material->gpuData->SetTexture(0, texture->m_texture, texture->m_textureView, texture->m_imageSamplerState);
         if (engine)
         {
             uint32_t idx = engine->GetTP().GetOrAdd(texture->m_textureView);
@@ -916,7 +917,7 @@ namespace Engine
             material->SetNormalIndex(engine ? engine->GetTP().FlatNormalIndex() : 1u);
             return;
         }
-        material->SetTexture(1, texture->m_texture, texture->m_textureView, texture->m_imageSamplerState);
+        if (material->gpuData) material->gpuData->SetTexture(1, texture->m_texture, texture->m_textureView, texture->m_imageSamplerState);
         material->SetNormalScale(material->GetNormalScale() > 0.0001f ? material->GetNormalScale() : 1.0f);
         if (engine)
         {
@@ -937,7 +938,7 @@ namespace Engine
             material->SetOrmIndex(engine ? engine->GetTP().OrmIndex() : 2u);
             return;
         }
-        material->SetTexture(2, texture->m_texture, texture->m_textureView, texture->m_imageSamplerState);
+        if (material->gpuData) material->gpuData->SetTexture(2, texture->m_texture, texture->m_textureView, texture->m_imageSamplerState);
         if (engine)
         {
             uint32_t idx = engine->GetTP().GetOrAdd(texture->m_textureView);
@@ -958,7 +959,7 @@ namespace Engine
             material->SetDecalIndex(engine ? engine->GetTP().WhiteIndex() : 0u);
             return;
         }
-        material->SetTexture(3, texture->m_texture, texture->m_textureView, texture->m_imageSamplerState);
+        if (material->gpuData) material->gpuData->SetTexture(3, texture->m_texture, texture->m_textureView, texture->m_imageSamplerState);
         if (engine)
         {
             uint32_t idx = engine->GetTP().GetOrAdd(texture->m_textureView);

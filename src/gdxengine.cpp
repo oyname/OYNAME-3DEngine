@@ -2,6 +2,7 @@
 #include "gdxdevice.h"   
 #include "gdxwin.h"      
 #include "core.h"
+#include "Dx11MaterialGpuData.h"
 #include <fstream>
 
 namespace Engine
@@ -466,7 +467,8 @@ int GDXEngine::GetVSyncInterval() const noexcept
 HRESULT GDXEngine::InitMaterialBuffer(Material* material)
 {
 	if (!material) return E_INVALIDARG;
-	if (material->materialBuffer) return S_OK;
+	if (!material->gpuData) material->gpuData = new MaterialGpuData();
+	if (material->gpuData->materialBuffer) return S_OK;
 
 	// b2-Layout im Shader: 8 * 16 = 128 Bytes
 	constexpr UINT kMaterialCBSize = 128;
@@ -479,18 +481,19 @@ HRESULT GDXEngine::InitMaterialBuffer(Material* material)
 		kMaterialCBSize,
 		1,
 		D3D11_BIND_CONSTANT_BUFFER,
-		&material->materialBuffer
+		&material->gpuData->materialBuffer
 	);
 
 	//if (!material) return E_INVALIDARG;
-	//if (material->materialBuffer) return S_OK; // schon vorhanden
+	//if (!material->gpuData) material->gpuData = new MaterialGpuData();
+	if (material->gpuData->materialBuffer) return S_OK; // schon vorhanden
 	//
 	//return GetBM().CreateBuffer(
 	//	&material->properties,
 	//	sizeof(Material::MaterialData),
 	//	1,
 	//	D3D11_BIND_CONSTANT_BUFFER,
-	//	&material->materialBuffer
+	//	&material->gpuData->materialBuffer
 	//);
 }
 

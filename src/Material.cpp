@@ -1,5 +1,6 @@
+// Material.cpp: reiner Daten-Container. Kein DX11.
+#include "gdxutil.h"
 #include "Material.h"
-#include "gdxdevice.h"
 
 static float Clamp01(float v)
 {
@@ -10,13 +11,9 @@ static float Clamp01(float v)
 
 Material::Material() :
     isActive(false),
-    m_texture{},
-    m_textureView{},
-    m_imageSamplerState{},
-    materialBuffer(nullptr),
+    gpuData(nullptr),
     pRenderShader(nullptr)
 {
-    // Defaults
     properties.baseColor        = DirectX::XMFLOAT4(1, 1, 1, 1);
     properties.specularColor    = DirectX::XMFLOAT4(1, 1, 1, 1);
     properties.emissiveColor    = DirectX::XMFLOAT4(0, 0, 0, 0);
@@ -37,123 +34,15 @@ Material::Material() :
     properties.flags = MF_NONE;
     properties._pad0 = 0.0f;
 
-    // Shadow flags default
-    castShadows = true;
-    receiveShadows = true;
+    castShadows               = true;
+    receiveShadows            = true;
     properties.receiveShadows = 1.0f;
 }
 
 Material::~Material()
 {
-    // GPU constant buffer
-    Memory::SafeRelease(materialBuffer);
-
-    // Texturen/Sampler unabhängig voneinander releasen
-    for (int i = 0; i < MAX_TEXTURES; ++i)
-    {
-        Memory::SafeRelease(m_imageSamplerState[i]);
-        Memory::SafeRelease(m_textureView[i]);
-        Memory::SafeRelease(m_texture[i]);
-
-        // optional, aber robust:
-        m_imageSamplerState[i] = nullptr;
-        m_textureView[i] = nullptr;
-        m_texture[i] = nullptr;
-    }
-}
-
-void Material::SetTexture(const GDXDevice* device)
-{
-    ID3D11DeviceContext* ctx = device ? device->GetDeviceContext() : nullptr;
-    if (!ctx) return;
-
-    for (int i = 0; i < MAX_TEXTURES; i++)
-    {
-        if (m_textureView[i])
-        {
-            ctx->PSSetShaderResources(i, 1, &m_textureView[i]);
-            ctx->PSSetSamplers(i, 1, &m_imageSamplerState[i]);
-        }
-    }
-}
-
-void Material::SetTexture(int slot,
-    ID3D11Texture2D* texture,
-    ID3D11ShaderResourceView* textureView,
-    ID3D11SamplerState* sampler)
-{
-    if (slot < 0 || slot >= MAX_TEXTURES) return;
-
-    Memory::SafeRelease(m_imageSamplerState[slot]);
-    Memory::SafeRelease(m_textureView[slot]);
-    Memory::SafeRelease(m_texture[slot]);
-
-    m_texture[slot] = texture;
-    m_textureView[slot] = textureView;
-    m_imageSamplerState[slot] = sampler;
-
-    if (m_texture[slot])           m_texture[slot]->AddRef();
-    if (m_textureView[slot])       m_textureView[slot]->AddRef();
-    if (m_imageSamplerState[slot]) m_imageSamplerState[slot]->AddRef();
-}
-
-void Material::UpdateConstantBuffer(ID3D11DeviceContext* context)
-{
-    if (materialBuffer == nullptr || context == nullptr)
-        return;
-
-    // GPU-Layout passend zum HLSL cbuffer (b2)
-    struct alignas(16) MaterialCB
-    {
-        DirectX::XMFLOAT4 baseColor;
-        DirectX::XMFLOAT4 specularColor;
-        DirectX::XMFLOAT4 emissiveColor;
-        DirectX::XMFLOAT4 uvTilingOffset;
-
-        DirectX::XMFLOAT4 pbr;    // metallic roughness normalScale occlusionStrength
-        DirectX::XMFLOAT4 alpha;  // shininess transparency alphaCutoff receiveShadows
-
-        DirectX::XMUINT4  texIndex; // albedo normal orm decal
-        DirectX::XMUINT4  misc;     // blendMode flags 0 0
-    };
-
-    static_assert(sizeof(MaterialCB) == 128, "MaterialCB must be 128 bytes");
-
-    auto clampIdx = [](uint32_t v, uint32_t fallback) -> uint32_t {
-        return (v <= 15u) ? v : fallback;
-        };
-
-    MaterialCB cb{};
-    cb.baseColor = properties.baseColor;
-    cb.specularColor = properties.specularColor;
-    cb.emissiveColor = properties.emissiveColor;
-    cb.uvTilingOffset = properties.uvTilingOffset;
-
-    cb.pbr = DirectX::XMFLOAT4(properties.metallic, properties.roughness, properties.normalScale, properties.occlusionStrength);
-    cb.alpha = DirectX::XMFLOAT4(properties.shininess, properties.transparency, properties.alphaCutoff, properties.receiveShadows);
-
-    cb.texIndex = DirectX::XMUINT4(
-        clampIdx(albedoIndex, 0u), // white
-        clampIdx(normalIndex, 1u), // flat normal
-        clampIdx(ormIndex, 2u), // default orm
-        clampIdx(decalIndex, 0u)
-    );
-
-    cb.misc = DirectX::XMUINT4(
-        static_cast<uint32_t>(properties.blendMode + 0.5f),
-        static_cast<uint32_t>(properties.flags),
-        0u, 0u
-    );
-
-    D3D11_MAPPED_SUBRESOURCE mapped{};
-    HRESULT hr = context->Map(materialBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
-    if (SUCCEEDED(hr))
-    {
-        memcpy(mapped.pData, &cb, sizeof(cb));
-        context->Unmap(materialBuffer, 0);
-    }
-
-    context->PSSetConstantBuffers(2, 1, &materialBuffer);
+    delete gpuData;
+    gpuData = nullptr;
 }
 
 // ==================== Setters ====================
@@ -208,6 +97,7 @@ void Material::SetEmissiveColor(float r, float g, float b, float intensity)
 {
     if (intensity < 0.0f) intensity = 0.0f;
     properties.emissiveColor = DirectX::XMFLOAT4(r * intensity, g * intensity, b * intensity, 0.0f);
+
     if ((r != 0.0f) || (g != 0.0f) || (b != 0.0f) || (intensity != 0.0f))
         properties.flags |= MF_USE_EMISSIVE;
     else
