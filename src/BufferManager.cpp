@@ -14,6 +14,17 @@ void BufferManager::Init(ID3D11Device* device, ID3D11DeviceContext* context)
 
 HRESULT BufferManager::CreateBuffer(const void* data, UINT size, UINT count, D3D11_BIND_FLAG bindFlags, ID3D11Buffer** buffer)
 {
+    if (!m_device)
+    {
+        Debug::LogError("BufferManager.cpp: CreateBuffer - m_device ist nullptr. BufferManager::Init wurde noch nicht aufgerufen.");
+        return E_FAIL;
+    }
+    if (!data || size == 0 || count == 0 || !buffer)
+    {
+        Debug::LogError("BufferManager.cpp: CreateBuffer - ungueltige Parameter (data/size/count/buffer).");
+        return E_INVALIDARG;
+    }
+
     // Buffer Description
     D3D11_BUFFER_DESC bufferDesc;
     ZeroMemory(&bufferDesc, sizeof(bufferDesc));

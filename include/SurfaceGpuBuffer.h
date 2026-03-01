@@ -28,8 +28,10 @@ public:
     ID3D11Buffer* tangentBuffer  = nullptr;
     ID3D11Buffer* colorBuffer    = nullptr;
     ID3D11Buffer* uv1Buffer      = nullptr;
-    ID3D11Buffer* uv2Buffer      = nullptr;
-    ID3D11Buffer* indexBuffer    = nullptr;
+    ID3D11Buffer* uv2Buffer          = nullptr;
+    ID3D11Buffer* boneIndexBuffer    = nullptr;
+    ID3D11Buffer* boneWeightBuffer   = nullptr;
+    ID3D11Buffer* indexBuffer        = nullptr;
 
     unsigned int stridePosition = 0;
     unsigned int strideNormal   = 0;

@@ -56,6 +56,14 @@ HRESULT InputLayoutManager::CreateInputLayoutVertex(ID3D11InputLayout** layout, 
         currentOffset += sizeof(DirectX::XMFLOAT2); 
         cnt++;
     }
+    if (flags & D3DVERTEX_BONE_INDICES) {
+        layoutElements.push_back({ "BLENDINDICES", 0, DXGI_FORMAT_R32G32B32A32_UINT, cnt, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 });
+        cnt++;
+    }
+    if (flags & D3DVERTEX_BONE_WEIGHTS) {
+        layoutElements.push_back({ "BLENDWEIGHT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, cnt, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 });
+        cnt++;
+    }
 
     void* bytecode = shader->blobVS->GetBufferPointer();
     unsigned int size = (unsigned int)shader->blobVS->GetBufferSize();

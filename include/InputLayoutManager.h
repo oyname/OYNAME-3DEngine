@@ -10,7 +10,7 @@ class InputLayoutManager {
 public:
     InputLayoutManager();
     ~InputLayoutManager();
-    
+
     void Init(ID3D11Device* device);
     HRESULT CreateInputLayoutVertex(ID3D11InputLayout** layout, SHADER* shader, DWORD& saveFlags, DWORD flags);
 

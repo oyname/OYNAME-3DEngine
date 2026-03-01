@@ -95,8 +95,6 @@ int main()
         float dt = (float)Timer::GetDeltaTime();
 
         // Rotation
-
-
         Engine::LookAt(camera, Engine::EntityPosition(cube2));
         Engine::LookAt(directionalLight, Engine::EntityPosition(cube));
 

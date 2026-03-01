@@ -50,7 +50,19 @@ enum D3DVERTEX_FLAGS {
     D3DVERTEX_TEX3 = (1 << 5),
     D3DVERTEX_DIFFUSE = (1 << 6),
     D3DVERTEX_SPECULAR = (1 << 7),
-    D3DVERTEX_TANGENT  = (1 << 8), // float4 (xyz + handedness)
+    D3DVERTEX_TANGENT       = (1 << 8), // float4 (xyz + handedness)
+    D3DVERTEX_BONE_INDICES  = (1 << 9), // uint4  (4 Bone-Indices pro Vertex)
+    D3DVERTEX_BONE_WEIGHTS  = (1 << 10),// float4 (4 Bone-Weights pro Vertex)
+};
+
+// Maximale Anzahl Bones pro Mesh im Skinning-Shader
+static const int MAX_BONES = 128;
+
+// Constant-Buffer-Layout fuer Bone-Matrizen (Register b4 im Vertex-Shader)
+__declspec(align(16))
+struct BoneBuffer
+{
+    DirectX::XMMATRIX boneMatrices[128];
 };
 
 

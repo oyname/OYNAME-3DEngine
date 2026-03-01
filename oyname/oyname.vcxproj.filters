@@ -207,6 +207,9 @@
     <ClCompile Include="..\src\Dx11LightManagerGpuData.cpp">
       <Filter>01 Engine\backend</Filter>
     </ClCompile>
+    <ClCompile Include="..\examples\SkinningTest.cpp">
+      <Filter>01 Engine\app</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\examples\Neontimebuffer.h">
@@ -363,6 +366,9 @@
     </Text>
     <Text Include="..\shaders\PixelShader_PosUv.hlsl">
       <Filter>01 Engine\shader\Unlite</Filter>
+    </Text>
+    <Text Include="..\shaders\VertexShaderSkinning.hlsl">
+      <Filter>01 Engine\shader</Filter>
     </Text>
   </ItemGroup>
 </Project>

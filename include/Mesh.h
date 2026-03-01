@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include <d3d11.h>
 #include <vector>
 #include <DirectXMath.h>
 #include <DirectXCollision.h>
@@ -22,6 +23,10 @@ public:
     std::vector<Surface*> m_surfaces;  // non-owning!
     Material* pMaterial = nullptr;      // non-owning
     DirectX::BoundingOrientedBox obb;
+
+    // Skinning
+    ID3D11Buffer* boneConstantBuffer = nullptr;  // Constant Buffer b4, owned
+    bool          hasSkinning        = false;
 
 public:
     Mesh();

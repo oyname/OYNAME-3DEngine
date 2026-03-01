@@ -27,5 +27,12 @@ void RenderCommand::Execute(const GDXDevice* device) const
         if (backend) backend->BindEntityConstants(dev, *mesh);
     }
 
+    // Bone-Constant-Buffer auf b4 binden wenn Mesh Skinning verwendet
+    if (mesh->hasSkinning && mesh->boneConstantBuffer)
+    {
+        ID3D11DeviceContext* ctx = device->GetDeviceContext();
+        if (ctx) ctx->VSSetConstantBuffers(4, 1, &mesh->boneConstantBuffer);
+    }
+
     surface->gpu->Draw(device, flagsVertex);
 }

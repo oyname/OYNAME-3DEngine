@@ -13,6 +13,7 @@ Mesh::Mesh() :
 
 Mesh::~Mesh() {
     m_surfaces.clear();
+    if (boneConstantBuffer) { boneConstantBuffer->Release(); boneConstantBuffer = nullptr; }
 }
 
 void Mesh::Update(const GDXDevice* device)
@@ -32,7 +33,7 @@ void Mesh::Update(const GDXDevice* device, const MatrixSet* inMatrixSet)
         CalculateOBB(0);
 
     // Die world matrix kommt bereits korrekt berechnet vom RenderManager (inkl. Parent-Chain).
-    // Nicht ueberschreiben – direkt aus dem uebergebenen MatrixSet verwenden.
+    // Nicht ueberschreiben ï¿½ direkt aus dem uebergebenen MatrixSet verwenden.
     if (gpuData) gpuData->Upload(device, *inMatrixSet);
 }
 

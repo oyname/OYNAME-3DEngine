@@ -666,10 +666,70 @@ namespace Engine
             engine->GetBM().CreateBuffer(surface->GetUV2().data(), sizeof(DirectX::XMFLOAT2),
                 surface->CountUV2(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->uv2Buffer);
         }
+        if (shader->flagsVertex & D3DVERTEX_BONE_INDICES && surface->CountBoneData() > 0) {
+            engine->GetBM().CreateBuffer(surface->GetBoneIndices().data(), sizeof(DirectX::XMUINT4),
+                surface->CountBoneData(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->boneIndexBuffer);
+        }
+        if (shader->flagsVertex & D3DVERTEX_BONE_WEIGHTS && surface->CountBoneData() > 0) {
+            engine->GetBM().CreateBuffer(surface->GetBoneWeights().data(), sizeof(DirectX::XMFLOAT4),
+                surface->CountBoneData(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->boneWeightBuffer);
+        }
 
         // Indexbuffer
         engine->GetBM().CreateBuffer(surface->GetIndices().data(), sizeof(UINT),
             surface->CountIndices(), D3D11_BIND_INDEX_BUFFER, &gpuDX11->indexBuffer);
+    }
+
+
+    // ==================== SKINNING ====================
+
+    // Setzt Bone-Indices und Weights fuer einen einzelnen Vertex.
+    // Muss VOR FillBuffer aufgerufen werden.
+    // v          = Vertex-Index in der Surface
+    // b0..b3     = Bone-Indices (uint)
+    // w0..w3     = Bone-Weights (sollten sich zu 1.0 addieren)
+    inline void VertexBoneData(LPSURFACE surface,
+                               unsigned int v,
+                               unsigned int b0, unsigned int b1,
+                               unsigned int b2, unsigned int b3,
+                               float w0, float w1, float w2, float w3)
+    {
+        if (!surface) { Debug::Log("gidx.h: ERROR: VertexBoneData - surface ist nullptr"); return; }
+        surface->SetBoneData(v, b0, b1, b2, b3, w0, w1, w2, w3);
+    }
+
+    // Laedt Bone-Matrizen in den GPU-Constant-Buffer des Mesh (Slot b4).
+    // Jeden Frame aufrufen mit den aktuellen Bone-Transformationen.
+    // matrices = Array von XMMATRIX, count = Anzahl Bones (max 128)
+    inline void SetEntityBoneMatrices(LPENTITY entity,
+                                      const DirectX::XMMATRIX* matrices,
+                                      uint32_t count)
+    {
+        if (!engine)   { Debug::Log("gidx.h: ERROR: SetEntityBoneMatrices - engine ist nullptr");  return; }
+        if (!entity)   { Debug::Log("gidx.h: ERROR: SetEntityBoneMatrices - entity ist nullptr");  return; }
+        if (!matrices || count == 0) { Debug::Log("gidx.h: ERROR: SetEntityBoneMatrices - keine Bone-Daten"); return; }
+        if (count > (uint32_t)MAX_BONES) count = (uint32_t)MAX_BONES;
+
+        Mesh* mesh = (entity->IsMesh() ? entity->AsMesh() : nullptr);
+        if (!mesh) { Debug::Log("gidx.h: ERROR: SetEntityBoneMatrices - Entity ist kein Mesh"); return; }
+
+        BoneBuffer buf = {};
+        for (uint32_t i = 0; i < count; ++i)
+            buf.boneMatrices[i] = matrices[i];
+
+        if (!mesh->boneConstantBuffer)
+        {
+            HRESULT hr = engine->GetBM().CreateBuffer(
+                &buf, sizeof(BoneBuffer), 1,
+                D3D11_BIND_CONSTANT_BUFFER,
+                &mesh->boneConstantBuffer);
+            if (FAILED(hr)) { Debug::LogHr(__FILE__, __LINE__, hr); return; }
+            mesh->hasSkinning = true;
+            return;
+        }
+
+        engine->GetBM().UpdateConstantBuffer(mesh->boneConstantBuffer, &buf, sizeof(BoneBuffer));
+        mesh->hasSkinning = true;
     }
 
     inline void UpdateColorBuffer(LPSURFACE surface)

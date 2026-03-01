@@ -1,4 +1,5 @@
 #include "SurfaceGpuBuffer.h"
+#include <cstdint>
 #include "gdxdevice.h"
 
 SurfaceGpuBuffer::~SurfaceGpuBuffer()
@@ -14,14 +15,16 @@ void SurfaceGpuBuffer::Release()
     Memory::SafeRelease(colorBuffer);
     Memory::SafeRelease(uv1Buffer);
     Memory::SafeRelease(uv2Buffer);
+    Memory::SafeRelease(boneIndexBuffer);
+    Memory::SafeRelease(boneWeightBuffer);
     Memory::SafeRelease(indexBuffer);
 }
 
 void SurfaceGpuBuffer::Draw(const GDXDevice* device, unsigned int flagsVertex) const
 {
-    ID3D11Buffer* buffers[6] = {};
-    UINT          strides[6] = {};
-    UINT          offsets[6] = {};
+    ID3D11Buffer* buffers[8] = {};
+    UINT          strides[8] = {};
+    UINT          offsets[8] = {};
     UINT          cnt = 0;
 
     if (flagsVertex & D3DVERTEX_POSITION) { buffers[cnt] = positionBuffer; strides[cnt] = stridePosition; cnt++; }
@@ -29,7 +32,9 @@ void SurfaceGpuBuffer::Draw(const GDXDevice* device, unsigned int flagsVertex) c
     if (flagsVertex & D3DVERTEX_TANGENT)  { buffers[cnt] = tangentBuffer;  strides[cnt] = strideTangent;  cnt++; }
     if (flagsVertex & D3DVERTEX_COLOR)    { buffers[cnt] = colorBuffer;    strides[cnt] = strideColor;    cnt++; }
     if (flagsVertex & D3DVERTEX_TEX1)     { buffers[cnt] = uv1Buffer;      strides[cnt] = strideUV1;      cnt++; }
-    if (flagsVertex & D3DVERTEX_TEX2)     { buffers[cnt] = uv2Buffer;      strides[cnt] = strideUV2;      cnt++; }
+    if (flagsVertex & D3DVERTEX_TEX2)         { buffers[cnt] = uv2Buffer;        strides[cnt] = strideUV2;             cnt++; }
+    if (flagsVertex & D3DVERTEX_BONE_INDICES) { buffers[cnt] = boneIndexBuffer;  strides[cnt] = sizeof(uint32_t) * 4;  cnt++; }
+    if (flagsVertex & D3DVERTEX_BONE_WEIGHTS) { buffers[cnt] = boneWeightBuffer; strides[cnt] = sizeof(float) * 4;    cnt++; }
 
     if (cnt > 0)
         device->GetDeviceContext()->IASetVertexBuffers(0, cnt, buffers, strides, offsets);
