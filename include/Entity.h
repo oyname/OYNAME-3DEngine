@@ -1,6 +1,8 @@
 #pragma once
 #include <DirectXMath.h>
 #include <cstdint>
+#include <vector>
+#include <algorithm>
 #include "Transform.h"
 #include "gdxutil.h"
 #include "RenderLayers.h"
@@ -16,10 +18,10 @@ class EntityGpuData;
 // Typ-Tag ersetzt dynamic_cast auf dem Hot Path.
 enum class EntityType : uint8_t
 {
-    Unknown  = 0,
-    Mesh     = 1,
-    Camera   = 2,
-    Light    = 3
+    Unknown = 0,
+    Mesh = 1,
+    Camera = 2,
+    Light = 3
 };
 
 class Entity
@@ -49,17 +51,17 @@ public:
         float Width, float Height,
         float MinDepth, float MaxDepth);
 
-    void* operator new(size_t size)         { return _aligned_malloc(size, 16); }
+    void* operator new(size_t size) { return _aligned_malloc(size, 16); }
     void  operator delete(void* p) noexcept { _aligned_free(p); }
 
     EntityType GetEntityType() const noexcept { return m_entityType; }
-    bool IsMesh()   const noexcept { return m_entityType == EntityType::Mesh;   }
+    bool IsMesh()   const noexcept { return m_entityType == EntityType::Mesh; }
     bool IsCamera() const noexcept { return m_entityType == EntityType::Camera; }
-    bool IsLight()  const noexcept { return m_entityType == EntityType::Light;  }
+    bool IsLight()  const noexcept { return m_entityType == EntityType::Light; }
 
-    inline Mesh*   AsMesh()   noexcept { return reinterpret_cast<Mesh*>(this);   }
+    inline Mesh* AsMesh()   noexcept { return reinterpret_cast<Mesh*>(this); }
     inline Camera* AsCamera() noexcept { return reinterpret_cast<Camera*>(this); }
-    inline Light*  AsLight()  noexcept { return reinterpret_cast<Light*>(this);  }
+    inline Light* AsLight()  noexcept { return reinterpret_cast<Light*>(this); }
 
     bool IsActive()  const noexcept { return m_active; }
     void SetActive(bool active)     noexcept { m_active = active; }
@@ -73,15 +75,43 @@ public:
     uint32_t GetLayerMask() const noexcept { return m_layerMask; }
     void     SetLayerMask(uint32_t mask) noexcept { m_layerMask = mask; }
 
+    // ==================== PARENT / CHILD HIERARCHY ====================
+
+    // Haengt diese Entity als Kind an parent.
+    // parent = nullptr entspricht DetachFromParent().
+    //
+    // Der lokale Transform des Childs bleibt unveraendert gespeichert.
+    // GetWorldMatrix() kombiniert ihn automatisch mit dem Parent.
+    //
+    // Ob Bewegung/Rotation im lokalen oder weltkoordinatensystem wirkt,
+    // steuert man per Space-Flag direkt bei MoveEntity/RotateEntity:
+    //   MoveEntity(wheel, 1.5f, 0.0f, 0.0f, Space::Local)   // Standard
+    //   MoveEntity(wheel, 1.5f, 0.0f, 0.0f, Space::World)
+    void SetParent(Entity* parent);
+
+    // Trennt diese Entity vom Parent (falls vorhanden).
+    void DetachFromParent();
+
+    Entity* GetParent()   const noexcept { return m_parent; }
+    const std::vector<Entity*>& GetChildren() const noexcept { return m_children; }
+
+    // Liefert die vollstaendige Weltmatrix unter Beruecksichtigung der Parent-Chain.
+    // worldMatrix = local * parent->GetWorldMatrix()  (rekursiv, wenn Parent vorhanden)
+    DirectX::XMMATRIX GetWorldMatrix() const;
+
 protected:
     EntityType m_entityType = EntityType::Unknown;
 
-    bool     m_active      = true;
-    bool     m_visible     = true;
+    bool     m_active = true;
+    bool     m_visible = true;
     bool     m_castShadows = true;
-    uint32_t m_layerMask   = LAYER_DEFAULT;
+    uint32_t m_layerMask = LAYER_DEFAULT;
 
     bool& isActive = m_active;
+
+    // Hierarchy
+    Entity* m_parent = nullptr;
+    std::vector<Entity*> m_children;
 };
 
 typedef Entity* LPENTITY;

@@ -357,7 +357,7 @@ namespace Engine
             return;
         }
 
-        Light* l = (light->IsLight()  ? light->AsLight()  : nullptr);
+        Light* l = (light->IsLight() ? light->AsLight() : nullptr);
         if (l == nullptr) {
             Debug::Log("gidx.h: ERROR: LightColor - Entity is not a Light!");
             return;
@@ -376,7 +376,7 @@ namespace Engine
             return;
         }
 
-        Light* l = (light->IsLight()  ? light->AsLight()  : nullptr);
+        Light* l = (light->IsLight() ? light->AsLight() : nullptr);
         if (l == nullptr) {
             Debug::Log("gidx.h: ERROR - SetDirectionalLight - Entity is not a Light!");
             return;
@@ -581,7 +581,7 @@ namespace Engine
         }
 
         // Prüfe ob Entity ein Mesh ist (nur Meshes haben Surfaces)
-        Mesh* mesh = (entity->IsMesh()   ? entity->AsMesh()   : nullptr);
+        Mesh* mesh = (entity->IsMesh() ? entity->AsMesh() : nullptr);
         if (mesh == nullptr) {
             Debug::Log("gidx.h: ERROR: CreateSurface - Entity is not a Mesh!");
             engine->GetOM().DeleteSurface(*surface);
@@ -599,7 +599,7 @@ namespace Engine
             return nullptr;
         }
 
-        Mesh* mesh = (entity->IsMesh()   ? entity->AsMesh()   : nullptr);
+        Mesh* mesh = (entity->IsMesh() ? entity->AsMesh() : nullptr);
         if (mesh == nullptr) {
             Debug::Log("gidx.h: ERROR: GetSurface - Entity is not a Mesh!");
             return nullptr;
@@ -624,12 +624,12 @@ namespace Engine
 
         // Stride-Werte und Index-Count setzen
         gpuDX11->stridePosition = sizeof(DirectX::XMFLOAT3);
-        gpuDX11->strideNormal   = sizeof(DirectX::XMFLOAT3);
-        gpuDX11->strideTangent  = sizeof(DirectX::XMFLOAT4);
-        gpuDX11->strideColor    = sizeof(DirectX::XMFLOAT4);
-        gpuDX11->strideUV1      = sizeof(DirectX::XMFLOAT2);
-        gpuDX11->strideUV2      = sizeof(DirectX::XMFLOAT2);
-        gpuDX11->indexCount     = surface->CountIndices();
+        gpuDX11->strideNormal = sizeof(DirectX::XMFLOAT3);
+        gpuDX11->strideTangent = sizeof(DirectX::XMFLOAT4);
+        gpuDX11->strideColor = sizeof(DirectX::XMFLOAT4);
+        gpuDX11->strideUV1 = sizeof(DirectX::XMFLOAT2);
+        gpuDX11->strideUV2 = sizeof(DirectX::XMFLOAT2);
+        gpuDX11->indexCount = surface->CountIndices();
 
         // Vertexbuffer
         if (shader->flagsVertex & D3DVERTEX_POSITION && surface->CountVertices() > 0) {
@@ -1084,7 +1084,7 @@ namespace Engine
 
     inline void EntityMaterial(LPENTITY entity, LPMATERIAL material)
     {
-        Mesh* mesh = (entity->IsMesh()   ? entity->AsMesh()   : nullptr);
+        Mesh* mesh = (entity->IsMesh() ? entity->AsMesh() : nullptr);
         if (!mesh) { Debug::Log("gidx.h: EntityMaterial - Entity ist kein Mesh"); return; }
         if (!material) { Debug::Log("gidx.h: EntityMaterial - material nullptr"); return; }
         engine->GetOM().AddMeshToMaterial(material, mesh);
@@ -1186,7 +1186,7 @@ namespace Engine
             return;
         }
 
-        Mesh* mesh = (entity->IsMesh()   ? entity->AsMesh()   : nullptr);
+        Mesh* mesh = (entity->IsMesh() ? entity->AsMesh() : nullptr);
         if (mesh == nullptr) {
             Debug::Log("gidx.h: ERROR: EntityCollisionMode - Entity is not a Mesh!");
             return;
@@ -1202,7 +1202,7 @@ namespace Engine
             return nullptr;
         }
 
-        Mesh* mesh = (entity->IsMesh()   ? entity->AsMesh()   : nullptr);
+        Mesh* mesh = (entity->IsMesh() ? entity->AsMesh() : nullptr);
         if (mesh == nullptr) {
             Debug::Log("gidx.h: ERROR: EntitySurface - Entity is not a Mesh!");
             return nullptr;
@@ -1233,8 +1233,8 @@ namespace Engine
             return false;
         }
 
-        Mesh* mesh1 = (entity1->IsMesh()   ? entity1->AsMesh()   : nullptr);
-        Mesh* mesh2 = (entity2->IsMesh()   ? entity2->AsMesh()   : nullptr);
+        Mesh* mesh1 = (entity1->IsMesh() ? entity1->AsMesh() : nullptr);
+        Mesh* mesh2 = (entity2->IsMesh() ? entity2->AsMesh() : nullptr);
 
         if (mesh1 == nullptr || mesh2 == nullptr) {
             Debug::Log("gidx.h: ERROR: EntityCollision - one or both entities are not Meshes!");
@@ -1251,7 +1251,7 @@ namespace Engine
             return nullptr;
         }
 
-        Mesh* mesh = (entity->IsMesh()   ? entity->AsMesh()   : nullptr);
+        Mesh* mesh = (entity->IsMesh() ? entity->AsMesh() : nullptr);
         if (mesh == nullptr) {
             Debug::Log("gidx.h: ERROR: EntityOBB - Entity is not a Mesh!");
             return nullptr;
@@ -1394,4 +1394,92 @@ namespace Engine
         if (!rtt) return;
         rtt->SetClearColor(r, g, b, a);
     }
+
+    // ==================== PARENT / CHILD HIERARCHY ====================
+
+    // Haengt child als Kind-Entity an parent.
+    // Die Weltmatrix des Childs wird automatisch berechnet als:
+    //   worldMatrix = childLocalMatrix * parentWorldMatrix
+    //
+    // Ob Bewegung/Rotation im lokalen oder weltkoordinatensystem wirkt,
+    // gibt man direkt beim Aufruf per Space-Flag an – Standard ist Space::Local:
+    //   Engine::MoveEntity(wheel, 1.5f, 0.0f, 0.0f);                  // Local (Standard)
+    //   Engine::MoveEntity(wheel, 1.5f, 0.0f, 0.0f, Space::World);    // World
+    //
+    // parent = nullptr entspricht DetachEntity().
+    inline void SetEntityParent(LPENTITY child, LPENTITY parent)
+    {
+        if (!child) { Debug::Log("gidx.h: ERROR: SetEntityParent - child is nullptr"); return; }
+        child->SetParent(parent);
+    }
+
+    // Trennt die Entity vom Parent (falls vorhanden).
+    inline void DetachEntity(LPENTITY entity)
+    {
+        if (!entity) { Debug::Log("gidx.h: ERROR: DetachEntity - entity is nullptr"); return; }
+        entity->DetachFromParent();
+    }
+
+    // Gibt den Parent der Entity zurueck, oder nullptr wenn es keinen gibt.
+    inline LPENTITY GetEntityParent(LPENTITY entity)
+    {
+        if (!entity) { Debug::Log("gidx.h: ERROR: GetEntityParent - entity is nullptr"); return nullptr; }
+        return entity->GetParent();
+    }
+
+    // ==================== ENTITY POSITION GETTER ====================
+
+    // Gibt die Weltposition einer Entity zurueck (als XMVECTOR).
+    // Beruecksichtigt die Parent-Chain – liefert immer die finale Weltposition.
+    inline DirectX::XMVECTOR EntityPosition(LPENTITY entity)
+    {
+        if (!entity) { Debug::Log("gidx.h: ERROR: EntityPosition - entity is nullptr"); return DirectX::XMVectorZero(); }
+        DirectX::XMMATRIX world = entity->GetWorldMatrix();
+        return world.r[3];  // Translation steckt in Zeile 3
+    }
+
+    // Einzelne Achsen der Weltposition.
+    inline float EntityX(LPENTITY entity)
+    {
+        if (!entity) { Debug::Log("gidx.h: ERROR: EntityX - entity is nullptr"); return 0.0f; }
+        return DirectX::XMVectorGetX(entity->GetWorldMatrix().r[3]);
+    }
+
+    inline float EntityY(LPENTITY entity)
+    {
+        if (!entity) { Debug::Log("gidx.h: ERROR: EntityY - entity is nullptr"); return 0.0f; }
+        return DirectX::XMVectorGetY(entity->GetWorldMatrix().r[3]);
+    }
+
+    inline float EntityZ(LPENTITY entity)
+    {
+        if (!entity) { Debug::Log("gidx.h: ERROR: EntityZ - entity is nullptr"); return 0.0f; }
+        return DirectX::XMVectorGetZ(entity->GetWorldMatrix().r[3]);
+    }
+
+    // Lokale Position (ohne Parent-Einfluss) – der Wert der direkt im Transform gespeichert ist.
+    inline DirectX::XMVECTOR EntityLocalPosition(LPENTITY entity)
+    {
+        if (!entity) { Debug::Log("gidx.h: ERROR: EntityLocalPosition - entity is nullptr"); return DirectX::XMVectorZero(); }
+        return entity->transform.GetPosition();
+    }
+
+    inline float EntityLocalX(LPENTITY entity)
+    {
+        if (!entity) { Debug::Log("gidx.h: ERROR: EntityLocalX - entity is nullptr"); return 0.0f; }
+        return DirectX::XMVectorGetX(entity->transform.GetPosition());
+    }
+
+    inline float EntityLocalY(LPENTITY entity)
+    {
+        if (!entity) { Debug::Log("gidx.h: ERROR: EntityLocalY - entity is nullptr"); return 0.0f; }
+        return DirectX::XMVectorGetY(entity->transform.GetPosition());
+    }
+
+    inline float EntityLocalZ(LPENTITY entity)
+    {
+        if (!entity) { Debug::Log("gidx.h: ERROR: EntityLocalZ - entity is nullptr"); return 0.0f; }
+        return DirectX::XMVectorGetZ(entity->transform.GetPosition());
+    }
+
 } // End of namespace Engine

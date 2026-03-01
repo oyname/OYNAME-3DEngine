@@ -79,7 +79,7 @@ void RenderManager::RenderShadowPass()
         MatrixSet ms = m_currentCam->matrixSet;
         ms.viewMatrix = lightViewMatrix;
         ms.projectionMatrix = lightProjMatrix;
-        ms.worldMatrix = mesh->transform.GetLocalTransformationMatrix();
+        ms.worldMatrix = mesh->GetWorldMatrix();
         mesh->Update(&m_device, &ms);
 
         for (Surface* s : mesh->m_surfaces)
@@ -164,8 +164,8 @@ void RenderManager::RenderMainPassAtomic()
                 ? globalAmbient
                 : DirectX::XMFLOAT4(0.f, 0.f, 0.f, 0.f);
 
-            m_lightCBData.lights[i].lightPosition     = lights[i]->cbLight.lightPosition;
-            m_lightCBData.lights[i].lightDirection    = lights[i]->cbLight.lightDirection;
+            m_lightCBData.lights[i].lightPosition = lights[i]->cbLight.lightPosition;
+            m_lightCBData.lights[i].lightDirection = lights[i]->cbLight.lightDirection;
             m_lightCBData.lights[i].lightDiffuseColor = lights[i]->cbLight.lightDiffuseColor;
             m_lightCBData.lights[i].lightAmbientColor = ambient;
         }
@@ -209,7 +209,10 @@ void RenderManager::BuildRenderQueue()
         if (!mesh->IsVisible()) continue;
         if (!(mesh->GetLayerMask() & cameraCullMask)) continue;
 
-        const DirectX::XMMATRIX world = mesh->transform.GetLocalTransformationMatrix();
+        // GetWorldMatrix() beruecksichtigt Parent-Child-Hierarchy und den Space-Modus.
+        // Space::Local  → local * parent->GetWorldMatrix() (rekursiv)
+        // Space::World  → nur lokale Matrix (Parent wird ignoriert)
+        const DirectX::XMMATRIX world = mesh->GetWorldMatrix();
 
         // MatrixSet fuer Execute() vorbereiten -- world kommt aus dem Mesh-Transform
         mesh->matrixSet.worldMatrix = world;
@@ -241,7 +244,7 @@ void RenderManager::BuildRenderQueue()
 
 void RenderManager::FlushRenderQueue()
 {
-    Shader*   lastShader   = nullptr;
+    Shader* lastShader = nullptr;
     Material* lastMaterial = nullptr;
     ID3D11DeviceContext* ctx = m_device.GetDeviceContext();
 
@@ -379,7 +382,7 @@ void RenderManager::EnsureBackend()
     if (!m_defaultSampler && m_device.GetDevice())
     {
         D3D11_SAMPLER_DESC sd{};
-        sd.Filter   = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+        sd.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
         sd.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
         sd.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
         sd.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;

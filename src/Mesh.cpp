@@ -31,10 +31,9 @@ void Mesh::Update(const GDXDevice* device, const MatrixSet* inMatrixSet)
     if (collisionType != COLLISION::NONE)
         CalculateOBB(0);
 
-    MatrixSet ms = *inMatrixSet;
-    ms.worldMatrix = transform.GetLocalTransformationMatrix();
-
-    if (gpuData) gpuData->Upload(device, ms);
+    // Die world matrix kommt bereits korrekt berechnet vom RenderManager (inkl. Parent-Chain).
+    // Nicht ueberschreiben – direkt aus dem uebergebenen MatrixSet verwenden.
+    if (gpuData) gpuData->Upload(device, *inMatrixSet);
 }
 
 Surface* Mesh::GetSurface(unsigned int n)

@@ -15,6 +15,7 @@ int main()
     // -------------------------------------------------
     LPENTITY camera = nullptr;
     Engine::CreateCamera(&camera);
+    Engine::PositionEntity(camera, 0.0f, 0.0f, -10.0f);
 
     // -------------------------------------------------
     // Licht
@@ -84,6 +85,8 @@ int main()
     Engine::PositionEntity(cube2, 3.0f, 0.0f, 8.0f);
     Engine::ScaleEntity(cube2, 1.0f, 1.0f, 1.0f);
 
+    Engine::SetEntityParent(cube2, cube);
+
     while (Windows::MainLoop())
     {
         Core::BeginFrame(); // liefert DeltaTime/FPS/FrameCount über Core
@@ -91,8 +94,12 @@ int main()
         float dt = (float)Timer::GetDeltaTime();
 
         // Rotation
-        Engine::RotateEntity(cube, 10.0f * dt, 45.0f * dt, 2.0f * dt);
-        Engine::RotateEntity(cube2, -10.0f * dt, -45.0f * dt, -2.0f * dt);
+
+
+        Engine::LookAt(camera, Engine::EntityPosition(cube2));
+
+        Engine::RotateEntity(cube2, 45.0f * dt, 45.0f * dt, 45.0f * dt, Space::Local);
+        Engine::RotateEntity(cube, -10.0f * dt, -45.0f * dt, -2.0f * dt);
 
         Engine::Cls(0, 64, 128);
 
