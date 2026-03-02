@@ -51,7 +51,7 @@ private:
     ObjectManager& m_objectManager;
     Dx11LightManagerGpuData m_lightGpuData;
     LightArrayBuffer        m_lightCBData;
-    GDXDevice&     m_device;
+    GDXDevice& m_device;
 
     std::unique_ptr<IRenderBackend> m_backend;
 
@@ -67,14 +67,16 @@ private:
 
     // Blend States fuer Transparenz
     ID3D11BlendState* m_alphaBlendState = nullptr;  // SRC_ALPHA / INV_SRC_ALPHA
-    ID3D11BlendState* m_noBlendState    = nullptr;  // Standard: Blending aus
+    ID3D11BlendState* m_noBlendState = nullptr;  // Standard: Blending aus
 
-    // Caching: zuletzt gebundene SRVs fuer t0/t1/t2/t3 – vermeidet redundante PSSetShaderResources
-    ID3D11ShaderResourceView* m_boundSRVs[4] = {};
+    // Caching: zuletzt gebundene SRVs fuer feste PS-Slots.
+    // t0=Albedo, t1=Normal, t2=ORM, t3=Decal, t4=Occlusion, t5=Roughness, t6=Metallic
+    // (Separate PBR-Maps sind optional; Shader nutzt weiterhin ORM, wenn MF_USE_ORM_MAP gesetzt ist.)
+    ID3D11ShaderResourceView* m_boundSRVs[7] = {};
 
     // RTT-Support: wenn gesetzt, rendert RenderNormalPass in dieses Target (statt Backbuffer)
-    RenderTextureTarget* m_activeRTT    = nullptr;
-    LPENTITY             m_rttCamera    = nullptr;  // optionale RTT-Kamera (non-owning)
+    RenderTextureTarget* m_activeRTT = nullptr;
+    LPENTITY             m_rttCamera = nullptr;  // optionale RTT-Kamera (non-owning)
 
     // Helper Functions
     void RenderMainPassAtomic();
@@ -82,7 +84,7 @@ private:
     void FlushRenderQueue();
     void FlushTransparentQueue();
     void UpdateShadowMatrixBuffer(const DirectX::XMMATRIX& viewMatrix,
-                                  const DirectX::XMMATRIX& projMatrix);
+        const DirectX::XMMATRIX& projMatrix);
     void InvalidateFrame();
     RenderManager() = delete;
 };

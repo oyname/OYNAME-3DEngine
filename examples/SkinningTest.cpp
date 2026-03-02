@@ -205,8 +205,9 @@ int main()
     // Licht
     LPENTITY light = nullptr;
     Engine::CreateLight(&light, D3DLIGHT_DIRECTIONAL);
+    Engine::PositionEntity(light, 0.0f, 10.0f, 0.0f);
     Engine::LightColor(light, 1.f, 1.f, 1.f, 0.9f);
-    Engine::RotateEntity(light, 45.f, -30.f, 0.f);
+    Engine::RotateEntity(light, -30.0f, 0.f, 45.f);
 
     // Kamera
     LPENTITY camera = nullptr;
@@ -255,7 +256,7 @@ int main()
     LPENTITY refCube = nullptr;
     CreateCube(&refCube, matCube);
     Engine::PositionEntity(refCube, 4.f, 0.f, 0.f);
-    Engine::ScaleEntity(refCube, 0.5f, 0.5f, 0.5f);
+    Engine::ScaleEntity(refCube, 1.0f, 1.0f, 1.0f);
 
     // Bone-Matrizen
     XMMATRIX bones[2];
@@ -288,6 +289,7 @@ int main()
 
         Engine::SetEntityBoneMatrices(arm, bones, 2);
         Engine::TurnEntity(arm, 0.f, 30.f * dt, 0.f);
+        Engine::TurnEntity(refCube, 30.f * dt, 30.f * dt, 0.f);
         
         Engine::Cls(0, 64, 128);
         

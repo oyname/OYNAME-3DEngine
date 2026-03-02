@@ -55,6 +55,12 @@ public:
         MF_USE_ORM_MAP = 1u << 4,
         MF_USE_EMISSIVE = 1u << 5,
         MF_TRANSPARENT = 1u << 6,   // Alpha-Blending (SRC_ALPHA / INV_SRC_ALPHA)
+
+        // ==================== NEU (Schritt 2) ====================
+        // Separate PBR Maps (optional). Werden erst ab Schritt 3 im Shader genutzt.
+        MF_USE_OCCLUSION_MAP = 1u << 7,
+        MF_USE_ROUGHNESS_MAP = 1u << 8,
+        MF_USE_METALLIC_MAP = 1u << 9,
     };
 
     // ==================== KONSTRUKTOR / DESTRUKTOR ====================
@@ -106,6 +112,13 @@ public:
     uint32_t ormIndex = 2;
     uint32_t decalIndex = 0;
 
+    // ==================== NEU (Schritt 2): Separate PBR Texture Indizes ====================
+    // Default 0: "white" (AO=1, Roughness=1 wenn Kanal so interpretiert wird)
+    // Metallic default: bleibt über scalar metallic steuerbar, Flag bleibt aus, bis Textur gesetzt wird.
+    uint32_t occlusionIndex = 0;
+    uint32_t roughnessIndex = 0;
+    uint32_t metallicIndex = 0;
+
     DirectX::XMFLOAT4 GetDiffuseColor() const;
     DirectX::XMFLOAT4 GetSpecularColor() const;
     float GetShininess() const;
@@ -133,6 +146,28 @@ public:
         else           properties.flags &= ~MF_USE_ORM_MAP;
     }
     void SetDecalIndex(uint32_t idx) noexcept { decalIndex = idx; }
+
+    // ==================== NEU (Schritt 2): Separate PBR Setter ====================
+    inline void SetOcclusionIndex(uint32_t idx) noexcept
+    {
+        occlusionIndex = idx;
+        if (idx != 0u) properties.flags |= MF_USE_OCCLUSION_MAP;
+        else           properties.flags &= ~MF_USE_OCCLUSION_MAP;
+    }
+
+    inline void SetRoughnessIndex(uint32_t idx) noexcept
+    {
+        roughnessIndex = idx;
+        if (idx != 0u) properties.flags |= MF_USE_ROUGHNESS_MAP;
+        else           properties.flags &= ~MF_USE_ROUGHNESS_MAP;
+    }
+
+    inline void SetMetallicIndex(uint32_t idx) noexcept
+    {
+        metallicIndex = idx;
+        if (idx != 0u) properties.flags |= MF_USE_METALLIC_MAP;
+        else           properties.flags &= ~MF_USE_METALLIC_MAP;
+    }
 
     // ==================== SHADOW FLAGS ====================
     bool castShadows = true;

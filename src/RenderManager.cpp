@@ -1,3 +1,4 @@
+// (Teil 1/3)
 #include "gdxengine.h"
 #include "RenderManager.h"
 #include "gdxengine.h"
@@ -201,6 +202,7 @@ void RenderManager::InvalidateFrame()
     m_transFrame.clear();
 }
 
+// (Teil 2/3)
 void RenderManager::BuildRenderQueue()
 {
     m_opaque.Clear();
@@ -241,17 +243,17 @@ void RenderManager::BuildRenderQueue()
             {
                 // Tiefe = Abstand Kamera -> Mesh-Mittelpunkt (fuer Back-to-Front-Sortierung)
                 DirectX::XMVECTOR meshPos = world.r[3];
-                DirectX::XMVECTOR diff    = DirectX::XMVectorSubtract(meshPos, camPos);
+                DirectX::XMVECTOR diff = DirectX::XMVectorSubtract(meshPos, camPos);
                 float depth = DirectX::XMVectorGetX(DirectX::XMVector3LengthSq(diff));
 
                 RenderCommand cmd;
-                cmd.mesh        = mesh;
-                cmd.surface     = surface;
-                cmd.world       = world;
-                cmd.shader      = shader;
-                cmd.material    = material;
+                cmd.mesh = mesh;
+                cmd.surface = surface;
+                cmd.world = world;
+                cmd.shader = shader;
+                cmd.material = material;
                 cmd.flagsVertex = shader->flagsVertex;
-                cmd.backend     = m_backend.get();
+                cmd.backend = m_backend.get();
                 m_transFrame.emplace_back(depth, cmd);
             }
             else
@@ -269,13 +271,13 @@ void RenderManager::BuildRenderQueue()
         [](const auto& a, const auto& b) { return a.first > b.first; });
 
     static size_t s_lastOpaque = SIZE_MAX;
-    static size_t s_lastTrans  = SIZE_MAX;
+    static size_t s_lastTrans = SIZE_MAX;
     if (m_opaque.Count() != s_lastOpaque || m_transFrame.size() != s_lastTrans)
     {
         s_lastOpaque = m_opaque.Count();
-        s_lastTrans  = m_transFrame.size();
+        s_lastTrans = m_transFrame.size();
         Debug::Log("RenderManager.cpp: BuildRenderQueue - opaque=", m_opaque.Count(),
-                   " transparent=", m_transFrame.size());
+            " transparent=", m_transFrame.size());
     }
 }
 
@@ -308,17 +310,19 @@ void RenderManager::FlushRenderQueue()
         // Material nur binden wenn gewechselt
         if (cmd.material != lastMaterial)
         {
-            // --- TexturePool-Pfad: feste Slots t0/t1/t2 aus Pool-Indizes ---
-            // SM5.0 erlaubt kein dynamisches Texture-Array-Indexing im Shader.
-            // Loesung: Pool verwaltet SRVs + Indizes, C++ bindet pro Material die
-            // richtigen SRVs auf feste Slots (t0=Albedo, t1=Normal, t2=ORM).
+            // --- TexturePool-Pfad: feste Slots t0..t6 aus Pool-Indizes ---
             if (m_texturePool && ctx)
             {
-                ID3D11ShaderResourceView* srvs[4] = {
+                // Feste Slot-Bindings (DX11/SM5.0): Shader sampelt aus festen t#-Slots.
+                // Erweiterung Schritt 3: separate PBR-Maps (t4..t6).
+                ID3D11ShaderResourceView* srvs[7] = {
                     m_texturePool->GetSRV(cmd.material->albedoIndex),
                     m_texturePool->GetSRV(cmd.material->normalIndex),
                     m_texturePool->GetSRV(cmd.material->ormIndex),
-                    m_texturePool->GetSRV(cmd.material->decalIndex)
+                    m_texturePool->GetSRV(cmd.material->decalIndex),
+                    m_texturePool->GetSRV(cmd.material->occlusionIndex),
+                    m_texturePool->GetSRV(cmd.material->roughnessIndex),
+                    m_texturePool->GetSRV(cmd.material->metallicIndex)
                 };
 
                 // Fallback auf White/FlatNormal/ORM/White falls Index ausserhalb Pool
@@ -326,11 +330,15 @@ void RenderManager::FlushRenderQueue()
                 if (!srvs[1]) srvs[1] = m_texturePool->GetSRV(m_texturePool->FlatNormalIndex());
                 if (!srvs[2]) srvs[2] = m_texturePool->GetSRV(m_texturePool->OrmIndex());
                 if (!srvs[3]) srvs[3] = m_texturePool->GetSRV(m_texturePool->WhiteIndex());
+                // Separate Maps: Default = White (AO=1, Roughness=1, Metallic=1 aber Flag steuert Nutzung)
+                if (!srvs[4]) srvs[4] = m_texturePool->GetSRV(m_texturePool->WhiteIndex());
+                if (!srvs[5]) srvs[5] = m_texturePool->GetSRV(m_texturePool->WhiteIndex());
+                if (!srvs[6]) srvs[6] = m_texturePool->GetSRV(m_texturePool->WhiteIndex());
 
                 // Nur neu binden wenn sich die Slots geaendert haben (State-Cache)
                 if (memcmp(srvs, m_boundSRVs, sizeof(srvs)) != 0)
                 {
-                    ctx->PSSetShaderResources(0, 4, srvs);
+                    ctx->PSSetShaderResources(0, 7, srvs);
                     memcpy(m_boundSRVs, srvs, sizeof(srvs));
                 }
             }
@@ -372,6 +380,7 @@ void RenderManager::FlushRenderQueue()
     }
 }
 
+// (Teil 3/3)
 void RenderManager::FlushTransparentQueue()
 {
     if (m_transFrame.empty()) return;
@@ -388,7 +397,7 @@ void RenderManager::FlushTransparentQueue()
     if (m_defaultSampler)
         ctx->PSSetSamplers(0, 1, &m_defaultSampler);
 
-    Shader*   lastShader   = nullptr;
+    Shader* lastShader = nullptr;
     Material* lastMaterial = nullptr;
 
     for (auto& [depth, cmd] : m_transFrame)
@@ -406,17 +415,23 @@ void RenderManager::FlushTransparentQueue()
         {
             if (m_texturePool && ctx)
             {
-                ID3D11ShaderResourceView* srvs[4] = {
+                ID3D11ShaderResourceView* srvs[7] = {
                     m_texturePool->GetSRV(cmd.material->albedoIndex),
                     m_texturePool->GetSRV(cmd.material->normalIndex),
                     m_texturePool->GetSRV(cmd.material->ormIndex),
-                    m_texturePool->GetSRV(cmd.material->decalIndex)
+                    m_texturePool->GetSRV(cmd.material->decalIndex),
+                    m_texturePool->GetSRV(cmd.material->occlusionIndex),
+                    m_texturePool->GetSRV(cmd.material->roughnessIndex),
+                    m_texturePool->GetSRV(cmd.material->metallicIndex)
                 };
                 if (!srvs[0]) srvs[0] = m_texturePool->GetSRV(m_texturePool->WhiteIndex());
                 if (!srvs[1]) srvs[1] = m_texturePool->GetSRV(m_texturePool->FlatNormalIndex());
                 if (!srvs[2]) srvs[2] = m_texturePool->GetSRV(m_texturePool->OrmIndex());
                 if (!srvs[3]) srvs[3] = m_texturePool->GetSRV(m_texturePool->WhiteIndex());
-                ctx->PSSetShaderResources(0, 4, srvs);
+                if (!srvs[4]) srvs[4] = m_texturePool->GetSRV(m_texturePool->WhiteIndex());
+                if (!srvs[5]) srvs[5] = m_texturePool->GetSRV(m_texturePool->WhiteIndex());
+                if (!srvs[6]) srvs[6] = m_texturePool->GetSRV(m_texturePool->WhiteIndex());
+                ctx->PSSetShaderResources(0, 7, srvs);
             }
             else if (cmd.material->gpuData)
             {
@@ -470,17 +485,6 @@ void RenderManager::RenderScene()
     if (!m_backend)
         return;
 
-    //if (!m_backend)
-    //{
-    //    if (!m_device.GetDevice() || !m_device.GetDeviceContext())
-    //    {
-    //        Debug::LogError("RenderManager::EnsureBackend - device not ready");
-    //        return;
-    //    }
-    //
-    //    m_backend = std::make_unique<Dx11RenderBackend>(m_device);
-    //}
-
     // Wenn RTT aktiv, temporaer auf RTT-Kamera umschalten (falls gesetzt)
     LPENTITY savedCam = m_currentCam;
     if (m_activeRTT && m_rttCamera)
@@ -529,13 +533,13 @@ void RenderManager::EnsureBackend()
     if (!m_alphaBlendState && m_device.GetDevice())
     {
         D3D11_BLEND_DESC bd{};
-        bd.RenderTarget[0].BlendEnable           = TRUE;
-        bd.RenderTarget[0].SrcBlend              = D3D11_BLEND_SRC_ALPHA;
-        bd.RenderTarget[0].DestBlend             = D3D11_BLEND_INV_SRC_ALPHA;
-        bd.RenderTarget[0].BlendOp               = D3D11_BLEND_OP_ADD;
-        bd.RenderTarget[0].SrcBlendAlpha         = D3D11_BLEND_ONE;
-        bd.RenderTarget[0].DestBlendAlpha        = D3D11_BLEND_ZERO;
-        bd.RenderTarget[0].BlendOpAlpha          = D3D11_BLEND_OP_ADD;
+        bd.RenderTarget[0].BlendEnable = TRUE;
+        bd.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+        bd.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+        bd.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+        bd.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+        bd.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
+        bd.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
         bd.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
         HRESULT hr2 = m_device.GetDevice()->CreateBlendState(&bd, &m_alphaBlendState);
         if (SUCCEEDED(hr2))
@@ -548,7 +552,7 @@ void RenderManager::EnsureBackend()
     if (!m_noBlendState && m_device.GetDevice())
     {
         D3D11_BLEND_DESC bd{};
-        bd.RenderTarget[0].BlendEnable           = FALSE;
+        bd.RenderTarget[0].BlendEnable = FALSE;
         bd.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
         HRESULT hr3 = m_device.GetDevice()->CreateBlendState(&bd, &m_noBlendState);
         if (SUCCEEDED(hr3))

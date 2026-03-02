@@ -1016,6 +1016,60 @@ namespace Engine
         }
     }
 
+    inline void MaterialSetOcclusion(LPMATERIAL material, LPTEXTURE texture)
+    {
+        if (!material) return;
+
+        if (!texture || !texture->m_textureView)
+        {
+            material->SetOcclusionIndex(engine ? engine->GetTP().WhiteIndex() : 0u);
+            return;
+        }
+
+        if (engine)
+        {
+            uint32_t idx = engine->GetTP().GetOrAdd(texture->m_textureView);
+            material->SetOcclusionIndex(idx);
+            Debug::Log("MaterialSetOcclusion – Index ", idx);
+        }
+    }
+
+    inline void MaterialSetRoughness(LPMATERIAL material, LPTEXTURE texture)
+    {
+        if (!material) return;
+
+        if (!texture || !texture->m_textureView)
+        {
+            material->SetRoughnessIndex(engine ? engine->GetTP().WhiteIndex() : 0u);
+            return;
+        }
+
+        if (engine)
+        {
+            uint32_t idx = engine->GetTP().GetOrAdd(texture->m_textureView);
+            material->SetRoughnessIndex(idx);
+            Debug::Log("MaterialSetRoughness – Index ", idx);
+        }
+    }
+
+    inline void MaterialSetMetallic(LPMATERIAL material, LPTEXTURE texture)
+    {
+        if (!material) return;
+
+        if (!texture || !texture->m_textureView)
+        {
+            material->SetMetallicIndex(engine ? engine->GetTP().WhiteIndex() : 0u);
+            return;
+        }
+
+        if (engine)
+        {
+            uint32_t idx = engine->GetTP().GetOrAdd(texture->m_textureView);
+            material->SetMetallicIndex(idx);
+            Debug::Log("MaterialSetMetallic – Index ", idx);
+        }
+    }
+
     // ── MaterialSetDecal ──────────────────────────────────────────────────────
     // Weist dem Material eine optionale Decal-Textur zu.
     inline void MaterialSetDecal(LPMATERIAL material, LPTEXTURE texture)
