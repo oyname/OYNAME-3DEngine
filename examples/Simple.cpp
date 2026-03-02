@@ -24,9 +24,9 @@ int main()
     Engine::CreateLight(&directionalLight, D3DLIGHT_DIRECTIONAL);
     Engine::PositionEntity(directionalLight, 10.0f, 0.0f, 0.0f);
     Engine::LookAt(directionalLight, 1.0f, 0.0f, 3.0f);
-    Engine::LightColor(directionalLight, 0.8f, 0.8f, 0.8f);
+    Engine::LightColor(directionalLight, 2.0f, 2.0f, 2.0f);
     Engine::SetDirectionalLight(directionalLight);
-    Engine::SetAmbientColor(0.2f, 0.1f, 0.1f);
+    Engine::SetAmbientColor(0.3f, 0.3f, 0.3f);
 
     // -------------------------------------------------
     // Textur laden
@@ -34,29 +34,36 @@ int main()
     LPTEXTURE faceTex = nullptr;
     LPTEXTURE albedoTex = nullptr;
     LPTEXTURE normalTex = nullptr;
-    LPTEXTURE ormTex = nullptr;
+    LPTEXTURE detailTex = nullptr;
     Engine::LoadTexture(&faceTex, L"..\\media\\engine.png");
     Engine::LoadTexture(&albedoTex, L"..\\media\\albedo.png");
     Engine::LoadTexture(&normalTex, L"..\\media\\normal.png");
-    Engine::LoadTexture(&ormTex, L"..\\media\\orm.png");
+    Engine::LoadTexture(&detailTex, L"..\\media\\albedo_orage.png");
 
     // -------------------------------------------------
     // Material A erstellen
     // -------------------------------------------------
     LPMATERIAL matCube = nullptr;
     Engine::CreateMaterial(&matCube);
+
+    Engine::MaterialUsePBR(matCube, true);
+
     Engine::MaterialTexture(matCube, albedoTex, 0);
-    Engine::MaterialTexture(matCube, normalTex, 1);
-    Engine::MaterialTexture(matCube, ormTex, 2);
+    Engine::MaterialTexture(matCube, normalTex, 1);  // <-- NORMAL ist Slot 2
+    Engine::MaterialTexture(matCube, detailTex, 3);     // <-- Detailmap ist Slot 4 
+
+
+    Engine::MaterialBlendMode(matCube, 2);        // Multiply x2
+    Engine::MaterialBlendFactor(matCube, 0.99f);   // Mischstaerke 0..1
 
     // Basisfarbe
     Engine::MaterialColor(matCube, 1.0f, 1.0f, 1.0f, 1.0f);
 
     // PBR Parameter
-    Engine::MaterialMetallic(matCube, 0.5f);
-    Engine::MaterialRoughness(matCube, 0.4f);
-    Engine::MaterialNormalScale(matCube, 1.5f);
-    Engine::MaterialOcclusionStrength(matCube, 0.3f);
+    Engine::MaterialMetallic(matCube, 1.0f);
+    Engine::MaterialRoughness(matCube, 0.5f);
+    Engine::MaterialNormalScale(matCube, 1.0f);
+    //Engine::MaterialOcclusionStrength(matCube, 0.0f);
 
     // Emissive (leichtes Glühen)
     //Engine::MaterialEmissiveColor(matCube, 1.0f, 0.3f, 0.0f, 1.5f);
@@ -67,7 +74,9 @@ int main()
     LPMATERIAL matBCube = nullptr;
     Engine::CreateMaterial(&matBCube);
     Engine::MaterialTexture(matBCube, faceTex, 0);
-
+    Engine::MaterialTexture(matBCube, normalTex, 1);  // <-- NORMAL ist Slot 2
+    Engine::MaterialUsePBR(matBCube, true);
+    Engine::MaterialMetallic(matBCube, 0.3f);
 
     // Basisfarbe
     Engine::MaterialColor(matCube, 1.0f, 1.0f, 1.0f, 1.0f);
@@ -95,8 +104,8 @@ int main()
         float dt = (float)Timer::GetDeltaTime();
 
         // Rotation
-        Engine::LookAt(camera, Engine::EntityPosition(cube2));
-        Engine::LookAt(directionalLight, Engine::EntityPosition(cube));
+        //Engine::LookAt(camera, Engine::EntityPosition(cube2));
+        //Engine::LookAt(directionalLight, Engine::EntityPosition(cube));
 
         Engine::RotateEntity(cube2, 45.0f * dt, 45.0f * dt, 45.0f * dt, Space::World);
         Engine::RotateEntity(cube, -10.0f * dt, -45.0f * dt, -2.0f * dt);
@@ -174,6 +183,26 @@ void CreateCube(LPENTITY* mesh, MATERIAL* material)
     // Top (verts 20-23)
     Engine::VertexTexCoord(wuerfel, 1.0f, 0.0f); Engine::VertexTexCoord(wuerfel, 0.0f, 0.0f);
     Engine::VertexTexCoord(wuerfel, 1.0f, 1.0f); Engine::VertexTexCoord(wuerfel, 0.0f, 1.0f);
+
+
+    // Back (verts 0-3)
+    Engine::VertexTexCoord2(wuerfel, 0.0f, 1.0f); Engine::VertexTexCoord2(wuerfel, 0.0f, 0.0f);
+    Engine::VertexTexCoord2(wuerfel, 1.0f, 1.0f); Engine::VertexTexCoord2(wuerfel, 1.0f, 0.0f);
+    // Front (verts 4-7)
+    Engine::VertexTexCoord2(wuerfel, 1.0f, 1.0f); Engine::VertexTexCoord2(wuerfel, 1.0f, 0.0f);
+    Engine::VertexTexCoord2(wuerfel, 0.0f, 1.0f); Engine::VertexTexCoord2(wuerfel, 0.0f, 0.0f);
+    // Left (verts 8-11)
+    Engine::VertexTexCoord2(wuerfel, 1.0f, 1.0f); Engine::VertexTexCoord2(wuerfel, 0.0f, 1.0f);
+    Engine::VertexTexCoord2(wuerfel, 1.0f, 0.0f); Engine::VertexTexCoord2(wuerfel, 0.0f, 0.0f);
+    // Right (verts 12-15)
+    Engine::VertexTexCoord2(wuerfel, 0.0f, 1.0f); Engine::VertexTexCoord2(wuerfel, 1.0f, 1.0f);
+    Engine::VertexTexCoord2(wuerfel, 0.0f, 0.0f); Engine::VertexTexCoord2(wuerfel, 1.0f, 0.0f);
+    // Bottom (verts 16-19)
+    Engine::VertexTexCoord2(wuerfel, 0.0f, 0.0f); Engine::VertexTexCoord2(wuerfel, 1.0f, 0.0f);
+    Engine::VertexTexCoord2(wuerfel, 0.0f, 1.0f); Engine::VertexTexCoord2(wuerfel, 1.0f, 1.0f);
+    // Top (verts 20-23)
+    Engine::VertexTexCoord2(wuerfel, 1.0f, 0.0f); Engine::VertexTexCoord2(wuerfel, 0.0f, 0.0f);
+    Engine::VertexTexCoord2(wuerfel, 1.0f, 1.0f); Engine::VertexTexCoord2(wuerfel, 0.0f, 1.0f);
 
     Engine::AddTriangle(wuerfel, 0, 1, 2); Engine::AddTriangle(wuerfel, 3, 2, 1);
     Engine::AddTriangle(wuerfel, 6, 5, 4); Engine::AddTriangle(wuerfel, 6, 7, 5);

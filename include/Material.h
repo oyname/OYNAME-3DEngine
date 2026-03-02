@@ -54,13 +54,14 @@ public:
         MF_USE_NORMAL_MAP = 1u << 3,
         MF_USE_ORM_MAP = 1u << 4,
         MF_USE_EMISSIVE = 1u << 5,
-        MF_TRANSPARENT = 1u << 6,   // Alpha-Blending (SRC_ALPHA / INV_SRC_ALPHA)
+        MF_TRANSPARENT = 1u << 6,
 
-        // ==================== NEU (Schritt 2) ====================
-        // Separate PBR Maps (optional). Werden erst ab Schritt 3 im Shader genutzt.
         MF_USE_OCCLUSION_MAP = 1u << 7,
         MF_USE_ROUGHNESS_MAP = 1u << 8,
         MF_USE_METALLIC_MAP = 1u << 9,
+
+        // ===== PBR Shading Mode =====
+        MF_SHADING_PBR = 1u << 10
     };
 
     // ==================== KONSTRUKTOR / DESTRUKTOR ====================
@@ -169,7 +170,16 @@ public:
         else           properties.flags &= ~MF_USE_METALLIC_MAP;
     }
 
-    // ==================== SHADOW FLAGS ====================
+    
+    // ==================== SHADING MODE ====================
+    inline void SetUsePBR(bool enabled) noexcept
+    {
+        if (enabled) properties.flags |= MF_SHADING_PBR;
+        else         properties.flags &= ~MF_SHADING_PBR;
+    }
+    inline bool GetUsePBR() const noexcept { return (properties.flags & MF_SHADING_PBR) != 0u; }
+
+// ==================== SHADOW FLAGS ====================
     bool castShadows = true;
     bool receiveShadows = true;
 

@@ -945,11 +945,11 @@ namespace Engine
             switch (slot)
             {
                 // Slot-Mapping aus Nutzersicht:
-                // 0=Albedo  1=zweite Textur (Blend)  2=Normal  3=ORM
-            case 0: material->SetAlbedoIndex(idx); break;
-            case 1: material->SetDecalIndex(idx);  break;
-            case 2: material->SetNormalIndex(idx); break;
-            case 3: material->SetOrmIndex(idx);    break;
+                // 0=Albedo  1=Normal  2=ORM  3=Decal
+            case 0: material->SetAlbedoIndex(idx); Debug::Log("gidx.h: MaterialTexture slot 0 = Albedo, poolIdx=", idx); break;
+            case 1: material->SetNormalIndex(idx); Debug::Log("gidx.h: MaterialTexture slot 1 = Normal, poolIdx=", idx, " flag MF_USE_NORMAL_MAP=", (int)((material->properties.flags >> 3) & 1)); break;
+            case 2: material->SetOrmIndex(idx);    Debug::Log("gidx.h: MaterialTexture slot 2 = ORM, poolIdx=", idx); break;
+            case 3: material->SetDecalIndex(idx);  Debug::Log("gidx.h: MaterialTexture slot 3 = Decal, poolIdx=", idx); break;
             default: break;
             }
         }
@@ -1113,6 +1113,18 @@ namespace Engine
             return;
         }
         material->SetDiffuseColor(r, g, b, a);
+    }
+
+
+    // ==================== PBR SHADING MODE ====================
+    // Opt-In: Default bleibt Legacy (Blinn-Phong) fuer Backward-Kompatibilität.
+    inline void MaterialUsePBR(LPMATERIAL material, bool enabled)
+    {
+        if (material == nullptr) {
+            Debug::Log("gidx.h: ERROR: MaterialUsePBR - material is nullptr");
+            return;
+        }
+        material->SetUsePBR(enabled);
     }
 
     inline void MaterialShininess(LPMATERIAL material, float shininess)
