@@ -24,6 +24,16 @@ RenderManager::~RenderManager()
         m_defaultSampler->Release();
         m_defaultSampler = nullptr;
     }
+    if (m_alphaBlendState)
+    {
+        m_alphaBlendState->Release();
+        m_alphaBlendState = nullptr;
+    }
+    if (m_noBlendState)
+    {
+        m_noBlendState->Release();
+        m_noBlendState = nullptr;
+    }
 }
 
 void RenderManager::SetCamera(LPENTITY camera)
@@ -176,6 +186,7 @@ void RenderManager::RenderMainPassAtomic()
     // 4) Queue build + draw (kept)
     BuildRenderQueue();
     FlushRenderQueue();
+    FlushTransparentQueue();
 
     // 5) End pass (optional restore hooks)
     if (isRtt)
@@ -187,12 +198,13 @@ void RenderManager::RenderMainPassAtomic()
 void RenderManager::InvalidateFrame()
 {
     m_opaque.Clear();
-    //m_transparent.Clear();
+    m_transFrame.clear();
 }
 
 void RenderManager::BuildRenderQueue()
 {
     m_opaque.Clear();
+    m_transFrame.clear();
 
     // Frame-Update-Flags aller Meshes zuruecksetzen
     for (Mesh* mesh : m_objectManager.GetMeshes())
@@ -202,6 +214,9 @@ void RenderManager::BuildRenderQueue()
     if (Camera* cam = (m_currentCam->IsCamera() ? m_currentCam->AsCamera() : nullptr))
         cameraCullMask = cam->cullMask;
 
+    // Kameraposition fuer Tiefenberechnung (Transparent-Sortierung)
+    DirectX::XMVECTOR camPos = m_currentCam->GetWorldMatrix().r[3];
+
     for (Mesh* mesh : m_objectManager.GetMeshes())
     {
         if (!mesh || mesh->m_surfaces.empty()) continue;
@@ -209,12 +224,7 @@ void RenderManager::BuildRenderQueue()
         if (!mesh->IsVisible()) continue;
         if (!(mesh->GetLayerMask() & cameraCullMask)) continue;
 
-        // GetWorldMatrix() beruecksichtigt Parent-Child-Hierarchy und den Space-Modus.
-        // Space::Local  → local * parent->GetWorldMatrix() (rekursiv)
-        // Space::World  → nur lokale Matrix (Parent wird ignoriert)
         const DirectX::XMMATRIX world = mesh->GetWorldMatrix();
-
-        // MatrixSet fuer Execute() vorbereiten -- world kommt aus dem Mesh-Transform
         mesh->matrixSet.worldMatrix = world;
 
         for (Surface* surface : mesh->m_surfaces)
@@ -227,18 +237,45 @@ void RenderManager::BuildRenderQueue()
             Shader* shader = material->pRenderShader;
             if (!shader) continue;
 
-            m_opaque.Submit(shader, shader->flagsVertex, material, mesh, surface, world, m_backend.get());
+            if (material->IsTransparent())
+            {
+                // Tiefe = Abstand Kamera -> Mesh-Mittelpunkt (fuer Back-to-Front-Sortierung)
+                DirectX::XMVECTOR meshPos = world.r[3];
+                DirectX::XMVECTOR diff    = DirectX::XMVectorSubtract(meshPos, camPos);
+                float depth = DirectX::XMVectorGetX(DirectX::XMVector3LengthSq(diff));
+
+                RenderCommand cmd;
+                cmd.mesh        = mesh;
+                cmd.surface     = surface;
+                cmd.world       = world;
+                cmd.shader      = shader;
+                cmd.material    = material;
+                cmd.flagsVertex = shader->flagsVertex;
+                cmd.backend     = m_backend.get();
+                m_transFrame.emplace_back(depth, cmd);
+            }
+            else
+            {
+                m_opaque.Submit(shader, shader->flagsVertex, material, mesh, surface, world, m_backend.get());
+            }
         }
     }
 
-    // Nach Shader/Material sortieren -- minimiert GPU-State-Wechsel
+    // Opaque: nach Shader/Material sortieren
     m_opaque.Sort();
 
-    static size_t s_lastCount = SIZE_MAX;
-    if (m_opaque.Count() != s_lastCount)
+    // Transparent: nach Tiefe absteigend sortieren (hinten zuerst)
+    std::sort(m_transFrame.begin(), m_transFrame.end(),
+        [](const auto& a, const auto& b) { return a.first > b.first; });
+
+    static size_t s_lastOpaque = SIZE_MAX;
+    static size_t s_lastTrans  = SIZE_MAX;
+    if (m_opaque.Count() != s_lastOpaque || m_transFrame.size() != s_lastTrans)
     {
-        s_lastCount = m_opaque.Count();
-        Debug::Log("RenderManager.cpp: BuildRenderQueue - ", m_opaque.Count(), " RenderCommands");
+        s_lastOpaque = m_opaque.Count();
+        s_lastTrans  = m_transFrame.size();
+        Debug::Log("RenderManager.cpp: BuildRenderQueue - opaque=", m_opaque.Count(),
+                   " transparent=", m_transFrame.size());
     }
 }
 
@@ -277,21 +314,23 @@ void RenderManager::FlushRenderQueue()
             // richtigen SRVs auf feste Slots (t0=Albedo, t1=Normal, t2=ORM).
             if (m_texturePool && ctx)
             {
-                ID3D11ShaderResourceView* srvs[3] = {
+                ID3D11ShaderResourceView* srvs[4] = {
                     m_texturePool->GetSRV(cmd.material->albedoIndex),
                     m_texturePool->GetSRV(cmd.material->normalIndex),
-                    m_texturePool->GetSRV(cmd.material->ormIndex)
+                    m_texturePool->GetSRV(cmd.material->ormIndex),
+                    m_texturePool->GetSRV(cmd.material->decalIndex)
                 };
 
-                // Fallback auf White/FlatNormal/ORM falls Index ausserhalb Pool
+                // Fallback auf White/FlatNormal/ORM/White falls Index ausserhalb Pool
                 if (!srvs[0]) srvs[0] = m_texturePool->GetSRV(m_texturePool->WhiteIndex());
                 if (!srvs[1]) srvs[1] = m_texturePool->GetSRV(m_texturePool->FlatNormalIndex());
                 if (!srvs[2]) srvs[2] = m_texturePool->GetSRV(m_texturePool->OrmIndex());
+                if (!srvs[3]) srvs[3] = m_texturePool->GetSRV(m_texturePool->WhiteIndex());
 
                 // Nur neu binden wenn sich die Slots geaendert haben (State-Cache)
                 if (memcmp(srvs, m_boundSRVs, sizeof(srvs)) != 0)
                 {
-                    ctx->PSSetShaderResources(0, 3, srvs);
+                    ctx->PSSetShaderResources(0, 4, srvs);
                     memcpy(m_boundSRVs, srvs, sizeof(srvs));
                 }
             }
@@ -320,6 +359,7 @@ void RenderManager::FlushRenderQueue()
                 cmd.material->ormIndex,
                 cmd.material->decalIndex,
                 cmd.material->properties.blendMode,
+                cmd.material->properties.blendFactor,
                 cmd.material->properties.flags
             );
             lastMaterial = cmd.material;
@@ -330,6 +370,95 @@ void RenderManager::FlushRenderQueue()
         cmd.mesh->matrixSet.worldMatrix = cmd.world;
         cmd.Execute(&m_device);
     }
+}
+
+void RenderManager::FlushTransparentQueue()
+{
+    if (m_transFrame.empty()) return;
+
+    ID3D11DeviceContext* ctx = m_device.GetDeviceContext();
+    if (!ctx) return;
+
+    // Alpha-Blending aktivieren
+    const float blendFactor[4] = { 0.f, 0.f, 0.f, 0.f };
+    if (m_alphaBlendState)
+        ctx->OMSetBlendState(m_alphaBlendState, blendFactor, 0xFFFFFFFF);
+
+    // Sampler binden (wie im opaken Pass)
+    if (m_defaultSampler)
+        ctx->PSSetSamplers(0, 1, &m_defaultSampler);
+
+    Shader*   lastShader   = nullptr;
+    Material* lastMaterial = nullptr;
+
+    for (auto& [depth, cmd] : m_transFrame)
+    {
+        if (!cmd.shader || !cmd.material || !cmd.mesh || !cmd.surface) continue;
+
+        if (cmd.shader != lastShader)
+        {
+            if (!cmd.shader->IsValid(ShaderBindMode::VS_PS)) continue;
+            cmd.shader->UpdateShader(&m_device);
+            lastShader = cmd.shader;
+        }
+
+        if (cmd.material != lastMaterial)
+        {
+            if (m_texturePool && ctx)
+            {
+                ID3D11ShaderResourceView* srvs[4] = {
+                    m_texturePool->GetSRV(cmd.material->albedoIndex),
+                    m_texturePool->GetSRV(cmd.material->normalIndex),
+                    m_texturePool->GetSRV(cmd.material->ormIndex),
+                    m_texturePool->GetSRV(cmd.material->decalIndex)
+                };
+                if (!srvs[0]) srvs[0] = m_texturePool->GetSRV(m_texturePool->WhiteIndex());
+                if (!srvs[1]) srvs[1] = m_texturePool->GetSRV(m_texturePool->FlatNormalIndex());
+                if (!srvs[2]) srvs[2] = m_texturePool->GetSRV(m_texturePool->OrmIndex());
+                if (!srvs[3]) srvs[3] = m_texturePool->GetSRV(m_texturePool->WhiteIndex());
+                ctx->PSSetShaderResources(0, 4, srvs);
+            }
+            else if (cmd.material->gpuData)
+            {
+                cmd.material->gpuData->SetTexture(&m_device);
+            }
+
+            if (cmd.material->gpuData) cmd.material->gpuData->UpdateConstantBuffer(
+                m_device.GetDeviceContext(),
+                cmd.material->properties.baseColor,
+                cmd.material->properties.specularColor,
+                cmd.material->properties.emissiveColor,
+                cmd.material->properties.uvTilingOffset,
+                cmd.material->properties.metallic,
+                cmd.material->properties.roughness,
+                cmd.material->properties.normalScale,
+                cmd.material->properties.occlusionStrength,
+                cmd.material->properties.shininess,
+                cmd.material->properties.transparency,
+                cmd.material->properties.alphaCutoff,
+                cmd.material->properties.receiveShadows,
+                cmd.material->albedoIndex,
+                cmd.material->normalIndex,
+                cmd.material->ormIndex,
+                cmd.material->decalIndex,
+                cmd.material->properties.blendMode,
+                cmd.material->properties.blendFactor,
+                cmd.material->properties.flags
+            );
+            lastMaterial = cmd.material;
+        }
+
+        cmd.mesh->matrixSet = m_currentCam->matrixSet;
+        cmd.mesh->matrixSet.worldMatrix = cmd.world;
+        cmd.Execute(&m_device);
+    }
+
+    // Blending wieder deaktivieren
+    if (m_noBlendState)
+        ctx->OMSetBlendState(m_noBlendState, blendFactor, 0xFFFFFFFF);
+
+    // SRV-Cache ungueltig setzen (Zustand geaendert)
+    memset(m_boundSRVs, 0, sizeof(m_boundSRVs));
 }
 
 void RenderManager::RenderScene()
@@ -394,5 +523,37 @@ void RenderManager::EnsureBackend()
             Debug::Log("RenderManager.cpp: Default-Sampler fuer s0 erstellt");
         else
             Debug::LogError("RenderManager.cpp: Default-Sampler Erstellung fehlgeschlagen");
+    }
+
+    // Alpha-Blend-State: SRC_ALPHA / INV_SRC_ALPHA
+    if (!m_alphaBlendState && m_device.GetDevice())
+    {
+        D3D11_BLEND_DESC bd{};
+        bd.RenderTarget[0].BlendEnable           = TRUE;
+        bd.RenderTarget[0].SrcBlend              = D3D11_BLEND_SRC_ALPHA;
+        bd.RenderTarget[0].DestBlend             = D3D11_BLEND_INV_SRC_ALPHA;
+        bd.RenderTarget[0].BlendOp               = D3D11_BLEND_OP_ADD;
+        bd.RenderTarget[0].SrcBlendAlpha         = D3D11_BLEND_ONE;
+        bd.RenderTarget[0].DestBlendAlpha        = D3D11_BLEND_ZERO;
+        bd.RenderTarget[0].BlendOpAlpha          = D3D11_BLEND_OP_ADD;
+        bd.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+        HRESULT hr2 = m_device.GetDevice()->CreateBlendState(&bd, &m_alphaBlendState);
+        if (SUCCEEDED(hr2))
+            Debug::Log("RenderManager.cpp: Alpha-BlendState erstellt");
+        else
+            Debug::LogError("RenderManager.cpp: Alpha-BlendState Erstellung fehlgeschlagen");
+    }
+
+    // No-Blend-State: Blending deaktiviert (Default wiederherstellen)
+    if (!m_noBlendState && m_device.GetDevice())
+    {
+        D3D11_BLEND_DESC bd{};
+        bd.RenderTarget[0].BlendEnable           = FALSE;
+        bd.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+        HRESULT hr3 = m_device.GetDevice()->CreateBlendState(&bd, &m_noBlendState);
+        if (SUCCEEDED(hr3))
+            Debug::Log("RenderManager.cpp: No-BlendState erstellt");
+        else
+            Debug::LogError("RenderManager.cpp: No-BlendState Erstellung fehlgeschlagen");
     }
 }

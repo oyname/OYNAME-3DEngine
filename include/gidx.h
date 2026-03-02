@@ -689,10 +689,10 @@ namespace Engine
     // b0..b3     = Bone-Indices (uint)
     // w0..w3     = Bone-Weights (sollten sich zu 1.0 addieren)
     inline void VertexBoneData(LPSURFACE surface,
-                               unsigned int v,
-                               unsigned int b0, unsigned int b1,
-                               unsigned int b2, unsigned int b3,
-                               float w0, float w1, float w2, float w3)
+        unsigned int v,
+        unsigned int b0, unsigned int b1,
+        unsigned int b2, unsigned int b3,
+        float w0, float w1, float w2, float w3)
     {
         if (!surface) { Debug::Log("gidx.h: ERROR: VertexBoneData - surface ist nullptr"); return; }
         surface->SetBoneData(v, b0, b1, b2, b3, w0, w1, w2, w3);
@@ -702,11 +702,11 @@ namespace Engine
     // Jeden Frame aufrufen mit den aktuellen Bone-Transformationen.
     // matrices = Array von XMMATRIX, count = Anzahl Bones (max 128)
     inline void SetEntityBoneMatrices(LPENTITY entity,
-                                      const DirectX::XMMATRIX* matrices,
-                                      uint32_t count)
+        const DirectX::XMMATRIX* matrices,
+        uint32_t count)
     {
-        if (!engine)   { Debug::Log("gidx.h: ERROR: SetEntityBoneMatrices - engine ist nullptr");  return; }
-        if (!entity)   { Debug::Log("gidx.h: ERROR: SetEntityBoneMatrices - entity ist nullptr");  return; }
+        if (!engine) { Debug::Log("gidx.h: ERROR: SetEntityBoneMatrices - engine ist nullptr");  return; }
+        if (!entity) { Debug::Log("gidx.h: ERROR: SetEntityBoneMatrices - entity ist nullptr");  return; }
         if (!matrices || count == 0) { Debug::Log("gidx.h: ERROR: SetEntityBoneMatrices - keine Bone-Daten"); return; }
         if (count > (uint32_t)MAX_BONES) count = (uint32_t)MAX_BONES;
 
@@ -944,10 +944,12 @@ namespace Engine
             // Slot-Semantik: 0=Albedo, 1=Normal, 2=ORM, 3=Decal
             switch (slot)
             {
+                // Slot-Mapping aus Nutzersicht:
+                // 0=Albedo  1=zweite Textur (Blend)  2=Normal  3=ORM
             case 0: material->SetAlbedoIndex(idx); break;
-            case 1: material->SetNormalIndex(idx); break;
-            case 2: material->SetOrmIndex(idx);    break;
-            case 3: material->SetDecalIndex(idx);  break;
+            case 1: material->SetDecalIndex(idx);  break;
+            case 2: material->SetNormalIndex(idx); break;
+            case 3: material->SetOrmIndex(idx);    break;
             default: break;
             }
         }
@@ -1140,6 +1142,18 @@ namespace Engine
             return;
         }
         material->SetAlphaTest(enabled);
+    }
+
+    // Aktiviert echtes Alpha-Blending fuer dieses Material (SRC_ALPHA / INV_SRC_ALPHA).
+    // Das Material wird in den Transparent-Pass verschoben und back-to-front sortiert gerendert.
+    // MaterialTransparency() steuert den Alpha-Wert des Materials zusaetzlich (0.0=unsichtbar, 1.0=voll opak).
+    inline void MaterialTransparent(LPMATERIAL material, bool enabled)
+    {
+        if (material == nullptr) {
+            Debug::Log("gidx.h: ERROR: MaterialTransparent - material is nullptr");
+            return;
+        }
+        material->SetTransparent(enabled);
     }
 
     inline void EntityMaterial(LPENTITY entity, LPMATERIAL material)

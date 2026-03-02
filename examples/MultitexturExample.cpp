@@ -20,7 +20,7 @@ int main()
     Engine::Graphics(1200, 650);
 
     LPTEXTURE texBrick = nullptr;
-    Engine::LoadTexture(&texBrick, L"..\\media\\dx.bmp");
+    Engine::LoadTexture(&texBrick, L"..\\media\\logo.png");
 
     LPTEXTURE texFace = nullptr;
     Engine::LoadTexture(&texFace, L"..\\media\\face.bmp");
@@ -37,20 +37,19 @@ int main()
     Engine::CreateShader(&multiTexShader,
         vs, "main",
         ps, "main",
-        D3DVERTEX_POSITION | D3DVERTEX_NORMAL | D3DVERTEX_COLOR | D3DVERTEX_TEX1 | D3DVERTEX_TEX2);
+        D3DVERTEX_POSITION | D3DVERTEX_NORMAL | D3DVERTEX_TANGENT | D3DVERTEX_COLOR | D3DVERTEX_TEX1 | D3DVERTEX_TEX2);
 
     // Material: zwei Texturen + Blend-Modus 5 (Luminanz)
     LPMATERIAL material = nullptr;
     Engine::CreateMaterial(&material, multiTexShader);
 
-    Engine::MaterialTexture(material, texBrick, 0);  // t0
-    Engine::MaterialTexture(material, texFace, 1);   // t1
-    Engine::MaterialBlendMode(material, 1);          // 0=off 1=multiply 2=mul×2 3=add 4=lerp 5=luminanz
+    Engine::MaterialTexture(material, texBrick, 0);     // t0
+    Engine::MaterialTransparent(material, true);        // Blending aktivieren
+    Engine::MaterialAlphaCutoff(material, 1.0f);        // alles unter 50% Alpha -> unsichtbar
+    Engine::MaterialTexture(material, texFace, 1);      // t1
+    Engine::MaterialBlendMode(material, 1);             // 0=off 1=multiply 2=mul×2 3=add 4=lerp 5=luminanz
+    Engine::MaterialBlendFactor(material, 1.0f);
 
-    Engine::MaterialColor(material, 1.0f, 1.0f, 1.0f);    // Diffuse-Farbe
-    Engine::MaterialShininess(material, 100.0f);            // Specular-Schärfe
-    Engine::MaterialBlendMode(material, 5);      // multiply
-    Engine::MaterialBlendFactor(material, 0.0f); // 35% Einfluss der 2. Textur
 
     LPENTITY light = nullptr;
     Engine::CreateLight(&light, D3DLIGHT_DIRECTIONAL);

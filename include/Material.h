@@ -47,13 +47,14 @@ public:
 
     enum MaterialFlags : uint32_t
     {
-        MF_NONE            = 0,
-        MF_ALPHA_TEST      = 1u << 0,
-        MF_DOUBLE_SIDED    = 1u << 1,
-        MF_UNLIT           = 1u << 2,
-        MF_USE_NORMAL_MAP  = 1u << 3,
-        MF_USE_ORM_MAP     = 1u << 4,
-        MF_USE_EMISSIVE    = 1u << 5,
+        MF_NONE = 0,
+        MF_ALPHA_TEST = 1u << 0,
+        MF_DOUBLE_SIDED = 1u << 1,
+        MF_UNLIT = 1u << 2,
+        MF_USE_NORMAL_MAP = 1u << 3,
+        MF_USE_ORM_MAP = 1u << 4,
+        MF_USE_EMISSIVE = 1u << 5,
+        MF_TRANSPARENT = 1u << 6,   // Alpha-Blending (SRC_ALPHA / INV_SRC_ALPHA)
     };
 
     // ==================== KONSTRUKTOR / DESTRUKTOR ====================
@@ -85,6 +86,13 @@ public:
     }
     inline bool IsAlphaTest() const { return (properties.flags & MF_ALPHA_TEST) != 0; }
 
+    inline void SetTransparent(bool enabled)
+    {
+        if (enabled) properties.flags |= MF_TRANSPARENT;
+        else         properties.flags &= ~MF_TRANSPARENT;
+    }
+    inline bool IsTransparent() const { return (properties.flags & MF_TRANSPARENT) != 0; }
+
     inline void SetDoubleSided(bool enabled)
     {
         if (enabled) properties.flags |= MF_DOUBLE_SIDED;
@@ -95,8 +103,8 @@ public:
     // ==================== MATERIAL PROPERTY GETTERS ====================
     uint32_t albedoIndex = 0;
     uint32_t normalIndex = 1;
-    uint32_t ormIndex    = 2;
-    uint32_t decalIndex  = 0;
+    uint32_t ormIndex = 2;
+    uint32_t decalIndex = 0;
 
     DirectX::XMFLOAT4 GetDiffuseColor() const;
     DirectX::XMFLOAT4 GetSpecularColor() const;
@@ -127,10 +135,10 @@ public:
     void SetDecalIndex(uint32_t idx) noexcept { decalIndex = idx; }
 
     // ==================== SHADOW FLAGS ====================
-    bool castShadows    = true;
+    bool castShadows = true;
     bool receiveShadows = true;
 
-    inline void SetCastShadows(bool enabled)   { castShadows = enabled; }
+    inline void SetCastShadows(bool enabled) { castShadows = enabled; }
     inline void SetReceiveShadows(bool enabled)
     {
         receiveShadows = enabled;

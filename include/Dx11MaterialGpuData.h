@@ -41,7 +41,7 @@ public:
         float metallic, float roughness, float normalScale, float occlusionStrength,
         float shininess, float transparency, float alphaCutoff, float receiveShadows,
         uint32_t albedoIndex, uint32_t normalIndex, uint32_t ormIndex, uint32_t decalIndex,
-        float blendMode, uint32_t flags);
+        float blendMode, float blendFactor, uint32_t flags);
 
     ID3D11Texture2D*          m_texture[MAX_TEXTURES]          = {};
     ID3D11ShaderResourceView* m_textureView[MAX_TEXTURES]       = {};

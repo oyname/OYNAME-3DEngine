@@ -65,8 +65,12 @@ private:
     // Default-Sampler fuer gSampler (s0) – linear wrap
     ID3D11SamplerState* m_defaultSampler = nullptr;
 
-    // Caching: zuletzt gebundene SRVs fuer t0/t1/t2 – vermeidet redundante PSSetShaderResources
-    ID3D11ShaderResourceView* m_boundSRVs[3] = {};
+    // Blend States fuer Transparenz
+    ID3D11BlendState* m_alphaBlendState = nullptr;  // SRC_ALPHA / INV_SRC_ALPHA
+    ID3D11BlendState* m_noBlendState    = nullptr;  // Standard: Blending aus
+
+    // Caching: zuletzt gebundene SRVs fuer t0/t1/t2/t3 – vermeidet redundante PSSetShaderResources
+    ID3D11ShaderResourceView* m_boundSRVs[4] = {};
 
     // RTT-Support: wenn gesetzt, rendert RenderNormalPass in dieses Target (statt Backbuffer)
     RenderTextureTarget* m_activeRTT    = nullptr;
@@ -76,6 +80,7 @@ private:
     void RenderMainPassAtomic();
     void BuildRenderQueue();
     void FlushRenderQueue();
+    void FlushTransparentQueue();
     void UpdateShadowMatrixBuffer(const DirectX::XMMATRIX& viewMatrix,
                                   const DirectX::XMMATRIX& projMatrix);
     void InvalidateFrame();

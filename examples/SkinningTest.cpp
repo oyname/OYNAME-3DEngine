@@ -126,16 +126,22 @@ static void CreateArmMesh(LPENTITY* mesh, LPMATERIAL material)
         }
     }
 
-    // Bone-Weights: Ring 0+1 = Bone0, Ring 2 = 50/50, Ring 3+4 = Bone1
     for (int v = 0; v < (int)vtxRing.size(); ++v)
     {
-        float w0, w1;
-        switch (vtxRing[v])
-        {
-        case 0: case 1: w0 = 1.f; w1 = 0.f; break;
-        case 2:         w0 = 0.5f; w1 = 0.5f; break;
-        default:        w0 = 0.f; w1 = 1.f; break;
-        }
+        // Y aus ring index: 0..4 => -4..+4
+        float y = -4.f + 2.f * (float)vtxRing[v];
+
+        // Übergangsbereich um Y=0, z.B. Breite 2.0
+        float k = 2.0f;
+        float t = (y + k) / (2.0f * k); // map [-k..+k] -> [0..1]
+        t = (t < 0.f) ? 0.f : (t > 1.f) ? 1.f : t;
+
+        // smoothstep
+        t = t * t * (3.f - 2.f * t);
+
+        float w1 = t;
+        float w0 = 1.f - t;
+
         Engine::VertexBoneData(s, (unsigned int)v, 0, 1, 0, 0, w0, w1, 0.f, 0.f);
     }
 
@@ -164,6 +170,38 @@ int main()
     // DirectX initialisieren -- MUSS als Erstes aufgerufen werden
     Engine::Graphics(1024, 768);  // 0/0 = Desktop-Aufloesung
 
+    ///////////////////////////
+        // -------------------------------------------------
+    // Textur laden
+    // -------------------------------------------------
+    LPTEXTURE faceTex = nullptr;
+    LPTEXTURE albedoTex = nullptr;
+    LPTEXTURE normalTex = nullptr;
+    LPTEXTURE ormTex = nullptr;
+    Engine::LoadTexture(&faceTex, L"..\\media\\engine.png");
+    Engine::LoadTexture(&albedoTex, L"..\\media\\albedo.png");
+    Engine::LoadTexture(&normalTex, L"..\\media\\normal.png");
+    Engine::LoadTexture(&ormTex, L"..\\media\\orm.png");
+
+    // -------------------------------------------------
+    // Material A erstellen
+    // -------------------------------------------------
+    LPMATERIAL matCube = nullptr;
+    Engine::CreateMaterial(&matCube);
+    Engine::MaterialTexture(matCube, albedoTex, 0);
+    Engine::MaterialTexture(matCube, normalTex, 1);
+    Engine::MaterialTexture(matCube, ormTex, 2);
+
+    // Basisfarbe
+    Engine::MaterialColor(matCube, 1.0f, 1.0f, 1.0f, 1.0f);
+
+    // PBR Parameter
+    Engine::MaterialMetallic(matCube, 0.5f);
+    Engine::MaterialRoughness(matCube, 0.4f);
+    Engine::MaterialNormalScale(matCube, 1.5f);
+    Engine::MaterialOcclusionStrength(matCube, 0.3f);
+    ////////////////////////////////////////////////////
+
     // Licht
     LPENTITY light = nullptr;
     Engine::CreateLight(&light, D3DLIGHT_DIRECTIONAL);
@@ -173,7 +211,7 @@ int main()
     // Kamera
     LPENTITY camera = nullptr;
     Engine::CreateCamera(&camera);
-    Engine::PositionEntity(camera, 0.f, 0.f, -12.f);
+    Engine::PositionEntity(camera, 0.f, 0.f, -10.f);
 
     // Skinning-Shader
     DWORD skinFlags = D3DVERTEX_POSITION | D3DVERTEX_NORMAL | D3DVERTEX_COLOR
@@ -187,23 +225,36 @@ int main()
         L"..\\shaders\\PixelShader.hlsl",          "main",
         skinFlags);
 
+
     // Arm-Material + Mesh
     LPMATERIAL matArm = nullptr;
     Engine::CreateMaterial(&matArm, skinShader);
-    Engine::MaterialColor(matArm, 1.f, 1.f, 1.f, 1.f);
+    //Engine::MaterialColor(matArm, 1.f, 1.f, 1.f, 1.f);
+    Engine::MaterialTexture(matArm, albedoTex, 0);
+    Engine::MaterialTexture(matArm, normalTex, 1);
+    Engine::MaterialTexture(matArm, ormTex, 2);
+
+    // Basisfarbe
+    Engine::MaterialColor(matArm, 1.0f, 1.0f, 1.0f, 1.0f);
+
+    // PBR Parameter
+    Engine::MaterialMetallic(matArm, 0.5f);
+    Engine::MaterialRoughness(matArm, 0.4f);
+    Engine::MaterialNormalScale(matArm, 1.5f);
+    Engine::MaterialOcclusionStrength(matArm, 0.3f);
 
     LPENTITY arm = nullptr;
     CreateArmMesh(&arm, matArm);
     Engine::PositionEntity(arm, 0.f, 0.f, 5.f);
 
     // Referenzwuerfel (normaler Shader)
-    LPMATERIAL matCube = nullptr;
-    Engine::CreateMaterial(&matCube);
-    Engine::MaterialColor(matCube, 0.6f, 0.6f, 0.6f, 1.f);
+    //LPMATERIAL matCube = nullptr;
+    //Engine::CreateMaterial(&matCube);
+    //Engine::MaterialColor(matCube, 0.6f, 0.6f, 0.6f, 1.f);
 
     LPENTITY refCube = nullptr;
     CreateCube(&refCube, matCube);
-    Engine::PositionEntity(refCube, 4.f, 0.f, 5.f);
+    Engine::PositionEntity(refCube, 4.f, 0.f, 0.f);
     Engine::ScaleEntity(refCube, 0.5f, 0.5f, 0.5f);
 
     // Bone-Matrizen
@@ -236,7 +287,7 @@ int main()
         bones[1] = XMMatrixRotationZ(bend);
 
         Engine::SetEntityBoneMatrices(arm, bones, 2);
-        Engine::TurnEntity(refCube, 0.f, 30.f * dt, 0.f);
+        Engine::TurnEntity(arm, 0.f, 30.f * dt, 0.f);
         
         Engine::Cls(0, 64, 128);
         

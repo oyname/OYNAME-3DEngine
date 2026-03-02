@@ -69,7 +69,7 @@ void MaterialGpuData::UpdateConstantBuffer(
     float metallic, float roughness, float normalScale, float occlusionStrength,
     float shininess, float transparency, float alphaCutoff, float receiveShadows,
     uint32_t albedoIndex, uint32_t normalIndex, uint32_t ormIndex, uint32_t decalIndex,
-    float blendMode, uint32_t flags)
+    float blendMode, float blendFactor, uint32_t flags)
 {
     if (materialBuffer == nullptr || context == nullptr)
         return;
@@ -112,10 +112,15 @@ void MaterialGpuData::UpdateConstantBuffer(
         clampIdx(decalIndex,  0u)
     );
 
+    // gMisc.z: blendFactor als float-Bits, im Shader per asfloat() gelesen
+    uint32_t blendFactorBits = 0u;
+    memcpy(&blendFactorBits, &blendFactor, sizeof(blendFactorBits));
+
     cb.misc = DirectX::XMUINT4(
         static_cast<uint32_t>(blendMode + 0.5f),
         static_cast<uint32_t>(flags),
-        0u, 0u
+        blendFactorBits,
+        0u
     );
 
     D3D11_MAPPED_SUBRESOURCE mapped{};
