@@ -1,132 +1,4 @@
-﻿// game.cpp
-#include "gidx.h"
-#include "core.h"
-
-void CreateCube(LPENTITY* mesh, MATERIAL* material);
-
-int main()
-{
-    // Engine ist schon initialisiert (WinMain hat Core::Init + Core::CreateEngine aufgerufen).
-    // Hier nur noch Graphics-Modus setzen:
-    Engine::Graphics(1024, 768);
-
-    // -------------------------------------------------
-    // Kamera
-    // -------------------------------------------------
-    LPENTITY camera = nullptr;
-    Engine::CreateCamera(&camera);
-    Engine::PositionEntity(camera, 0.0f, 0.0f, -15.0f);
-
-    // -------------------------------------------------
-    // Licht
-    // -------------------------------------------------
-    LPENTITY directionalLight = nullptr;
-    Engine::CreateLight(&directionalLight, D3DLIGHT_DIRECTIONAL);
-    Engine::PositionEntity(directionalLight, 10.0f, 0.0f, 0.0f);
-    Engine::LookAt(directionalLight, 1.0f, 0.0f, 3.0f);
-    Engine::LightColor(directionalLight, 2.0f, 2.0f, 2.0f);
-    Engine::SetDirectionalLight(directionalLight);
-    Engine::SetAmbientColor(0.3f, 0.3f, 0.3f);
-
-    // -------------------------------------------------
-    // Textur laden
-    // -------------------------------------------------
-    LPTEXTURE faceTex = nullptr;
-    LPTEXTURE albedoTex = nullptr;
-    LPTEXTURE normalTex = nullptr;
-    LPTEXTURE detailTex = nullptr;
-    Engine::LoadTexture(&faceTex, L"..\\media\\engine.png");
-    Engine::LoadTexture(&albedoTex, L"..\\media\\albedo.png");
-    Engine::LoadTexture(&normalTex, L"..\\media\\normal.png");
-    Engine::LoadTexture(&detailTex, L"..\\media\\albedo_orage.png");
-
-    // -------------------------------------------------
-    // Material A erstellen
-    // -------------------------------------------------
-    LPMATERIAL matCube = nullptr;
-    Engine::CreateMaterial(&matCube);
-
-    Engine::MaterialUsePBR(matCube, true);
-
-    Engine::MaterialTexture(matCube, albedoTex, 0);
-    Engine::MaterialTexture(matCube, normalTex, 1);  // <-- NORMAL ist Slot 2
-    Engine::MaterialTexture(matCube, detailTex, 3);     // <-- Detailmap ist Slot 4 
-
-
-    Engine::MaterialBlendMode(matCube, 2);        // Multiply x2
-    Engine::MaterialBlendFactor(matCube, 0.99f);   // Mischstaerke 0..1
-
-    // Basisfarbe
-    Engine::MaterialColor(matCube, 1.0f, 1.0f, 1.0f, 1.0f);
-
-    // PBR Parameter
-    Engine::MaterialMetallic(matCube, 1.0f);
-    Engine::MaterialRoughness(matCube, 0.5f);
-    Engine::MaterialNormalScale(matCube, 1.0f);
-    //Engine::MaterialOcclusionStrength(matCube, 0.0f);
-
-    // Emissive (leichtes Glühen)
-    //Engine::MaterialEmissiveColor(matCube, 1.0f, 0.3f, 0.0f, 1.5f);
-
-    // -------------------------------------------------
-    // Material B erstellen
-    // -------------------------------------------------
-    LPMATERIAL matBCube = nullptr;
-    Engine::CreateMaterial(&matBCube);
-    Engine::MaterialTexture(matBCube, faceTex, 0);
-    Engine::MaterialTexture(matBCube, normalTex, 1);  // <-- NORMAL ist Slot 2
-    Engine::MaterialUsePBR(matBCube, true);
-    Engine::MaterialMetallic(matBCube, 0.3f);
-
-    // Basisfarbe
-    Engine::MaterialColor(matCube, 1.0f, 1.0f, 1.0f, 1.0f);
-
-    // -------------------------------------------------
-    // Objekt erstellen
-    // -------------------------------------------------
-    LPENTITY cube;
-    CreateCube(&cube, matBCube);
-    Engine::PositionEntity(cube, -3.0f, 0.0f, 10.0f);
-    Engine::ScaleEntity(cube, 2.0f, 2.0f, 2.0f);
-
-    LPENTITY cube2;
-    CreateCube(&cube2, matCube);
-    Engine::PositionEntity(cube2, 3.0f, 0.0f, 8.0f);
-    Engine::ScaleEntity(cube2, 1.0f, 1.0f, 1.0f);
-
-    // Set Parent
-    Engine::SetEntityParent(cube2, cube);
-
-    while (Windows::MainLoop())
-    {
-        Core::BeginFrame(); // liefert DeltaTime/FPS/FrameCount über Core
-        
-        float dt = (float)Timer::GetDeltaTime();
-
-        // Rotation
-        //Engine::LookAt(camera, Engine::EntityPosition(cube2));
-        //Engine::LookAt(directionalLight, Engine::EntityPosition(cube));
-
-        Engine::RotateEntity(cube2, 45.0f * dt, 45.0f * dt, 45.0f * dt, Space::World);
-        Engine::RotateEntity(cube, -10.0f * dt, -45.0f * dt, -2.0f * dt);
-
-        Engine::Cls(0, 64, 128);
-
-        Engine::UpdateWorld();
-
-        HRESULT hr = Engine::RenderWorld();
-        if (FAILED(hr))
-            Debug::Log("FEHLER: RenderWorld");
-
-        hr = Engine::Flip();
-        if (FAILED(hr))
-            Debug::Log("FEHLER: Flip");
-
-        Core::EndFrame();
-    }
-
-    return 0;
-}
+#include "geometry.h"
 
 void CreateCube(LPENTITY* mesh, MATERIAL* material)
 {
@@ -212,4 +84,113 @@ void CreateCube(LPENTITY* mesh, MATERIAL* material)
     Engine::AddTriangle(wuerfel, 21, 22, 23); Engine::AddTriangle(wuerfel, 22, 21, 20);
 
     Engine::FillBuffer(wuerfel);
+}
+
+void CreateMultiMaterialCube(LPENTITY* mesh,
+    LPMATERIAL matFront,   // Vorne/Hinten
+    LPMATERIAL matSide,    // Links/Rechts
+    LPMATERIAL matTopBot)  // Oben/Unten
+{
+    Engine::CreateMesh(mesh);
+
+    LPSURFACE s = nullptr;
+
+    // ---- Hinten (-Z)  winding: (0,1,2) (3,2,1) ----
+    Engine::CreateSurface(&s, *mesh);
+    Engine::AddVertex(s, -1, -1, -1); Engine::VertexNormal(s, 0, 0, -1); Engine::VertexColor(s, 224, 224, 224); Engine::VertexTexCoord(s, 0.0f, 1.0f);
+    Engine::AddVertex(s, -1, 1, -1); Engine::VertexNormal(s, 0, 0, -1); Engine::VertexColor(s, 224, 224, 224); Engine::VertexTexCoord(s, 0.0f, 0.0f);
+    Engine::AddVertex(s, 1, -1, -1); Engine::VertexNormal(s, 0, 0, -1); Engine::VertexColor(s, 224, 224, 224); Engine::VertexTexCoord(s, 1.0f, 1.0f);
+    Engine::AddVertex(s, 1, 1, -1); Engine::VertexNormal(s, 0, 0, -1); Engine::VertexColor(s, 224, 224, 224); Engine::VertexTexCoord(s, 1.0f, 0.0f);
+    Engine::AddTriangle(s, 0, 1, 2);
+    Engine::AddTriangle(s, 3, 2, 1);
+    Engine::FillBuffer(s);
+    Engine::SurfaceMaterial(s, matFront);
+
+    // ---- Vorne (+Z)  winding: (2,1,0) (2,3,1) ----
+    Engine::CreateSurface(&s, *mesh);
+    Engine::AddVertex(s, -1, -1, 1); Engine::VertexNormal(s, 0, 0, 1); Engine::VertexColor(s, 224, 224, 224); Engine::VertexTexCoord(s, 0.0f, 1.0f);
+    Engine::AddVertex(s, -1, 1, 1); Engine::VertexNormal(s, 0, 0, 1); Engine::VertexColor(s, 224, 224, 224); Engine::VertexTexCoord(s, 0.0f, 0.0f);
+    Engine::AddVertex(s, 1, -1, 1); Engine::VertexNormal(s, 0, 0, 1); Engine::VertexColor(s, 224, 224, 224); Engine::VertexTexCoord(s, 1.0f, 1.0f);
+    Engine::AddVertex(s, 1, 1, 1); Engine::VertexNormal(s, 0, 0, 1); Engine::VertexColor(s, 224, 224, 224); Engine::VertexTexCoord(s, 1.0f, 0.0f);
+    Engine::AddTriangle(s, 2, 1, 0);
+    Engine::AddTriangle(s, 2, 3, 1);
+    Engine::FillBuffer(s);
+    Engine::SurfaceMaterial(s, matFront);
+
+    // ---- Links (-X)  winding: (0,1,2) (2,1,3) ----
+    Engine::CreateSurface(&s, *mesh);
+    Engine::AddVertex(s, -1, -1, -1); Engine::VertexNormal(s, -1, 0, 0); Engine::VertexColor(s, 224, 224, 224); Engine::VertexTexCoord(s, 0.0f, 1.0f);
+    Engine::AddVertex(s, -1, -1, 1); Engine::VertexNormal(s, -1, 0, 0); Engine::VertexColor(s, 224, 224, 224); Engine::VertexTexCoord(s, 0.0f, 0.0f);
+    Engine::AddVertex(s, -1, 1, -1); Engine::VertexNormal(s, -1, 0, 0); Engine::VertexColor(s, 224, 224, 224); Engine::VertexTexCoord(s, 1.0f, 1.0f);
+    Engine::AddVertex(s, -1, 1, 1); Engine::VertexNormal(s, -1, 0, 0); Engine::VertexColor(s, 224, 224, 224); Engine::VertexTexCoord(s, 1.0f, 0.0f);
+    Engine::AddTriangle(s, 0, 1, 2);
+    Engine::AddTriangle(s, 2, 1, 3);
+    Engine::FillBuffer(s);
+    Engine::SurfaceMaterial(s, matSide);
+
+    // ---- Rechts (+X)  winding: (2,1,0) (2,3,1) ----
+    Engine::CreateSurface(&s, *mesh);
+    Engine::AddVertex(s, 1, -1, -1); Engine::VertexNormal(s, 1, 0, 0); Engine::VertexColor(s, 224, 224, 224); Engine::VertexTexCoord(s, 0.0f, 1.0f);
+    Engine::AddVertex(s, 1, -1, 1); Engine::VertexNormal(s, 1, 0, 0); Engine::VertexColor(s, 224, 224, 224); Engine::VertexTexCoord(s, 0.0f, 0.0f);
+    Engine::AddVertex(s, 1, 1, -1); Engine::VertexNormal(s, 1, 0, 0); Engine::VertexColor(s, 224, 224, 224); Engine::VertexTexCoord(s, 1.0f, 1.0f);
+    Engine::AddVertex(s, 1, 1, 1); Engine::VertexNormal(s, 1, 0, 0); Engine::VertexColor(s, 224, 224, 224); Engine::VertexTexCoord(s, 1.0f, 0.0f);
+    Engine::AddTriangle(s, 2, 1, 0);
+    Engine::AddTriangle(s, 2, 3, 1);
+    Engine::FillBuffer(s);
+    Engine::SurfaceMaterial(s, matSide);
+
+    // ---- Unten (-Y)  winding: (0,1,2) (2,1,3) ----
+    Engine::CreateSurface(&s, *mesh);
+    Engine::AddVertex(s, -1, -1, -1); Engine::VertexNormal(s, 0, -1, 0); Engine::VertexColor(s, 224, 224, 224); Engine::VertexTexCoord(s, 0.0f, 1.0f);
+    Engine::AddVertex(s, 1, -1, -1); Engine::VertexNormal(s, 0, -1, 0); Engine::VertexColor(s, 224, 224, 224); Engine::VertexTexCoord(s, 1.0f, 1.0f);
+    Engine::AddVertex(s, -1, -1, 1); Engine::VertexNormal(s, 0, -1, 0); Engine::VertexColor(s, 224, 224, 224); Engine::VertexTexCoord(s, 0.0f, 0.0f);
+    Engine::AddVertex(s, 1, -1, 1); Engine::VertexNormal(s, 0, -1, 0); Engine::VertexColor(s, 224, 224, 224); Engine::VertexTexCoord(s, 1.0f, 0.0f);
+    Engine::AddTriangle(s, 0, 1, 2);
+    Engine::AddTriangle(s, 2, 1, 3);
+    Engine::FillBuffer(s);
+    Engine::SurfaceMaterial(s, matTopBot);
+
+    // ---- Oben (+Y)  winding: (1,2,3) (2,1,0) ----
+    Engine::CreateSurface(&s, *mesh);
+    Engine::AddVertex(s, -1, 1, -1); Engine::VertexNormal(s, 0, 1, 0); Engine::VertexColor(s, 224, 224, 224); Engine::VertexTexCoord(s, 0.0f, 1.0f);
+    Engine::AddVertex(s, 1, 1, -1); Engine::VertexNormal(s, 0, 1, 0); Engine::VertexColor(s, 224, 224, 224); Engine::VertexTexCoord(s, 1.0f, 1.0f);
+    Engine::AddVertex(s, -1, 1, 1); Engine::VertexNormal(s, 0, 1, 0); Engine::VertexColor(s, 224, 224, 224); Engine::VertexTexCoord(s, 0.0f, 0.0f);
+    Engine::AddVertex(s, 1, 1, 1); Engine::VertexNormal(s, 0, 1, 0); Engine::VertexColor(s, 224, 224, 224); Engine::VertexTexCoord(s, 1.0f, 0.0f);
+    Engine::AddTriangle(s, 1, 2, 3);
+    Engine::AddTriangle(s, 2, 1, 0);
+    Engine::FillBuffer(s);
+    Engine::SurfaceMaterial(s, matTopBot);
+}
+
+void CreatePlate(LPENTITY *mesh)
+{
+    LPSURFACE surface = nullptr;
+    Engine::CreateSurface(&surface, (*mesh));
+
+    // Quad in X/Z plane (Y = 0)
+    Engine::AddVertex(surface, -1, 0, -1);
+    Engine::VertexNormal(surface, 0, 1, 0);
+    Engine::VertexColor(surface, 200, 200, 200);
+    Engine::VertexTexCoord(surface, 0.0f, 1.0f);
+
+    Engine::AddVertex(surface, 1, 0, -1);
+    Engine::VertexNormal(surface, 0, 1, 0);
+    Engine::VertexColor(surface, 200, 200, 200);
+    Engine::VertexTexCoord(surface, 1.0f, 1.0f);
+
+    Engine::AddVertex(surface, -1, 0, 1);
+    Engine::VertexNormal(surface, 0, 1, 0);
+    Engine::VertexColor(surface, 200, 200, 200);
+    Engine::VertexTexCoord(surface, 0.0f, 0.0f);
+
+    Engine::AddVertex(surface, 1, 0, 1);
+    Engine::VertexNormal(surface, 0, 1, 0);
+    Engine::VertexColor(surface, 200, 200, 200);
+    Engine::VertexTexCoord(surface, 1.0f, 0.0f);
+
+    // Two triangles (watch winding order if culling looks wrong)
+    Engine::AddTriangle(surface, 1, 2, 3);
+    Engine::AddTriangle(surface, 2, 1, 0);
+
+    Engine::FillBuffer(surface);
 }

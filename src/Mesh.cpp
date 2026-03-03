@@ -1,6 +1,7 @@
 // Mesh.cpp: kein direktes DX11. GPU-Upload ueber gpuData->Upload().
 #include "Mesh.h"
 #include "Surface.h"
+#include "MeshAsset.h"
 #include "GeometryHelper.h"
 #include "Dx11EntityGpuData.h"
 using namespace DirectX;
@@ -11,9 +12,17 @@ Mesh::Mesh() :
 {
 }
 
-Mesh::~Mesh() {
-    m_surfaces.clear();
-    if (boneConstantBuffer) { boneConstantBuffer->Release(); boneConstantBuffer = nullptr; }
+Mesh::~Mesh()
+{
+    // Slots aus dem Asset loeschen (nicht die Surfaces selbst – Ownership beim ObjectManager)
+    if (meshRenderer.asset)
+        meshRenderer.asset->GetSlots(); // kein Clear noetig, Asset gehoert dem ObjectManager
+
+    if (boneConstantBuffer)
+    {
+        boneConstantBuffer->Release();
+        boneConstantBuffer = nullptr;
+    }
 }
 
 void Mesh::Update(const GDXDevice* device)
@@ -33,32 +42,32 @@ void Mesh::Update(const GDXDevice* device, const MatrixSet* inMatrixSet)
         CalculateOBB(0);
 
     // Die world matrix kommt bereits korrekt berechnet vom RenderManager (inkl. Parent-Chain).
-    // Nicht ueberschreiben � direkt aus dem uebergebenen MatrixSet verwenden.
+    // Nicht ueberschreiben - direkt aus dem uebergebenen MatrixSet verwenden.
     if (gpuData) gpuData->Upload(device, *inMatrixSet);
 }
 
 Surface* Mesh::GetSurface(unsigned int n)
 {
-    if (n < m_surfaces.size())
-        return m_surfaces[n];
-    return nullptr;
+    return meshRenderer.asset ? meshRenderer.asset->GetSlot(n) : nullptr;
 }
 
 void Mesh::AddSurface(Surface* surface)
 {
     if (!surface) return;
-    m_surfaces.push_back(surface);
+    if (!meshRenderer.asset) return;
+
+    meshRenderer.asset->AddSlot(surface);
     surface->SetOwner(this);
 }
 
 void Mesh::RemoveSurface(Surface* surface)
 {
-    auto it = std::find(m_surfaces.begin(), m_surfaces.end(), surface);
-    if (it != m_surfaces.end())
-    {
-        if (*it) (*it)->SetOwner(nullptr);
-        m_surfaces.erase(it);
-    }
+    if (!meshRenderer.asset) return;
+
+    meshRenderer.asset->RemoveSlot(surface);
+
+    if (surface && surface->GetOwner() == this)
+        surface->SetOwner(nullptr);
 }
 
 void Mesh::SetCollisionMode(COLLISION collision)
@@ -71,9 +80,10 @@ void Mesh::CalculateOBB(unsigned int index)
     XMFLOAT3 minSize{ 0.0f, 0.0f, 0.0f };
     XMFLOAT3 maxSize{ 0.0f, 0.0f, 0.0f };
 
-    if (m_surfaces.empty()) return;
+    Surface* s0 = meshRenderer.asset ? meshRenderer.asset->GetSlot(0) : nullptr;
+    if (!s0) return;
 
-    GeometryHelper::CalculateSize(*m_surfaces[0], XMMatrixIdentity(), minSize, maxSize);
+    GeometryHelper::CalculateSize(*s0, XMMatrixIdentity(), minSize, maxSize);
 
     XMFLOAT3 extents{
         (maxSize.x - minSize.x) / 2.0f,
@@ -97,8 +107,7 @@ void Mesh::CalculateOBB(unsigned int index)
     XMStoreFloat4(&quatFloat, quat);
 
     obb = BoundingOrientedBox(pos, extents,
-        XMFLOAT4(quatFloat.x, quatFloat.y, quatFloat.z, quatFloat.w)
-    );
+        XMFLOAT4(quatFloat.x, quatFloat.y, quatFloat.z, quatFloat.w));
 }
 
 bool Mesh::CheckCollision(Mesh* mesh)

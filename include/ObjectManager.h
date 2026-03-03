@@ -6,6 +6,7 @@
 #include "Entity.h"
 #include "Surface.h"
 #include "Mesh.h"
+#include "MeshAsset.h"
 #include "Camera.h"
 #include "Light.h"
 #include "Material.h"
@@ -23,13 +24,14 @@ public:
     void Init() {}
 
     // CREATE
-    Camera*   CreateCamera();
-    Light*    CreateLight(LightType type);
-    Light*    CreateLight(D3DLIGHTTYPE type);
-    Shader*   CreateShader();
-    Material* CreateMaterial();
-    Mesh*     CreateMesh();
-    Surface*  CreateSurface();
+    Camera*    CreateCamera();
+    Light*     CreateLight(LightType type);
+    Light*     CreateLight(D3DLIGHTTYPE type);
+    Shader*    CreateShader();
+    Material*  CreateMaterial();
+    Mesh*      CreateMesh();
+    Surface*   CreateSurface();
+    MeshAsset* CreateMeshAsset();
 
     void RegisterRenderable(Mesh* mesh);
     void UnregisterRenderable(Mesh* mesh);
@@ -41,6 +43,10 @@ public:
     void AssignShaderToMaterial(Shader* shader, Material* material);
     void AddMaterialToShader(Shader* shader, Material* material);
 
+    // Setzt das Material fuer einen bestimmten Slot-Index im MeshRenderer.
+    // Ersetzt den alten AddMaterialToSurface-Weg fuer neuen Code.
+    void SetSlotMaterial(Mesh* mesh, unsigned int slot, Material* material);
+
     // DELETE
     void DeleteSurface(Surface* surface);
     void DeleteMesh(Mesh* mesh);
@@ -48,6 +54,7 @@ public:
     void DeleteLight(Light* light);
     void DeleteMaterial(Material* material);
     void DeleteShader(Shader* shader);
+    void DeleteMeshAsset(MeshAsset* asset);
 
     // REMOVE
     void RemoveSurfaceFromMesh(Mesh* mesh, Surface* surface);
@@ -80,12 +87,13 @@ public:
     }
 
 private:
-    std::vector<Entity*>   m_entities;
-    std::vector<Surface*>  m_surfaces;
-    std::vector<Mesh*>     m_meshes;
-    std::vector<Mesh*>     m_renderMeshes;
-    std::vector<Camera*>   m_cameras;
-    std::vector<Light*>    m_lights;
-    std::vector<Material*> m_materials;
-    std::vector<Shader*>   m_shaders;
+    std::vector<Entity*>    m_entities;
+    std::vector<Surface*>   m_surfaces;
+    std::vector<MeshAsset*> m_meshAssets;
+    std::vector<Mesh*>      m_meshes;
+    std::vector<Mesh*>      m_renderMeshes;
+    std::vector<Camera*>    m_cameras;
+    std::vector<Light*>     m_lights;
+    std::vector<Material*>  m_materials;
+    std::vector<Shader*>    m_shaders;
 };

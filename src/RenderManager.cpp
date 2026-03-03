@@ -80,7 +80,8 @@ void RenderManager::RenderShadowPass()
 
     for (Mesh* mesh : m_objectManager.GetMeshes())
     {
-        if (!mesh || mesh->m_surfaces.empty()) continue;
+        if (!mesh || !mesh->meshRenderer.IsValid()) continue;
+        if (mesh->meshRenderer.GetSlots().empty()) continue;
         if (!mesh->IsActive()) continue;
         if (!mesh->IsVisible()) continue;
 
@@ -93,11 +94,13 @@ void RenderManager::RenderShadowPass()
         ms.worldMatrix = mesh->GetWorldMatrix();
         mesh->Update(&m_device, &ms);
 
-        for (Surface* s : mesh->m_surfaces)
+        const auto& shadowSlots = mesh->meshRenderer.GetSlots();
+        for (unsigned int si = 0; si < static_cast<unsigned int>(shadowSlots.size()); ++si)
         {
+            Surface* s = shadowSlots[si];
             if (!s) continue;
 
-            Material* mat = s->pMaterial ? s->pMaterial : mesh->pMaterial;
+            Material* mat = mesh->meshRenderer.GetMaterial(si, s, mesh->pMaterial);
             if (!mat || !mat->castShadows) continue;
 
             Shader* shader = mat->pRenderShader;
@@ -221,7 +224,8 @@ void RenderManager::BuildRenderQueue()
 
     for (Mesh* mesh : m_objectManager.GetMeshes())
     {
-        if (!mesh || mesh->m_surfaces.empty()) continue;
+        if (!mesh || !mesh->meshRenderer.IsValid()) continue;
+        if (mesh->meshRenderer.GetSlots().empty()) continue;
         if (!mesh->IsActive()) continue;
         if (!mesh->IsVisible()) continue;
         if (!(mesh->GetLayerMask() & cameraCullMask)) continue;
@@ -229,11 +233,13 @@ void RenderManager::BuildRenderQueue()
         const DirectX::XMMATRIX world = mesh->GetWorldMatrix();
         mesh->matrixSet.worldMatrix = world;
 
-        for (Surface* surface : mesh->m_surfaces)
+        const auto& queueSlots = mesh->meshRenderer.GetSlots();
+        for (unsigned int qi = 0; qi < static_cast<unsigned int>(queueSlots.size()); ++qi)
         {
+            Surface* surface = queueSlots[qi];
             if (!surface) continue;
 
-            Material* material = surface->pMaterial ? surface->pMaterial : mesh->pMaterial;
+            Material* material = mesh->meshRenderer.GetMaterial(qi, surface, mesh->pMaterial);
             if (!material) continue;
 
             Shader* shader = material->pRenderShader;

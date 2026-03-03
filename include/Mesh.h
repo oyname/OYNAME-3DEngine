@@ -1,9 +1,10 @@
-﻿#pragma once
+#pragma once
 #include <d3d11.h>
 #include <vector>
 #include <DirectXMath.h>
 #include <DirectXCollision.h>
 #include "Entity.h"
+#include "MeshRenderer.h"
 #include "gdxutil.h"
 
 class Surface;
@@ -15,13 +16,23 @@ enum COLLISION {
     SPHERE = 2,
 };
 
-// Mesh besitzt NIEMALS Surfaces! Surfaces werden vom ObjectManager verwaltet.
-// Mesh hat nur nicht-owning Pointer zu seinen Surfaces.
+// Mesh: Entity mit Transform und MeshRenderer-Komponente.
+//
+// Die Geometriedaten und Materialzuweisungen sind in meshRenderer
+// gekapselt. Mesh selbst enthaelt keine Surfaces direkt mehr – diese
+// liegen im MeshAsset des MeshRenderer.
+//
+// Abwaertskompatibilitaet:
+//   GetSurface(i)  -> meshRenderer.GetSlots()[i]
+//   NumSurface()   -> meshRenderer.NumSlots()
+//   pMaterial      -> meshRenderer.fallbackMaterial (Alias, identischer Speicher)
+//   AddSurface()   -> leitet an meshRenderer.asset weiter.
 class Mesh : public Entity
 {
 public:
-    std::vector<Surface*> m_surfaces;  // non-owning!
-    Material* pMaterial = nullptr;      // non-owning
+    // Rendering-Komponente: haelt MeshAsset* + slotMaterials[].
+    MeshRenderer meshRenderer;
+
     DirectX::BoundingOrientedBox obb;
 
     // Skinning
@@ -35,18 +46,26 @@ public:
     void Update(const GDXDevice* device) override;
     void Update(const GDXDevice* device, const MatrixSet* matrixSet);
 
-    unsigned int NumSurface() const { return static_cast<unsigned int>(m_surfaces.size()); }
+    // ==================== ABWAERTSKOMPATIBLE ACCESSOREN ====================
+
+    unsigned int NumSurface() const { return meshRenderer.NumSlots(); }
     Surface* GetSurface(unsigned int index);
 
-    // Nur für ObjectManager!
-    void AddSurface(Surface* surface);      // non-owning
-    void RemoveSurface(Surface* surface);   // nur Referenz entfernen
+    // Nur fuer ObjectManager!
+    void AddSurface(Surface* surface);    // leitet an meshRenderer.asset weiter
+    void RemoveSurface(Surface* surface); // entfernt aus meshRenderer.asset
 
+    // pMaterial: Fallback-Material (== meshRenderer.fallbackMaterial).
+    // Bleibt als direktes oeffentliches Mitglied, damit alter Code
+    // unveraendert kompiliert.
+    Material* pMaterial = nullptr;
+
+    // ==================== KOLLISION ====================
     void SetCollisionMode(COLLISION collision);
     bool CheckCollision(Mesh* mesh);
     void CalculateOBB(unsigned int index);
 
-    // Frame-Update-Flag
+    // ==================== FRAME-UPDATE-FLAG ====================
     bool IsUpdatedThisFrame() const noexcept { return m_updatedThisFrame; }
     void MarkUpdated()              noexcept { m_updatedThisFrame = true; }
     void ResetFrameFlag()           noexcept { m_updatedThisFrame = false; }
@@ -55,7 +74,7 @@ public:
     void  operator delete(void* p) noexcept { _aligned_free(p); }
 
 private:
-    COLLISION collisionType = COLLISION::NONE;
+    COLLISION collisionType      = COLLISION::NONE;
     bool      m_updatedThisFrame = false;
 };
 
