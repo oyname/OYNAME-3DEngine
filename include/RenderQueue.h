@@ -28,17 +28,17 @@ struct RenderQueue
     }
 
     void Submit(Shader* shader, int flagsVertex, Material* material,
-                Mesh* mesh, Surface* surface, const DirectX::XMMATRIX& world,
-                IRenderBackend* backend)
+        Mesh* mesh, Surface* surface, const DirectX::XMMATRIX& world,
+        IRenderBackend* backend)
     {
         RenderCommand cmd;
-        cmd.mesh        = mesh;
-        cmd.surface     = surface;
-        cmd.world       = world;
-        cmd.shader      = shader;
-        cmd.material    = material;
+        cmd.mesh = mesh;
+        cmd.surface = surface;
+        cmd.world = world;
+        cmd.shader = shader;
+        cmd.material = material;
         cmd.flagsVertex = flagsVertex;
-        cmd.backend     = backend;
+        cmd.backend = backend;
         commands.push_back(cmd);
     }
 
@@ -47,7 +47,15 @@ struct RenderQueue
     {
         std::sort(commands.begin(), commands.end(),
             [](const RenderCommand& a, const RenderCommand& b) {
-                return a.SortKey() < b.SortKey();
+                // Kollisionsfreie, 64-bit sichere Ordnung:
+                // erst Shader-Pointer, dann Material-Pointer (lexikographisch).
+                const auto as = reinterpret_cast<std::uintptr_t>(a.shader);
+                const auto bs = reinterpret_cast<std::uintptr_t>(b.shader);
+                if (as != bs) return as < bs;
+
+                const auto am = reinterpret_cast<std::uintptr_t>(a.material);
+                const auto bm = reinterpret_cast<std::uintptr_t>(b.material);
+                return am < bm;
             });
     }
 

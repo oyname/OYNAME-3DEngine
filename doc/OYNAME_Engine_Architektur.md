@@ -1,225 +1,262 @@
-# OYNAME-3DEngine — Interne Architektur
+# OYNAME-3DEngine --- Interne Architektur
 
 DirectX 11 · C++ · HLSL
 
----
+Dieses Dokument beschreibt die interne Struktur der
+**OYNAME-3DEngine**.\
+Es richtet sich an Entwickler, die an der Engine selbst arbeiten und die
+Beziehungen zwischen **API, Managern, Backend-Klassen und DirectX‑11**
+verstehen müssen.
 
-## 1. Überblick
+Die Engine folgt einer klaren **3‑Schichten‑Architektur**:
 
-Dieses Dokument beschreibt die interne Implementierung der OYNAME-3DEngine. Es richtet sich an Entwickler die an der Engine selbst arbeiten und die Zusammenhänge zwischen Managern, Backend-Klassen, HLSL-Shadern und dem DirectX-11-API verstehen müssen.
+Application │ ▼ Public API (gidx.h) │ ▼ Engine Layer (Manager + Scene) │
+▼ Rendering Backend (DX11) │ ▼ DirectX 11
 
-Die Engine ist in drei horizontale Schichten gegliedert. Die öffentliche API in `gidx.h` ist die einzige Schnittstelle nach außen. Die mittlere Schicht enthält die Manager-Logik. Das Backend kapselt alle DirectX-Aufrufe.
+Die Schichten kommunizieren strikt **von oben nach unten**.\
+Die Anwendung sieht **niemals interne Klassen oder DirectX‑Typen**.
 
----
+------------------------------------------------------------------------
 
-## 2. Schichtenmodell
+# 1. Schichtenmodell
 
-Die drei Schichten kommunizieren strikt von oben nach unten. Anwendungscode sieht niemals interne Klassen oder DirectX-Typen.
+  -----------------------------------------------------------------------
+  Schicht                             Inhalt
+  ----------------------------------- -----------------------------------
+  Anwendungsschicht                   Nutzerseitiger Code (`main()`).
+                                      Includet nur `gidx.h`. Keine
+                                      Engine‑Interna sichtbar.
 
-| Schicht | Inhalt |
-|---|---|
-| Anwendungsschicht | Nutzerseitiger Code in `main()`. Includet nur `gidx.h`. Kein DirectX, keine internen Typen sichtbar. |
-| Engine-Schicht (Manager) | ObjectManager, RenderManager, ShaderManager, LightManager, TexturePool, BufferManager, InputLayoutManager. |
-| Backend-Schicht (DX11) | GDXDevice, Dx11RenderBackend, SurfaceGpuBuffer, Dx11EntityGpuData, Dx11MaterialGpuData, Dx11ShadowMap. |
+  Engine‑Schicht                      Manager und Szenenklassen
+                                      (`ObjectManager`, `RenderManager`,
+                                      `ShaderManager`, `TexturePool`,
+                                      `BufferManager`,
+                                      `InputLayoutManager`).
 
----
+  Backend‑Schicht                     DirectX‑Implementierung
+                                      (`GDXDevice`, `Dx11RenderBackend`,
+                                      `SurfaceGpuBuffer`,
+                                      `Dx11EntityGpuData`,
+                                      `Dx11MaterialGpuData`,
+                                      `Dx11ShadowMap`).
+  -----------------------------------------------------------------------
 
-## 3. Manager-System
+------------------------------------------------------------------------
 
-Jeder Manager hat eine klar abgegrenzte Verantwortung. Manager besitzen keine Querverweise untereinander — sie erhalten benötigte Referenzen per Dependency Injection im Konstruktor oder als Parameter.
+# 2. Modul‑Landkarte
 
-| Manager | Verantwortung |
-|---|---|
-| `ObjectManager` | Erzeugt und verwaltet den Lebenszyklus aller Engine-Objekte (Mesh, Camera, Light, Shader, Material, Surface). Einziger Besitzer der Objekt-Listen. |
-| `RenderManager` | Koordiniert Shadow-Pass, Opaque-Pass und Transparent-Pass. Verwaltet RenderTargets, BlendStates, SRV-Cache und RTT-Support. |
-| `ShaderManager` | Kompiliert HLSL per D3DCompileFromFile, erstellt VS/PS-Objekte, verwaltet Standard-Shader. |
-| `TexturePool` | Globaler SRV-Pool mit stabilen Indices (0..N). Dedupliziert Texturen automatisch. Liefert White/FlatNormal/ORM als Fallback-Indices. |
-| `BufferManager` | Erstellt und aktualisiert D3D11-Buffer: VertexBuffer, IndexBuffer, ConstantBuffer. |
-| `InputLayoutManager` | Erstellt `D3D11InputLayout` aus Vertex-Format-Bitmask. Mappt `D3DVERTEX_*`-Flags auf `D3D11_INPUT_ELEMENT_DESC`. |
+## 2.1 Public API
 
----
+Datei:
 
-## 4. Entity-System
+gidx.h
 
-Alle Szenenobjekte erben von der gemeinsamen Basisklasse `Entity`. Mesh, Camera und Light sind gleichwertige Entitäten mit identischer Transform-Schnittstelle. Das eliminiert typspezifische Sonderfälle in der API.
+Eigenschaften:
 
-### 4.1 Transform und Weltmatrix
+-   einzige öffentliche Schnittstelle
+-   BlitzBasic‑inspirierte Funktions‑API
+-   keine DirectX‑Typen sichtbar
+-   ruft intern Manager auf
 
-Jede Entity besitzt ein Transform-Objekt mit Position, Rotation und Skalierung. `GetWorldMatrix()` berücksichtigt die Parent-Child-Hierarchie rekursiv:
+Beispiele:
 
-```cpp
-// Space::Local (Standard):  worldMatrix = localMatrix * parent->GetWorldMatrix()
-// Space::World:             worldMatrix = localMatrix  (Parent ignoriert)
+``` cpp
+Engine::Graphics(1280,720);
+Engine::CreateMesh(&mesh, mat);
+Engine::RenderWorld();
 ```
 
-### 4.2 Parent-Child-Hierarchie
+Die API enthält **keine Engine‑Logik**, sondern nur Delegation.
 
-`SetEntityParent()` verknüpft zwei Entities. Die Weltmatrix des Kindes ergibt sich automatisch aus der Multiplikation seiner lokalen Matrix mit der Weltmatrix des Elternobjekts. `DetachEntity()` löst die Verknüpfung. Hierarchien beliebiger Tiefe werden unterstützt.
+------------------------------------------------------------------------
 
----
+# 3. Entity‑System
 
-## 5. Rendering-Pipeline
+Alle Szenenobjekte basieren auf der Basisklasse **Entity**.
 
-Der Render-Durchlauf läuft pro Frame in folgender Reihenfolge ab:
+Entity ├─ Transform ├─ Parent ├─ Children └─ LayerMask
 
-| Phase | Beschreibung |
-|---|---|
-| `UpdateWorld()` | Transformationen aller Entities berechnen, Kamera-Matrizen aktualisieren, Licht-Buffer vorbereiten. |
-| `RenderShadowPass()` | Shadow Map aus Directional-Light-Perspektive rendern. VS-only, kein Pixel-Shader. PCF-Filterung in 3×3-Kernel. |
-| `BuildRenderQueue()` | Alle aktiven Meshes durchlaufen. Surfaces nach `Material::IsTransparent()` in `m_opaque` oder `m_transFrame` einsortieren. |
-| `FlushRenderQueue()` | `m_opaque` nach SortKey (Shader-Ptr << 32 \| Material-Ptr) sortiert abarbeiten. State-Wechsel nur bei Shader- oder Material-Änderung. |
-| `FlushTransparentQueue()` | `m_transFrame` back-to-front nach Kameraabstand (LengthSq) sortieren, AlphaBlendState setzen, zeichnen, BlendState zurücksetzen. |
-| `Flip()` | Present — fertiges Bild auf den Monitor ausgeben. |
+## Transform
 
-### 5.1 RenderQueue und SortKey
+Jede Entity besitzt:
 
-Jeder `RenderCommand` ist ein eigenständiger, selbstausführbarer Draw-Call. Er trägt Mesh, Surface, Weltmatrix, Shader, Material und Backend-Referenz. Der SortKey kombiniert Shader- und Material-Adresse zu einem `uint64`:
+-   Position
+-   Rotation
+-   Skalierung
 
-```cpp
+Weltmatrix:
+
+Local Space: world = local \* parentWorld
+
+World Space: world = local
+
+------------------------------------------------------------------------
+
+# 4. Mesh‑ und Surface‑System
+
+Die Engine verwendet eine **Mesh‑Surface‑Architektur**.
+
+Mesh ├─ Surface 0 ├─ Surface 1 └─ Surface 2
+
+Eine Surface entspricht einem **Submesh**.
+
+### Geometrieaufbau
+
+``` cpp
+AddVertex()
+VertexNormal()
+VertexTexCoord()
+AddTriangle()
+FillBuffer()
+```
+
+`FillBuffer()` überträgt die Daten in GPU‑Buffer.
+
+------------------------------------------------------------------------
+
+# 5. Rendering‑Pipeline
+
+Der Frame‑Ablauf:
+
+UpdateWorld()\
+RenderWorld()\
+Flip()
+
+RenderWorld:
+
+-   RenderShadowPass()
+-   BuildRenderQueue()
+-   FlushOpaqueQueue()
+-   FlushTransparentQueue()
+
+------------------------------------------------------------------------
+
+# 6. RenderQueue
+
+RenderCommand:
+
+-   Mesh
+-   Surface
+-   Material
+-   Shader
+-   WorldMatrix
+-   Backend
+
+Jeder Command entspricht **einem Draw‑Call**.
+
+------------------------------------------------------------------------
+
+# 7. SortKey
+
+Opaque‑Commands werden nach folgendem Key sortiert:
+
+uint64 SortKey = ShaderPointer \<\< 32 \| MaterialPointer
+
+``` cpp
 uint64_t SortKey() const noexcept
 {
-    uint64_t sh = (reinterpret_cast<uintptr_t>(shader)   & 0xFFFFFFFF);
+    uint64_t sh = (reinterpret_cast<uintptr_t>(shader) & 0xFFFFFFFF);
     uint64_t mt = (reinterpret_cast<uintptr_t>(material) & 0xFFFFFFFF);
     return (sh << 32) | mt;
 }
 ```
 
-Durch Sortierung nach diesem Key werden alle Draw-Calls mit demselben Shader aufeinanderfolgend ausgeführt, dann innerhalb desselben Shaders nach Material. Das minimiert GPU-State-Wechsel ohne echtes GPU-Instancing (DrawIndexedInstanced).
+Ziel: Minimierung von Shader‑ und Material‑State‑Wechseln.
 
-### 5.2 Transparent-Pass
+------------------------------------------------------------------------
 
-Surfaces deren Material `MF_TRANSPARENT` gesetzt hat, landen in `m_transFrame` als Paar `(float depth, RenderCommand)`. Depth ist LengthSq vom Kamera-Ursprung zum Mesh-Ursprung — ausreichend für korrekte Back-to-Front-Sortierung ohne Wurzelberechnung.
+# 8. Transparent‑Pass
 
-Vor `FlushTransparentQueue()` wird der Alpha-BlendState gebunden. Nach dem Durchlauf wird der No-BlendState wiederhergestellt. Der SRV-Cache wird invalidiert weil sich der GPU-Zustand geändert hat.
+Transparente Surfaces werden getrennt sortiert:
 
-```cpp
-// BlendState-Konfiguration (EnsureBackend):
-D3D11_BLEND_DESC bd{};
-bd.RenderTarget[0].BlendEnable    = TRUE;
-bd.RenderTarget[0].SrcBlend       = D3D11_BLEND_SRC_ALPHA;
-bd.RenderTarget[0].DestBlend      = D3D11_BLEND_INV_SRC_ALPHA;
-bd.RenderTarget[0].BlendOp        = D3D11_BLEND_OP_ADD;
-bd.RenderTarget[0].SrcBlendAlpha  = D3D11_BLEND_ONE;
-bd.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
-bd.RenderTarget[0].BlendOpAlpha   = D3D11_BLEND_OP_ADD;
-```
+Container:
 
----
+m_transFrame (depth, RenderCommand)
 
-## 6. Material- & Shader-System
+Sortierung: **back‑to‑front**
 
-### 6.1 Texture-Slots im Shader
+BlendState:
 
-Der Standard-Pixel-Shader belegt folgende SRV-Slots. Die Slots sind fest verdrahtet — SM5.0 erlaubt kein dynamisches Array-Indexing in Pixel-Shadern.
+SrcBlend = SRC_ALPHA\
+DestBlend = INV_SRC_ALPHA
 
-| Slot | Name | Beschreibung |
-|---|---|---|
-| t0 | `gAlbedo` | Albedo-Textur. Fallback: `WhiteIndex()`. |
-| t1 | `gNormalMap` | Normal Map. Nur ausgewertet wenn `MF_USE_NORMAL_MAP` gesetzt. Fallback: `FlatNormalIndex()`. |
-| t2 | `gORM` | ORM-Map (Occlusion/Roughness/Metallic). Nur wenn `MF_USE_ORM_MAP`. |
-| t3 | `gDecal` | Zweite Textur für Blend-Modi. Intern als `decalIndex` verwaltet. Fallback: White. |
-| t16 | `shadowMapTexture` | Shadow Map. Comparison Sampler s7. |
+------------------------------------------------------------------------
 
-### 6.2 MaterialBuffer (b2) — Constant-Buffer-Layout
+# 9. SRV‑Cache
 
-Der Material-Constant-Buffer ist 128 Bytes groß und muss exakt mit der HLSL-`cbuffer`-Definition übereinstimmen (`static_assert` im Code sichert das ab).
+Der RenderManager speichert die zuletzt gebundenen ShaderResourceViews.
 
-```cpp
-struct alignas(16) MaterialCB   // 128 Bytes
+Vor jedem `PSSetShaderResources()` wird geprüft, ob sich der SRV‑Bind
+geändert hat.\
+Nur bei Änderung erfolgt ein neuer DirectX‑Call.
+
+------------------------------------------------------------------------
+
+# 10. Material‑System
+
+Material‑Parameter werden im ConstantBuffer **b2** gespeichert.
+
+``` hlsl
+cbuffer MaterialBuffer : register(b2)
 {
-    XMFLOAT4 baseColor;         // Diffuse-Farbe + Alpha
-    XMFLOAT4 specularColor;
-    XMFLOAT4 emissiveColor;
-    XMFLOAT4 uvTilingOffset;    // xy=tiling  zw=offset
+    float4 gBaseColor;
+    float4 gSpecularColor;
+    float4 gEmissiveColor;
+    float4 gUvTilingOffset;
 
-    XMFLOAT4 pbr;              // x=metallic y=roughness z=normalScale w=occlusion
-    XMFLOAT4 alpha;            // x=shininess y=transparency z=alphaCutoff w=receiveShadows
+    float4 gPbr;
+    float4 gAlpha;
 
-    XMUINT4  texIndex;         // x=albedo y=normal z=orm w=decal (Pool-Indices)
-    XMUINT4  misc;             // x=blendMode y=materialFlags z=blendFactor(bits) w=unused
+    uint4  gTexIndex;
+    uint4  gMisc;
 };
 ```
 
-`gMisc.z`: blendFactor wird als float-Bits per `memcpy` in einen `uint32` übertragen und im Shader per `asfloat()` wieder gelesen. Das vermeidet eine Erweiterung des Constant-Buffers über 128 Bytes.
+Der C++‑Struct muss exakt dieses Layout besitzen.
 
-### 6.3 MaterialFlags
+------------------------------------------------------------------------
 
-Die `materialFlags` in `gMisc.y` sind ein Bitmask der im Pixel-Shader per `#define` ausgewertet wird:
+# 11. Shadow Mapping
 
-| Flag | Wert | Bedeutung |
-|---|---|---|
-| `MF_ALPHA_TEST` | 1<<0 | Alpha-Test per `discard`. Läuft vor der Blend-Modi-Berechnung. |
-| `MF_DOUBLE_SIDED` | 1<<1 | Reserviert. Rasterizer-State muss extern gesetzt werden. |
-| `MF_UNLIT` | 1<<2 | Lighting überspringen. Albedo direkt ausgeben. |
-| `MF_USE_NORMAL_MAP` | 1<<3 | Normal-Map-Berechnung im PS aktivieren. Ohne dieses Flag wird die geometrische Normale verwendet. |
-| `MF_USE_ORM_MAP` | 1<<4 | ORM-Sampling aktivieren. |
-| `MF_USE_EMISSIVE` | 1<<5 | Emissive-Farbe zur finalen Farbe addieren. |
-| `MF_TRANSPARENT` | 1<<6 | Surface wird in den Transparent-Pass geroutet (`BuildRenderQueue`). |
+Shadow Maps werden aus Sicht des Directional Lights gerendert.
 
-### 6.4 Blend-Modi (t3 / gDecal)
+RenderShadowPass:
 
-Wenn `blendMode > 0` sampelt der Shader `gDecal` auf `uv1` (texCoord2) und mischt das Ergebnis mit der Albedo-Farbe. `blendFactor` skaliert den Einfluss von 0.0 bis 1.0.
+-   Shadow Depth Target
+-   Vertex Shader
 
-| Mode | Name | HLSL-Formel |
-|---|---|---|
-| 0 | off | Kein Blend. gDecal wird nicht gesampelt. |
-| 1 | Multiply | `lerp(albedo, albedo * tex2, f)` — Abdunkeln. |
-| 2 | Multiply×2 | `lerp(albedo, albedo * tex2 * 2, f)` — Detail-Map. |
-| 3 | Additive | `lerp(albedo, albedo + tex2, f)` — Glühen, Feuer. |
-| 4 | Lerp/Alpha | `lerp(albedo, tex2.rgb, tex2.a * f)` — Decals. |
-| 5 | Luminanz | `lum = dot(tex2, float3(0.2126, 0.7152, 0.0722)); lerp(albedo, albedo + tex2*lum, f)` |
+Im Hauptpass:
 
----
+t16 = Shadow Map\
+s7 = Comparison Sampler
 
-## 7. GpuData-Pattern
+------------------------------------------------------------------------
 
-Szene-Klassen (Entity, Material, Surface) enthalten keine DirectX-Typen. Alle GPU-Ressourcen werden in separaten GpuData-Objekten gekapselt, die als Pointer gehalten werden. Das entkoppelt Scene-Layer-Header von DirectX-Includes.
+# 12. Vertex‑Format‑Bitmask
 
-| Klasse | Inhalt |
-|---|---|
-| `Dx11EntityGpuData` | Weltmatrix-Constant-Buffer (b0) pro Entity. Wird in `Entity::Update()` aktualisiert. |
-| `Dx11MaterialGpuData` | Material-Constant-Buffer (b2) + Texture-SRVs + Sampler-States. `UpdateConstantBuffer()` mappt und kopiert per `D3D11_MAP_WRITE_DISCARD`. |
-| `SurfaceGpuBuffer` | VertexBuffer + IndexBuffer pro Surface. `FillBuffer()` erstellt, `UpdateVertexBuffer()` aktualisiert partiell. |
+  Flag                 HLSL
+  -------------------- -----------
+  D3DVERTEX_POSITION   POSITION
+  D3DVERTEX_NORMAL     NORMAL
+  D3DVERTEX_TANGENT    TANGENT
+  D3DVERTEX_COLOR      COLOR
+  D3DVERTEX_TEX1       TEXCOORD0
+  D3DVERTEX_TEX2       TEXCOORD1
 
----
+Der `InputLayoutManager` erzeugt daraus die DX11‑Layoutbeschreibung.
 
-## 8. SRV-Cache im RenderManager
+------------------------------------------------------------------------
 
-Der RenderManager hält ein Array von vier `ID3D11ShaderResourceView`-Pointern als Cache (`m_boundSRVs[4]`). Vor jedem `PSSetShaderResources(0, 4, srvs)` wird per `memcmp` geprüft ob sich die SRVs gegenüber dem letzten Bind geändert haben. Nur bei Änderung wird der DX11-Call ausgeführt. Nach `FlushTransparentQueue()` wird der Cache mit `memset(m_boundSRVs, 0)` invalidiert.
+# 13. Abhängigkeitsregeln
 
----
+Application\
+- darf nur `gidx.h` includen
 
-## 9. Shadow Mapping
+API\
+- darf keine DirectX‑Header includen
 
-Shadow Mapping arbeitet mit einem dedizierten `ShadowMapTarget` das aus der Perspektive des Directional Lights gerendert wird. Der Shadow-Pass bindet nur den Vertex-Shader (`VS_ONLY`), der Pixel-Shader bleibt ungebunden.
+Engine‑Layer\
+- keine `d3d11.h` in öffentlichen Headern
 
-Im Haupt-Pass wird die Shadow Map auf Slot t16 gebunden und per `SampleCmpLevelZero` mit dem Comparison-Sampler (s7) ausgewertet. PCF-Filterung mittelt 3×3 Samples mit adaptivem Bias basierend auf NdotL.
-
-```hlsl
-// Bias-Berechnung im PS (verhindert Shadow-Acne):
-float ndotl = saturate(dot(normalize(normal), normalize(-lightDir)));
-float bias  = max(0.0005f, 0.0030f * (1.0f - ndotl));
-```
-
----
-
-## 10. Vertex-Format-Bitmask
-
-`CreateShader()` und `CreateInputLayout()` arbeiten mit einem Bitmask der die im Vertex-Buffer enthaltenen Attribute beschreibt. `InputLayoutManager::CreateInputLayoutVertex()` erzeugt daraus die `D3D11_INPUT_ELEMENT_DESC`-Liste und validiert sie gegen den VS-Bytecode.
-
-| Flag | HLSL-Semantik |
-|---|---|
-| `D3DVERTEX_POSITION` | `float3 POSITION` — Pflichtfeld. |
-| `D3DVERTEX_NORMAL` | `float3 NORMAL` |
-| `D3DVERTEX_TANGENT` | `float4 TANGENT` (xyz + Handedness w). Pflicht für Normal-Map-Shader. |
-| `D3DVERTEX_COLOR` | `float4 COLOR` |
-| `D3DVERTEX_TEX1` | `float2 TEXCOORD0` — Albedo-UV |
-| `D3DVERTEX_TEX2` | `float2 TEXCOORD1` — Lightmap/Detail-UV (für Blend-Modi) |
-| `D3DVERTEX_BONE_INDICES` | `uint4 BLENDINDICES` — Skelettanimation |
-| `D3DVERTEX_BONE_WEIGHTS` | `float4 BLENDWEIGHT` — Skelettanimation |
-
-Fehlt ein vom Shader erwartetes Attribut im Bitmask, schlägt `CreateInputLayout()` mit `E_INVALIDARG` fehl. Der Standard-Shader erwartet alle sechs Basis-Attribute inkl. TANGENT.
-
----
-
-*OYNAME-3DEngine · Internes Architekturdokument · DirectX 11 / C++ / HLSL*
+Backend\
+- enthält alle DirectX‑Objekte

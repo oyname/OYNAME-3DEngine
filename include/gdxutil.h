@@ -139,6 +139,14 @@ public:
         Log("LogOnce() fired"); // <- deine Message
     }
 
+    static void ResetLogOnce(const char* key)
+    {
+        if (!key) key = "__null__";
+
+        std::lock_guard<std::mutex> lock(s_onceMutex);
+        s_seenOnce.erase(key);
+    }
+
     // Einmal pro key, ohne weitere Args: key wird als Message geloggt
     static void LogOnce(const char* key)
     {

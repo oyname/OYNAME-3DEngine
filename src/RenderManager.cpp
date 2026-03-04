@@ -276,19 +276,54 @@ void RenderManager::BuildRenderQueue()
     std::sort(m_transFrame.begin(), m_transFrame.end(),
         [](const auto& a, const auto& b) { return a.first > b.first; });
 
-    static size_t s_lastOpaque = SIZE_MAX;
-    static size_t s_lastTrans = SIZE_MAX;
-    if (m_opaque.Count() != s_lastOpaque || m_transFrame.size() != s_lastTrans)
+    // Debug-Guard: pro Kamera-Pointer eigener Eintrag.
+    // Funktioniert fuer beliebig viele Kameras (Haupt, RTT, Simulation, ...).
+    static std::unordered_map<void*, size_t> s_lastOpaque;
+    static std::unordered_map<void*, size_t> s_lastTrans;
+
+    void* camKey = static_cast<void*>(m_currentCam);
+
+    if (m_opaque.Count() != s_lastOpaque[camKey] ||
+        m_transFrame.size() != s_lastTrans[camKey])
     {
-        s_lastOpaque = m_opaque.Count();
-        s_lastTrans = m_transFrame.size();
-        Debug::Log("RenderManager.cpp: BuildRenderQueue - opaque=", m_opaque.Count(),
+        s_lastOpaque[camKey] = m_opaque.Count();
+        s_lastTrans[camKey] = m_transFrame.size();
+
+        Debug::Log("RenderManager.cpp: BuildRenderQueue [cam=", camKey, "]"
+            " opaque=", m_opaque.Count(),
             " transparent=", m_transFrame.size());
+
+        // Opaque-Reihenfolge: Shader -> Material -> Mesh
+        for (size_t i = 0; i < m_opaque.commands.size(); ++i)
+        {
+            const RenderCommand& cmd = m_opaque.commands[i];
+            Debug::Log("RenderManager.cpp:   opaque[", (int)i, "]"
+                " shader=", (void*)cmd.shader,
+                " mat=", (void*)cmd.material,
+                " mesh=", (void*)cmd.mesh,
+                " surface=", (void*)cmd.surface);  // war: slot=
+        }
+
+        // Transparent-Reihenfolge: Tiefe (gross = weit weg = zuerst)
+        for (size_t i = 0; i < m_transFrame.size(); ++i)
+        {
+            const RenderCommand& cmd = m_transFrame[i].second;
+            Debug::Log("RenderManager.cpp:   trans[", (int)i, "]"
+                " depth=", m_transFrame[i].first,
+                " mat=", (void*)cmd.material,
+                " mesh=", (void*)cmd.mesh);
+        }
     }
 }
 
 void RenderManager::FlushRenderQueue()
 {
+    int shaderBinds = 0;
+    int materialBinds = 0;
+    int drawCalls = 0;
+
+    static bool once = false;
+
     Shader* lastShader = nullptr;
     Material* lastMaterial = nullptr;
     ID3D11DeviceContext* ctx = m_device.GetDeviceContext();
@@ -297,7 +332,7 @@ void RenderManager::FlushRenderQueue()
     if (m_defaultSampler && ctx)
         ctx->PSSetSamplers(0, 1, &m_defaultSampler);
 
-    for (RenderCommand& cmd : m_opaque.commands)
+    for (auto& cmd : m_opaque.commands)
     {
         if (!cmd.shader || !cmd.material || !cmd.mesh || !cmd.surface) continue;
 
@@ -311,6 +346,12 @@ void RenderManager::FlushRenderQueue()
             }
             cmd.shader->UpdateShader(&m_device);
             lastShader = cmd.shader;
+
+            if (!once) {
+                ++shaderBinds;
+                Debug::Log("RenderManager.cpp: FlushRenderQueue - SHADER BIND shader=",
+                    (void*)cmd.shader);
+            }
         }
 
         // Material nur binden wenn gewechselt
@@ -377,12 +418,33 @@ void RenderManager::FlushRenderQueue()
                 cmd.material->properties.flags
             );
             lastMaterial = cmd.material;
+
+            if (!once) {
+                ++materialBinds;
+                Debug::Log("RenderManager.cpp:   MATERIAL BIND mat=",
+                    (void*)cmd.material);
+            }
+        }
+
+        // ...Draw Call...
+        if (!once) {
+            ++drawCalls;
+            Debug::Log("RenderManager.cpp:      DRAW mesh=",
+                (void*)cmd.mesh, " surface=", (void*)cmd.surface);
         }
 
         // MatrixSet der Kamera in den Command schreiben und ausfuehren
         cmd.mesh->matrixSet = m_currentCam->matrixSet;
         cmd.mesh->matrixSet.worldMatrix = cmd.world;
         cmd.Execute(&m_device);
+    }
+
+    if (!once) {
+        Debug::Log("RenderManager.cpp:SUMMARY"
+            " shaderBinds=", shaderBinds,
+            " materialBinds=", materialBinds,
+            " drawCalls=", drawCalls);
+        once = true;
     }
 }
 
