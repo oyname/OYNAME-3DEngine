@@ -53,7 +53,7 @@ int main()
     while (Windows::MainLoop() && !(GetAsyncKeyState(VK_ESCAPE) & 0x8000))
     {
         Core::BeginFrame();
-        const float dt = static_cast<float>(Core::GetDeltaTime());
+        const float dt = static_cast<float>(Timer::GetDeltaTime());
 
         // Würfel dreht sich
         Engine::TurnEntity(g_cubeMesh, speed * dt, speed * dt * 0.7f, 0.0f);

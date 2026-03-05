@@ -220,7 +220,7 @@ int main()
     while (Windows::MainLoop() && !(GetAsyncKeyState(VK_ESCAPE) & 0x8000))
     {
         Core::BeginFrame();
-        const float dt = (float)Core::GetDeltaTime();
+        const float dt = (float)Timer::GetDeltaTime();
 
         // Toggle wave animation with SPACE (edge-triggered)
         static bool spaceWasDown = false;

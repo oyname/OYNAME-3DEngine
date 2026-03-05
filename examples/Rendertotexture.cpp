@@ -85,7 +85,7 @@ int main()
     while (Windows::MainLoop() && !(GetAsyncKeyState(VK_ESCAPE) & 0x8000))
     {
         Core::BeginFrame();
-        const float dt = static_cast<float>(Core::GetDeltaTime());
+        const float dt = static_cast<float>(Timer::GetDeltaTime());
 
         // Linken Würfel drehen
         Engine::TurnEntity(cubeLeft, 60.0f * dt, 80.0f * dt, 0.0f);

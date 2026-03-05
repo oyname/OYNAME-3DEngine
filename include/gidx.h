@@ -113,7 +113,7 @@ namespace Engine
     // Diese Funktionen arbeiten mit allen Entity-Typen (Mesh, Camera, Light)
     //
 
-    // ── Schatten werfen (Mesh-Ebene) ──────────────────────────────────────────
+    // -- Schatten werfen (Mesh-Ebene) ------------------------------------------
     // Steuert ob ein Mesh im Shadow Pass gerendert wird.
     // false = Mesh wirft keinen Schatten, wird im Shadow Pass übersprungen.
     // Entspricht Unity's MeshRenderer.shadowCastingMode / Unreal's bCastShadow.
@@ -123,7 +123,7 @@ namespace Engine
         entity->SetCastShadows(enabled);
     }
 
-    // ── Schatten empfangen (Material-Ebene) ───────────────────────────────────
+    // -- Schatten empfangen (Material-Ebene) ----------------------------------─
     // Steuert ob ein Material die Shadow Map auswertet.
     // false = Oberfläche wird nicht abgedunkelt, auch wenn ein Schatten drauf fällt.
     // Bleibt auf Material-Ebene, weil es im Pixel Shader ausgewertet wird.
@@ -613,8 +613,16 @@ namespace Engine
         if (!surface) { Debug::Log("gidx.h: ERROR: FillBuffer - surface is nullptr"); return; }
 
         Shader* shader = nullptr;
-        if (surface->pMesh && surface->pMesh->pMaterial)
-            shader = surface->pMesh->pMaterial->pRenderShader;
+        Mesh* __owner = surface->GetOwner();
+        if (__owner)
+        {
+            // Aufgeloestes Material fuer diesen Slot holen (slotMaterials[i] oder Default)
+            Material* mat = __owner->meshRenderer.GetMaterial(
+                surface->slotIndex, surface,
+                engine->GetOM().GetStandardMaterial());
+            if (mat)
+                shader = mat->pRenderShader;
+        }
 
         if (!shader) { Debug::Log("gidx.h: ERROR: FillBuffer - cannot resolve shader"); return; }
 
@@ -844,7 +852,7 @@ namespace Engine
         surface->VertexTexCoords(-1, u, v);
     }
 
-    // Zweite UV-Koordinate (Lightmap / Detail-Map) – benötigt D3DVERTEX_TEX2
+    // Zweite UV-Koordinate (Lightmap / Detail-Map) - benötigt D3DVERTEX_TEX2
     inline void VertexTexCoord2(LPSURFACE surface, float u, float v)
     {
         if (surface == nullptr) {
@@ -929,7 +937,7 @@ namespace Engine
         }
     }
 
-    // ── MaterialTexture (Legacy-API, bleibt erhalten) ───────────────────────────
+    // -- MaterialTexture (Legacy-API, bleibt erhalten) --------------------------─
     // Speichert Textur im Material-Slot (slot 0..7) und registriert die SRV
     // automatisch im globalen TexturePool.
     inline void MaterialTexture(LPMATERIAL material, LPTEXTURE texture, int slot = 0)
@@ -955,7 +963,7 @@ namespace Engine
         }
     }
 
-    // ── MaterialSetAlbedo ─────────────────────────────────────────────────────
+    // -- MaterialSetAlbedo ----------------------------------------------------─
     // Weist dem Material die Albedo-Textur zu und registriert sie im TexturePool.
     inline void MaterialSetAlbedo(LPMATERIAL material, LPTEXTURE texture)
     {
@@ -970,11 +978,11 @@ namespace Engine
         {
             uint32_t idx = engine->GetTP().GetOrAdd(texture->m_textureView);
             material->SetAlbedoIndex(idx);
-            Debug::Log("gidx.h: MaterialSetAlbedo – Index ", idx);
+            Debug::Log("gidx.h: MaterialSetAlbedo - Index ", idx);
         }
     }
 
-    // ── MaterialSetNormal ─────────────────────────────────────────────────────
+    // -- MaterialSetNormal ----------------------------------------------------─
     // Weist dem Material die Normal-Map zu. Setzt MF_USE_NORMAL_MAP automatisch.
     inline void MaterialSetNormal(LPMATERIAL material, LPTEXTURE texture)
     {
@@ -990,11 +998,11 @@ namespace Engine
         {
             uint32_t idx = engine->GetTP().GetOrAdd(texture->m_textureView);
             material->SetNormalIndex(idx);
-            Debug::Log("gidx.h: MaterialSetNormal – Index ", idx);
+            Debug::Log("gidx.h: MaterialSetNormal - Index ", idx);
         }
     }
 
-    // ── MaterialSetORM ────────────────────────────────────────────────────────
+    // -- MaterialSetORM --------------------------------------------------------
     // Weist dem Material die ORM-Textur (Occlusion/Roughness/Metallic) zu.
     // Setzt MF_USE_ORM_MAP automatisch.
     inline void MaterialSetORM(LPMATERIAL material, LPTEXTURE texture)
@@ -1012,7 +1020,7 @@ namespace Engine
             material->SetOrmIndex(idx);
             // ORM-Flag aktivieren
             material->properties.flags |= Material::MF_USE_ORM_MAP;
-            Debug::Log("gidx.h: MaterialSetORM – Index ", idx);
+            Debug::Log("gidx.h: MaterialSetORM - Index ", idx);
         }
     }
 
@@ -1030,7 +1038,7 @@ namespace Engine
         {
             uint32_t idx = engine->GetTP().GetOrAdd(texture->m_textureView);
             material->SetOcclusionIndex(idx);
-            Debug::Log("MaterialSetOcclusion – Index ", idx);
+            Debug::Log("MaterialSetOcclusion - Index ", idx);
         }
     }
 
@@ -1048,7 +1056,7 @@ namespace Engine
         {
             uint32_t idx = engine->GetTP().GetOrAdd(texture->m_textureView);
             material->SetRoughnessIndex(idx);
-            Debug::Log("MaterialSetRoughness – Index ", idx);
+            Debug::Log("MaterialSetRoughness - Index ", idx);
         }
     }
 
@@ -1066,11 +1074,11 @@ namespace Engine
         {
             uint32_t idx = engine->GetTP().GetOrAdd(texture->m_textureView);
             material->SetMetallicIndex(idx);
-            Debug::Log("MaterialSetMetallic – Index ", idx);
+            Debug::Log("MaterialSetMetallic - Index ", idx);
         }
     }
 
-    // ── MaterialSetDecal ──────────────────────────────────────────────────────
+    // -- MaterialSetDecal ------------------------------------------------------
     // Weist dem Material eine optionale Decal-Textur zu.
     inline void MaterialSetDecal(LPMATERIAL material, LPTEXTURE texture)
     {
@@ -1085,7 +1093,7 @@ namespace Engine
         {
             uint32_t idx = engine->GetTP().GetOrAdd(texture->m_textureView);
             material->SetDecalIndex(idx);
-            Debug::Log("gidx.h: MaterialSetDecal – Index ", idx);
+            Debug::Log("gidx.h: MaterialSetDecal - Index ", idx);
         }
     }
 
@@ -1095,7 +1103,7 @@ namespace Engine
     // 1 = Multiply     (Lightmap, Schatten)
     // 2 = Multiply×2   (Detail-Map, Helligkeitskorrektur)
     // 3 = Additive     (Glühen, Feuer, Licht)
-    // 4 = Lerp(Alpha)  (Decals, Aufkleber – nutzt Alpha-Kanal von Textur 2)
+    // 4 = Lerp(Alpha)  (Decals, Aufkleber - nutzt Alpha-Kanal von Textur 2)
     // 5 = Luminanz     (Overlay mit schwarzem Hintergrund)
     inline void MaterialBlendMode(LPMATERIAL material, int mode = 0)
     {
@@ -1248,16 +1256,76 @@ namespace Engine
         engine->GetOM().AddMaterialToSurface(material, surface);
     }
 
+    // Setzt das Material fuer einen Slot-Index direkt im MeshRenderer.
+    // Sinnvoll bei MeshAsset-Sharing, wenn jede Instanz pro Slot
+    // ein anderes Material erhalten soll.
+    inline void SetSlotMaterial(LPENTITY entity, unsigned int slot, LPMATERIAL material)
+    {
+        if (!entity)   { Debug::Log("gidx.h: SetSlotMaterial - entity nullptr");   return; }
+        if (!material) { Debug::Log("gidx.h: SetSlotMaterial - material nullptr"); return; }
+        Mesh* mesh = (entity->IsMesh() ? entity->AsMesh() : nullptr);
+        if (!mesh) { Debug::Log("gidx.h: SetSlotMaterial - Entity ist kein Mesh"); return; }
+        engine->GetOM().SetSlotMaterial(mesh, slot, material);
+    }
+
+    // Teilt das MeshAsset von source mit target.
+    //
+    // Das beim CreateMesh automatisch angelegte eigene Asset von target wird
+    // korrekt aus dem ObjectManager entfernt und geloescht, bevor das
+    // geteilte Asset zugewiesen wird. Danach zeigen beide Entities auf
+    // dasselbe MeshAsset; die Geometrie liegt nur einmal im Speicher.
+    //
+    // Wichtig: Vor DeleteMesh auf einem der Meshes muss das Asset des
+    // zu loeschenden Meshes auf nullptr gesetzt werden, damit der
+    // ObjectManager das geteilte Asset nicht doppelt loescht:
+    //   targetMesh->meshRenderer.asset = nullptr;
+    //   Engine::DeleteMesh(&target);   // (sobald DeleteMesh als API existiert)
+    inline void ShareMeshAsset(LPENTITY source, LPENTITY target)
+    {
+        if (!source) { Debug::Log("gidx.h: ShareMeshAsset - source nullptr"); return; }
+        if (!target) { Debug::Log("gidx.h: ShareMeshAsset - target nullptr"); return; }
+
+        Mesh* mSrc = (source->IsMesh() ? source->AsMesh() : nullptr);
+        Mesh* mDst = (target->IsMesh() ? target->AsMesh() : nullptr);
+
+        if (!mSrc) { Debug::Log("gidx.h: ShareMeshAsset - source ist kein Mesh"); return; }
+        if (!mDst) { Debug::Log("gidx.h: ShareMeshAsset - target ist kein Mesh"); return; }
+
+        if (!mSrc->meshRenderer.asset)
+        {
+            Debug::Log("gidx.h: ShareMeshAsset - source hat kein MeshAsset");
+            return;
+        }
+
+        // Das eigene Asset von target aus dem ObjectManager entfernen und loeschen,
+        // damit kein Leak entsteht.
+        if (mDst->meshRenderer.asset && mDst->meshRenderer.asset != mSrc->meshRenderer.asset)
+        {
+            engine->GetOM().DeleteMeshAsset(mDst->meshRenderer.asset);
+            Debug::Log("gidx.h: ShareMeshAsset - altes Asset von target geloescht");
+        }
+
+        mDst->meshRenderer.asset = mSrc->meshRenderer.asset;
+        Debug::Log("gidx.h: ShareMeshAsset - Asset geteilt");
+    }
+
     inline void EntityTexture(LPENTITY entity, LPTEXTURE texture)
     {
-        if (!entity || !entity->IsMesh())
-            return;
-
+        if (!entity || !entity->IsMesh()) return;
         Mesh* mesh = entity->AsMesh();
-        if (!mesh || !mesh->pMaterial)
-            return;
+        if (!mesh) return;
 
-        MaterialSetAlbedo(mesh->pMaterial, texture);
+        // Texture auf das Material in Slot 0 setzen.
+        // Slot 0 ist immer die erste Surface – bei einem einfachen Mesh
+        // der einzige Slot.
+        Material* mat = mesh->meshRenderer.GetMaterial(
+            0, nullptr, engine->GetOM().GetStandardMaterial());
+        if (!mat)
+        {
+            Debug::Log("gidx.h: EntityTexture - kein Material in Slot 0");
+            return;
+        }
+        MaterialSetAlbedo(mat, texture);
     }
 
     inline HRESULT  CreateTexture(LPLPTEXTURE texture, int width, int height)
@@ -1464,7 +1532,7 @@ namespace Engine
         return cam->cullMask;
     }
 
-    // ── Render-Textur anlegen ─────────────────────────────────────────────────
+    // -- Render-Textur anlegen ------------------------------------------------─
     // Erzeugt eine RTT-Instanz und schreibt den Zeiger nach *rtt.
     // width/height: Auflösung der Textur (unabhängig vom Screen).
     // Verwendung als Textur: Engine::GetRTTTexture(rtt).
@@ -1481,17 +1549,17 @@ namespace Engine
 
         if (FAILED(hr))
         {
-            Debug::LogError("gidx.h: CreateRenderTexture() – Create() fehlgeschlagen");
+            Debug::LogError("gidx.h: CreateRenderTexture() - Create() fehlgeschlagen");
             delete target;
             *rtt = nullptr;
             return;
         }
 
         *rtt = target;
-        Debug::Log("gidx.h: CreateRenderTexture() – ", width, "x", height, " erstellt");
+        Debug::Log("gidx.h: CreateRenderTexture() - ", width, "x", height, " erstellt");
     }
 
-    // ── Render-Textur freigeben ───────────────────────────────────────────────
+    // -- Render-Textur freigeben ----------------------------------------------─
     // Gibt alle D3D11-Ressourcen frei und löscht die RTT-Instanz.
     inline void ReleaseRenderTexture(LPRENDERTARGET* rtt)
     {
@@ -1501,7 +1569,7 @@ namespace Engine
         *rtt = nullptr;
     }
 
-    // ── RTT als aktiven Render-Target setzen ─────────────────────────────────
+    // -- RTT als aktiven Render-Target setzen --------------------------------─
     // Alle nachfolgenden RenderWorld()-Aufrufe rendern in diese Textur.
     // rttCamera: optionale zweite Kamera für den RTT-Pass (z.B. andere Perspektive).
     //            nullptr → aktuelle Haupt-Kamera wird verwendet.
@@ -1511,7 +1579,7 @@ namespace Engine
         engine->GetRM().SetRTTTarget(rtt, rttCamera);
     }
 
-    // ── Backbuffer als Render-Target wiederherstellen ────────────────────────
+    // -- Backbuffer als Render-Target wiederherstellen ------------------------
     // Muss nach dem RTT-Pass aufgerufen werden, bevor der normale Frame gerendert wird.
     inline void ResetRenderTarget()
     {
@@ -1519,7 +1587,7 @@ namespace Engine
         engine->GetRM().SetRTTTarget(nullptr, nullptr);
     }
 
-    // ── Texture-Wrapper für den Shader-Input ─────────────────────────────────
+    // -- Texture-Wrapper für den Shader-Input --------------------------------─
     // Gibt den internen Texture*-Wrapper zurück.
     // Direkt verwendbar mit Engine::MaterialTexture / Engine::EntityTexture.
     inline LPTEXTURE GetRTTTexture(LPRENDERTARGET rtt)
@@ -1528,7 +1596,7 @@ namespace Engine
         return rtt->GetTextureWrapper();
     }
 
-    // ── Clearfarbe der RTT setzen ─────────────────────────────────────────────
+    // -- Clearfarbe der RTT setzen --------------------------------------------─
     inline void SetRTTClearColor(LPRENDERTARGET rtt, float r, float g, float b, float a = 1.0f)
     {
         if (!rtt) return;
@@ -1542,7 +1610,7 @@ namespace Engine
     //   worldMatrix = childLocalMatrix * parentWorldMatrix
     //
     // Ob Bewegung/Rotation im lokalen oder weltkoordinatensystem wirkt,
-    // gibt man direkt beim Aufruf per Space-Flag an – Standard ist Space::Local:
+    // gibt man direkt beim Aufruf per Space-Flag an - Standard ist Space::Local:
     //   Engine::MoveEntity(wheel, 1.5f, 0.0f, 0.0f);                  // Local (Standard)
     //   Engine::MoveEntity(wheel, 1.5f, 0.0f, 0.0f, Space::World);    // World
     //
@@ -1570,7 +1638,7 @@ namespace Engine
     // ==================== ENTITY POSITION GETTER ====================
 
     // Gibt die Weltposition einer Entity zurueck (als XMVECTOR).
-    // Beruecksichtigt die Parent-Chain – liefert immer die finale Weltposition.
+    // Beruecksichtigt die Parent-Chain - liefert immer die finale Weltposition.
     inline DirectX::XMVECTOR EntityPosition(LPENTITY entity)
     {
         if (!entity) { Debug::Log("gidx.h: ERROR: EntityPosition - entity is nullptr"); return DirectX::XMVectorZero(); }
@@ -1597,7 +1665,7 @@ namespace Engine
         return DirectX::XMVectorGetZ(entity->GetWorldMatrix().r[3]);
     }
 
-    // Lokale Position (ohne Parent-Einfluss) – der Wert der direkt im Transform gespeichert ist.
+    // Lokale Position (ohne Parent-Einfluss) - der Wert der direkt im Transform gespeichert ist.
     inline DirectX::XMVECTOR EntityLocalPosition(LPENTITY entity)
     {
         if (!entity) { Debug::Log("gidx.h: ERROR: EntityLocalPosition - entity is nullptr"); return DirectX::XMVectorZero(); }
@@ -1620,6 +1688,140 @@ namespace Engine
     {
         if (!entity) { Debug::Log("gidx.h: ERROR: EntityLocalZ - entity is nullptr"); return 0.0f; }
         return DirectX::XMVectorGetZ(entity->transform.GetPosition());
+    }
+
+    // ==================== DEBUG / VISUALISIERUNG ====================
+
+    // Gibt die interne Struktur eines einzelnen Mesh im Baum-Format aus:
+    //
+    //   LPENTITY (0x00AABBCC)
+    //   +-- Mesh : Entity  active=1  visible=1
+    //         +-- transform   pos=(1.50, 1.00, 0.00)
+    //         +-- pMaterial   0x00112233  [Fallback]
+    //         +-- meshRenderer
+    //               +-- asset --> MeshAsset (0x00DDEEFF)  slots=1  active=1
+    //               │     +-- m_slots[0] --> Surface (0x00FFAABB)  verts=24  idx=36
+    //               +-- slotMaterials
+    //                     +-- [0] --> Material (0x00CCBBAA)
+    inline void DebugPrintMesh(LPENTITY entity)
+    {
+        if (!entity)
+        {
+            Debug::Log("gidx.h: DebugPrintMesh - entity ist nullptr");
+            return;
+        }
+
+        Mesh* mesh = (entity->IsMesh() ? entity->AsMesh() : nullptr);
+        if (!mesh)
+        {
+            Debug::Log("gidx.h: DebugPrintMesh - Entity ist kein Mesh");
+            return;
+        }
+
+        // -- Entity-Zeile
+        Debug::Log("gidx.h: DebugPrintMesh --------------------------------");
+        Debug::Log("gidx.h: LPENTITY (", (void*)entity, ")");
+        Debug::Log("gidx.h: +-- Mesh : Entity",
+            "  active=",  (int)mesh->IsActive(),
+            "  visible=", (int)mesh->IsVisible(),
+            "  layer=",   mesh->GetLayerMask());
+
+        // -- Transform
+        DirectX::XMVECTOR pos = mesh->transform.GetPosition();
+        Debug::Log("gidx.h:       +-- transform   pos=(",
+            DirectX::XMVectorGetX(pos), ", ",
+            DirectX::XMVectorGetY(pos), ", ",
+            DirectX::XMVectorGetZ(pos), ")");
+
+        // -- pMaterial (nur noch interner temporaerer Speicher, kein Render-Fallback)
+        if (mesh->pMaterial)
+            Debug::Log("gidx.h:       +-- pMaterial   ", (void*)mesh->pMaterial, "  [temporaer, kein Render-Fallback]");
+        else
+            Debug::Log("gidx.h:       +-- pMaterial   nullptr");
+
+        // -- MeshRenderer / Asset
+        MeshAsset* asset = mesh->meshRenderer.asset;
+        if (!asset)
+        {
+            Debug::Log("gidx.h:       +-- meshRenderer  asset=nullptr  [kein Asset!]");
+            return;
+        }
+
+        Debug::Log("gidx.h:       +-- meshRenderer");
+        Debug::Log("gidx.h:             +-- asset --> MeshAsset (", (void*)asset, ")",
+            "  slots=",  asset->NumSlots(),
+            "  active=", asset->NumActiveSlots());
+
+        // -- Slots
+        const auto& slots = asset->GetSlots();
+        for (unsigned int i = 0; i < (unsigned int)slots.size(); ++i)
+        {
+            Surface* s = slots[i];
+            const bool isLast = (i == (unsigned int)slots.size() - 1);
+            const char* branch = isLast ? "      +--" : "      +--";
+
+            if (!s)
+            {
+                Debug::Log("gidx.h:             ", branch,
+                    " m_slots[", (int)i, "] --> nullptr  [tombstone]");
+                continue;
+            }
+
+            Debug::Log("gidx.h:             ", branch,
+                " m_slots[", (int)i, "] --> Surface (", (void*)s, ")",
+                "  verts=", s->CountVertices(),
+                "  idx=",   s->CountIndices(),
+                "  active=", (int)s->isActive);
+        }
+
+        // -- Aufgeloeste Materialien pro Slot (was der Renderer tatsaechlich bekommt)
+        // slotMaterials[i] wenn gesetzt, sonst immer das Engine-Standard-Material.
+        Debug::Log("gidx.h:             +-- resolved materials per slot");
+        Material* standardMat = engine->GetOM().GetStandardMaterial();
+        const auto& mats = mesh->meshRenderer.slotMaterials;
+        for (unsigned int i = 0; i < (unsigned int)slots.size(); ++i)
+        {
+            Surface* s = slots[i];
+            if (!s) continue;
+
+            Material* resolved = mesh->meshRenderer.GetMaterial(i, s, standardMat);
+
+            const bool isLast = (i == (unsigned int)slots.size() - 1);
+            const char* branch = isLast ? "                  +--" : "                  +--";
+
+            const char* source = (i < mats.size() && mats[i] != nullptr)
+                ? "[slotMaterials]"
+                : "[Standard-Material]";
+
+            if (resolved)
+                Debug::Log("gidx.h:             ", branch,
+                    " slot[", (int)i, "] --> Material (", (void*)resolved, ")  ", source);
+            else
+                Debug::Log("gidx.h:             ", branch,
+                    " slot[", (int)i, "] --> nullptr  [FEHLER: kein Standard-Material!]");
+        }
+
+        Debug::Log("gidx.h: DebugPrintMesh --------------------------------");
+    }
+
+    // Gibt die Struktur aller Meshes in der Szene aus.
+    // Nuetzlich zum Ueberpruefen von Asset-Sharing, Material-Zuweisung
+    // und Slot-Belegung nach dem Aufbau der Szene.
+    inline void DebugPrintScene()
+    {
+        if (!engine) { Debug::Log("gidx.h: DebugPrintScene - engine nullptr"); return; }
+
+        const auto& meshes = engine->GetOM().GetMeshes();
+
+        Debug::Log("gidx.h: ===== DebugPrintScene  meshes=", (int)meshes.size(), " =====");
+
+        for (unsigned int i = 0; i < (unsigned int)meshes.size(); ++i)
+        {
+            Debug::Log("gidx.h: ----- Mesh[", (int)i, "] -----");
+            DebugPrintMesh(meshes[i]);
+        }
+
+        Debug::Log("gidx.h: ===== DebugPrintScene END =====");
     }
 
 } // End of namespace Engine

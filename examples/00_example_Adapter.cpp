@@ -34,7 +34,7 @@ int main()
     while (Windows::MainLoop() && !(GetAsyncKeyState(VK_ESCAPE) & 0x8000)) // Main loop
     {
         //Core::BeginFrame();
-        //const float dt = static_cast<float>(Core::GetDeltaTime());
+        //const float dt = static_cast<float>(Timer::GetDeltaTime());
         //
         //
         //Engine::Cls(0, 64, 128);

@@ -1,12 +1,11 @@
 ﻿#define NOMINMAX  // ← VOR allen includes
 #include "gidx.h"
+#include "geometry.h"
+
 #include <chrono>
 #include <vector>
 #include <cmath>
 #include <algorithm>
-
-// Simple Cube Creation
-void CreateSimpleCube(LPENTITY* mesh, MATERIAL* material = nullptr);
 
 int main()
 {
@@ -213,73 +212,4 @@ int main()
 
     // Shutdown the engine
     return 0;
-}
-
-// ==================== SIMPLE CUBE CREATION ====================
-void CreateSimpleCube(LPENTITY* mesh, MATERIAL* material)
-{
-    Engine::CreateMesh(mesh, material);
-
-    LPSURFACE surface = nullptr;
-    Engine::CreateSurface(&surface, *mesh);
-
-    // 8 Eckpunkte des Würfels
-    float size = 1.0f;
-    DirectX::XMFLOAT3 vertices[8] = {
-        {-size, -size, -size},  // 0
-        {-size, +size, -size},  // 1
-        {+size, +size, -size},  // 2
-        {+size, -size, -size},  // 3
-        {-size, -size, +size},  // 4
-        {-size, +size, +size},  // 5
-        {+size, +size, +size},  // 6
-        {+size, -size, +size}   // 7
-    };
-
-    // 6 Seiten, 4 Vertices pro Seite = 24 Vertices
-    // Front Face (Z-)
-    Engine::AddVertex(surface, vertices[0]); Engine::VertexNormal(surface, 0, 0, -1); Engine::VertexColor(surface, 255, 255, 255);
-    Engine::AddVertex(surface, vertices[1]); Engine::VertexNormal(surface, 0, 0, -1); Engine::VertexColor(surface, 255, 255, 255);
-    Engine::AddVertex(surface, vertices[2]); Engine::VertexNormal(surface, 0, 0, -1); Engine::VertexColor(surface, 255, 255, 255);
-    Engine::AddVertex(surface, vertices[3]); Engine::VertexNormal(surface, 0, 0, -1); Engine::VertexColor(surface, 255, 255, 255);
-
-    // Back Face (Z+)  <-- Winding gedreht
-    Engine::AddVertex(surface, vertices[4]); Engine::VertexNormal(surface, 0, 0, 1); Engine::VertexColor(surface, 255, 255, 255);
-    Engine::AddVertex(surface, vertices[7]); Engine::VertexNormal(surface, 0, 0, 1); Engine::VertexColor(surface, 255, 255, 255);
-    Engine::AddVertex(surface, vertices[6]); Engine::VertexNormal(surface, 0, 0, 1); Engine::VertexColor(surface, 255, 255, 255);
-    Engine::AddVertex(surface, vertices[5]); Engine::VertexNormal(surface, 0, 0, 1); Engine::VertexColor(surface, 255, 255, 255);
-
-    // Left Face (X-)
-    Engine::AddVertex(surface, vertices[0]); Engine::VertexNormal(surface, -1, 0, 0); Engine::VertexColor(surface, 255, 255, 255);
-    Engine::AddVertex(surface, vertices[4]); Engine::VertexNormal(surface, -1, 0, 0); Engine::VertexColor(surface, 255, 255, 255);
-    Engine::AddVertex(surface, vertices[5]); Engine::VertexNormal(surface, -1, 0, 0); Engine::VertexColor(surface, 255, 255, 255);
-    Engine::AddVertex(surface, vertices[1]); Engine::VertexNormal(surface, -1, 0, 0); Engine::VertexColor(surface, 255, 255, 255);
-
-    // Right Face (X+)
-    Engine::AddVertex(surface, vertices[3]); Engine::VertexNormal(surface, 1, 0, 0); Engine::VertexColor(surface, 255, 255, 255);
-    Engine::AddVertex(surface, vertices[2]); Engine::VertexNormal(surface, 1, 0, 0); Engine::VertexColor(surface, 255, 255, 255);
-    Engine::AddVertex(surface, vertices[6]); Engine::VertexNormal(surface, 1, 0, 0); Engine::VertexColor(surface, 255, 255, 255);
-    Engine::AddVertex(surface, vertices[7]); Engine::VertexNormal(surface, 1, 0, 0); Engine::VertexColor(surface, 255, 255, 255);
-
-    // Bottom Face (Y-)
-    Engine::AddVertex(surface, vertices[0]); Engine::VertexNormal(surface, 0, -1, 0); Engine::VertexColor(surface, 255, 255, 255);
-    Engine::AddVertex(surface, vertices[3]); Engine::VertexNormal(surface, 0, -1, 0); Engine::VertexColor(surface, 255, 255, 255);
-    Engine::AddVertex(surface, vertices[7]); Engine::VertexNormal(surface, 0, -1, 0); Engine::VertexColor(surface, 255, 255, 255);
-    Engine::AddVertex(surface, vertices[4]); Engine::VertexNormal(surface, 0, -1, 0); Engine::VertexColor(surface, 255, 255, 255);
-
-    // Top Face (Y+)
-    Engine::AddVertex(surface, vertices[1]); Engine::VertexNormal(surface, 0, 1, 0); Engine::VertexColor(surface, 255, 255, 255);
-    Engine::AddVertex(surface, vertices[5]); Engine::VertexNormal(surface, 0, 1, 0); Engine::VertexColor(surface, 255, 255, 255);
-    Engine::AddVertex(surface, vertices[6]); Engine::VertexNormal(surface, 0, 1, 0); Engine::VertexColor(surface, 255, 255, 255);
-    Engine::AddVertex(surface, vertices[2]); Engine::VertexNormal(surface, 0, 1, 0); Engine::VertexColor(surface, 255, 255, 255);
-
-    // Indices für alle 6 Seiten (2 Triangles pro Seite)
-    int offset = 0;
-    for (int face = 0; face < 6; face++) {
-        Engine::AddTriangle(surface, offset + 0, offset + 1, offset + 2);
-        Engine::AddTriangle(surface, offset + 0, offset + 2, offset + 3);
-        offset += 4;
-    }
-
-    Engine::FillBuffer(surface);
 }

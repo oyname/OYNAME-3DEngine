@@ -124,7 +124,7 @@ int main()
         Core::BeginFrame();
 
         // Frame delta time (seconds)
-        float dt = (float)Core::GetDeltaTime();
+        float dt = (float)Timer::GetDeltaTime();
 
         // Continuous rotation around Y axis
         // This makes lighting and reflections clearly visible

@@ -81,6 +81,8 @@ int main()
     Engine::AddTriangle(quad, 3, 2, 1);
     Engine::FillBuffer(quad);
 
+    Engine::DebugPrintScene();
+
     while (Windows::MainLoop() && !(GetAsyncKeyState(VK_ESCAPE) & 0x8000))
     {
         Engine::Cls(0, 64, 128);

@@ -60,7 +60,7 @@ int main()
     {
         Core::BeginFrame();
 
-        const float dt = static_cast<float>(Core::GetDeltaTime());
+        const float dt = static_cast<float>(Timer::GetDeltaTime());
 
         if ((GetAsyncKeyState(VK_UP) & 0x8000))
         {

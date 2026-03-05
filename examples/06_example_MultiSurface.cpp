@@ -101,11 +101,13 @@ int main()
     // -------------------------------------------------
     const float rotationSpeed = 80.0f;
 
+    Engine::DebugPrintScene();
+
     while (Windows::MainLoop() && !(GetAsyncKeyState(VK_ESCAPE) & 0x8000))
     {
         Core::BeginFrame();
 
-        const float dt = static_cast<float>(Core::GetDeltaTime());
+        const float dt = static_cast<float>(Timer::GetDeltaTime());
 
         // Rotate cube continuously to showcase all surfaces/materials
         Engine::TurnEntity(

@@ -8,15 +8,11 @@ ObjectManager::ObjectManager() {}
 
 ObjectManager::~ObjectManager()
 {
-    // Container clearen, bevor Objekte geloescht werden
     for (auto& shader : m_shaders)
         shader->materials.clear();
 
     for (auto& mesh : m_meshes)
     {
-        // Slots aus dem Asset loeschen (Referenzen; Surfaces leben in m_surfaces)
-        if (mesh->meshRenderer.asset)
-            mesh->meshRenderer.asset->GetSlots(); // lesend – nur sicherstellen, kein Clear
         mesh->pMaterial = nullptr;
     }
 
@@ -50,7 +46,6 @@ ObjectManager::~ObjectManager()
         Memory::SafeDelete(shader);
     m_shaders.clear();
 
-    // Entity-Liste clearen (enthaelt nur Referenzen)
     m_entities.clear();
 }
 
@@ -129,25 +124,58 @@ void ObjectManager::AddSurfaceToMesh(Mesh* mesh, Surface* surface)
 {
     if (!mesh || !surface) return;
 
-    surface->pMesh = mesh;
-    mesh->AddSurface(surface);  // delegiert an meshRenderer.asset
+    // Mesh::AddSurface ruft intern MeshAsset::AddSlot (setzt slotIndex)
+    // und Surface::SetOwner auf.
+    mesh->AddSurface(surface);
 }
 
 void ObjectManager::AddMaterialToSurface(Material* material, Surface* surface)
 {
     if (!material || !surface) return;
-    surface->pMaterial = material;
+
+    // Materialzuweisung ueber den Slot-Index im MeshRenderer.
+    // Voraussetzung: surface->slotIndex ist korrekt gesetzt (durch MeshAsset::AddSlot).
+    Mesh* mesh = surface->GetOwner();
+    if (!mesh)
+    {
+        Debug::Log("objectmanager.cpp: AddMaterialToSurface - Surface hat keinen Besitzer-Mesh");
+        return;
+    }
+
+    mesh->meshRenderer.SetMaterial(surface->slotIndex, material);
 
     if (material->pRenderShader)
         AssignShaderToMaterial(material->pRenderShader, material);
 }
 
+//void ObjectManager::AddMeshToMaterial(Material* material, Mesh* mesh)
+//{
+//    if (!material || !mesh) return;
+//
+//    mesh->pMaterial = material;
+//
+//    if (material->pRenderShader)
+//        AssignShaderToMaterial(material->pRenderShader, material);
+//}
+
 void ObjectManager::AddMeshToMaterial(Material* material, Mesh* mesh)
 {
     if (!material || !mesh) return;
 
-    // Setzt das Fallback-Material des Mesh (meshRenderer wird intern ueber pMaterial informiert)
+    // Mesh-Property (optional weiter behalten, z.B. fuer Editor/Debug)
     mesh->pMaterial = material;
+
+    // WICHTIG: Material gilt fuer das Mesh => Slot-Overrides setzen
+    // (damit der Renderer NICHT mehr auf Standardmaterial faellt)
+    if (mesh->meshRenderer.asset)
+    {
+        const auto& slots = mesh->meshRenderer.asset->GetSlots();
+        for (unsigned int i = 0; i < (unsigned int)slots.size(); ++i)
+        {
+            if (!slots[i]) continue;                 // tombstone skip
+            mesh->meshRenderer.SetMaterial(i, material);
+        }
+    }
 
     if (material->pRenderShader)
         AssignShaderToMaterial(material->pRenderShader, material);
@@ -174,14 +202,10 @@ void ObjectManager::DeleteSurface(Surface* surface)
 {
     if (!surface) return;
 
-    // Aus MeshAsset des Besitzer-Mesh entfernen
     if (surface->GetOwner())
-    {
         surface->GetOwner()->RemoveSurface(surface);
-    }
     else
     {
-        // Fallback: alle Meshes durchsuchen
         for (auto& mesh : m_meshes)
             mesh->RemoveSurface(surface);
     }
@@ -210,12 +234,9 @@ void ObjectManager::DeleteMesh(Mesh* mesh)
         const auto& slots = mesh->meshRenderer.asset->GetSlots();
         for (Surface* s : slots)
         {
-            if (s)
-            {
-                s->SetOwner(nullptr);
-                s->pMesh = nullptr;
-            }
+            if (s) s->SetOwner(nullptr);
         }
+
         // Asset mitloeschen, wenn es exklusiv ist (Normalfall: CreateMesh legt immer
         // ein eigenes Asset an). Geteilte Assets muessen vorher manuell getrennt werden:
         //   mesh->meshRenderer.asset = nullptr;  vor DeleteMesh aufrufen.
@@ -270,25 +291,16 @@ void ObjectManager::DeleteMaterial(Material* material)
 {
     if (!material) return;
 
-    // Meshes, die dieses Material als Fallback nutzen → nullen
+    // Slot-Eintraege auf nullptr setzen - Index bleibt unveraendert.
+    // Der Renderer faellt automatisch auf das Standard-Material zurueck.
     for (auto* mesh : m_meshes)
     {
-        if (mesh && mesh->pMaterial == material)
-            mesh->pMaterial = nullptr;
-
-        // Auch aus slotMaterials entfernen
+        if (!mesh) continue;
         for (auto& slot : mesh->meshRenderer.slotMaterials)
         {
             if (slot == material)
                 slot = nullptr;
         }
-    }
-
-    // Surfaces, die dieses Material direkt nutzen → nullen
-    for (auto* surface : m_surfaces)
-    {
-        if (surface && surface->pMaterial == material)
-            surface->pMaterial = nullptr;
     }
 
     // Aus Shader-Bucket entfernen
@@ -414,13 +426,20 @@ Surface* ObjectManager::GetSurface(Mesh* mesh)
 
 Material* ObjectManager::GetStandardMaterial() const
 {
+    // Internes Default-Material hat Vorrang vor dem ersten User-Material.
+    // Wird von GDXEngine beim Start gesetzt – immer hellgrau, keine Textur.
+    if (m_defaultMaterial)
+        return m_defaultMaterial;
+
+    // Fallback fuer den Fall dass SetDefaultMaterial noch nicht aufgerufen wurde.
     return m_materials.empty() ? nullptr : m_materials.front();
 }
 
 Shader* ObjectManager::GetShader(const Surface& surface) const
 {
-    if (surface.pMesh && surface.pMesh->pMaterial)
-        return surface.pMesh->pMaterial->pRenderShader;
+    Mesh* owner = surface.GetOwner();
+    if (owner && owner->pMaterial)
+        return owner->pMaterial->pRenderShader;
     return nullptr;
 }
 

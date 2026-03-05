@@ -100,7 +100,11 @@ void RenderManager::RenderShadowPass()
             Surface* s = shadowSlots[si];
             if (!s) continue;
 
-            Material* mat = mesh->meshRenderer.GetMaterial(si, s, mesh->pMaterial);
+            //Material* mat = mesh->meshRenderer.GetMaterial(si, s, m_objectManager.GetStandardMaterial());
+            const unsigned slot = s->slotIndex;
+            Material* fallback = mesh->pMaterial ? mesh->pMaterial : m_objectManager.GetStandardMaterial();
+            Material* mat = mesh->meshRenderer.GetMaterial(slot, s, fallback);
+
             if (!mat || !mat->castShadows) continue;
 
             Shader* shader = mat->pRenderShader;
@@ -239,10 +243,19 @@ void RenderManager::BuildRenderQueue()
             Surface* surface = queueSlots[qi];
             if (!surface) continue;
 
-            Material* material = mesh->meshRenderer.GetMaterial(qi, surface, mesh->pMaterial);
+            //Material* material = mesh->meshRenderer.GetMaterial(qi, surface, m_objectManager.GetStandardMaterial());
+            const unsigned slot = surface->slotIndex; // nicht qi
+            Material* fallback = mesh->pMaterial ? mesh->pMaterial : m_objectManager.GetStandardMaterial();
+            Material* material = mesh->meshRenderer.GetMaterial(slot, surface, fallback);
             if (!material) continue;
 
             Shader* shader = material->pRenderShader;
+
+            Debug::LogOnce("STD_MAT_CHECK",
+                "STD=", (void*)m_objectManager.GetStandardMaterial(),
+                " shader=", (void*)(m_objectManager.GetStandardMaterial() ? m_objectManager.GetStandardMaterial()->pRenderShader : nullptr),
+                " gpu=", (void*)(m_objectManager.GetStandardMaterial() ? m_objectManager.GetStandardMaterial()->gpuData : nullptr));
+
             if (!shader) continue;
 
             if (material->IsTransparent())

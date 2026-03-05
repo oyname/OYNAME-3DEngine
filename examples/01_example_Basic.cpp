@@ -30,25 +30,31 @@ int main()
     Engine::TurnEntity(light, 45, 0, 0);               // Rotate light direction
     Engine::LightColor(light, 1.0f, 1.0f, 1.0f);       // White light
 
-    Engine::SetAmbientColor(0.0f, 0.3f, 0.3f);         // Global ambient lighting
+    Engine::SetAmbientColor(0.3f, 0.3f, 0.3f);         // Global ambient lighting
 
     // -------------------------------------------------
     // Camera setup
     // -------------------------------------------------
     LPENTITY camera = nullptr;
     Engine::CreateCamera(&camera);                     // Managed by ObjectManager
-    Engine::PositionEntity(camera, 0, 0, -5);          // Move camera backward
+    Engine::PositionEntity(camera, 0, 0, -3);          // Move camera backward
 
     // -------------------------------------------------
     // Mesh creation
     // -------------------------------------------------
     LPENTITY cube = nullptr;
-    Engine::CreateMesh(&cube);                         // Create empty mesh entity
 
-    CreateCube(&cube, material);                       // Generate cube geometry + assign material
+    CreateCube(&cube, nullptr);                     // Generate cube geometry + assign material
+
+    Engine::EntityMaterial(cube, material);
+
     Engine::PositionEntity(cube, 0.0f, 0.0f, 5.0f);    // Place cube in front of camera
     Engine::RotateEntity(cube, 45.0f, 45.0f, 0.0f);    // Initial rotation
     Engine::ScaleEntity(cube, 1.0f, 1.0f, 1.0f);       // Uniform scale
+
+
+    // debug output
+    Engine::DebugPrintScene();
 
     // -------------------------------------------------
     // Main loop

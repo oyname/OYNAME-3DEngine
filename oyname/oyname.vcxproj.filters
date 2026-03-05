@@ -43,19 +43,19 @@
     <Filter Include="01 Engine\app\TRASH">
       <UniqueIdentifier>{b57ff201-c7b2-422f-a48f-586cecc126cf}</UniqueIdentifier>
     </Filter>
-    <Filter Include="01 Engine\app\TRASH\MultiShader">
+    <Filter Include="01 Engine\app\10_example_MultiShader">
       <UniqueIdentifier>{3022191d-48bc-4207-b23e-8df35bf97e9b}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\examples\Multishaderexample.cpp">
-      <Filter>01 Engine\app\TRASH\MultiShader</Filter>
+    <ClCompile Include="..\examples\0_example_Multishaderexample.cpp">
+      <Filter>01 Engine\app\10_example_MultiShader</Filter>
     </ClCompile>
     <ClCompile Include="..\examples\Neontimebuffer.cpp">
-      <Filter>01 Engine\app\TRASH\MultiShader</Filter>
+      <Filter>01 Engine\app\10_example_MultiShader</Filter>
     </ClCompile>
-    <ClCompile Include="..\examples\MultitexturRTTExample.cpp">
-      <Filter>01 Engine\app\TRASH\MultiShader</Filter>
+    <ClCompile Include="..\examples\1_example_MultitexturRTTExample.cpp">
+      <Filter>01 Engine\app\10_example_MultiShader</Filter>
     </ClCompile>
     <ClCompile Include="..\src\gdxutil.cpp">
       <Filter>01 Engine\core</Filter>
@@ -165,19 +165,10 @@
     <ClCompile Include="..\examples\UnlitShader.cpp">
       <Filter>01 Engine\app\TRASH</Filter>
     </ClCompile>
-    <ClCompile Include="..\examples\MultitexturExample.cpp">
-      <Filter>01 Engine\app\TRASH</Filter>
-    </ClCompile>
-    <ClCompile Include="..\examples\Performance.cpp">
-      <Filter>01 Engine\app\TRASH</Filter>
-    </ClCompile>
     <ClCompile Include="..\examples\Rendertotexture.cpp">
       <Filter>01 Engine\app\TRASH</Filter>
     </ClCompile>
     <ClCompile Include="..\examples\ShaderExample.cpp">
-      <Filter>01 Engine\app\TRASH</Filter>
-    </ClCompile>
-    <ClCompile Include="..\examples\PBRMaterialExample.cpp">
       <Filter>01 Engine\app\TRASH</Filter>
     </ClCompile>
     <ClCompile Include="..\examples\SkinningTest.cpp">
@@ -219,10 +210,25 @@
     <ClCompile Include="..\src\MeshRenderer.cpp">
       <Filter>01 Engine\render</Filter>
     </ClCompile>
+    <ClCompile Include="..\examples\07_example_MeshAsset.cpp">
+      <Filter>01 Engine\app</Filter>
+    </ClCompile>
+    <ClCompile Include="..\examples\08_example_SharedMesh_DifferentTextures.cpp">
+      <Filter>01 Engine\app</Filter>
+    </ClCompile>
+    <ClCompile Include="..\examples\09_example_PBRMaterialExample.cpp">
+      <Filter>01 Engine\app</Filter>
+    </ClCompile>
+    <ClCompile Include="..\examples\11_example_MultitexturExample.cpp">
+      <Filter>01 Engine\app</Filter>
+    </ClCompile>
+    <ClCompile Include="..\examples\12_example_Performance.cpp">
+      <Filter>01 Engine\app</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\examples\Neontimebuffer.h">
-      <Filter>01 Engine\app\TRASH\MultiShader</Filter>
+      <Filter>01 Engine\app\10_example_MultiShader</Filter>
     </ClInclude>
     <ClInclude Include="..\include\gidx.h">
       <Filter>01 Engine\api</Filter>

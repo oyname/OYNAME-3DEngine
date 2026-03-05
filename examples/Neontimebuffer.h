@@ -25,7 +25,7 @@ public:
     //   engine->m_device.GetDeviceContext()
     bool Initialize(ID3D11Device* device, ID3D11DeviceContext* context);
 
-    // Jeden Frame mit deltaTime aus Core::GetDeltaTime() aufrufen
+    // Jeden Frame mit deltaTime aus Timer::GetDeltaTime() aufrufen
     void Update(float deltaTime);
 
     // Vor Engine::RenderWorld() aufrufen:

@@ -86,7 +86,7 @@ int main(LPVOID hwnd)
     while (Windows::MainLoop() && !(GetAsyncKeyState(VK_ESCAPE) & 0x8000))
     {
         Core::BeginFrame();
-        const float dt = static_cast<float>(Core::GetDeltaTime());
+        const float dt = static_cast<float>(Timer::GetDeltaTime());
 
         // Basic input: move cube on X/Z plane
         if (GetAsyncKeyState(VK_UP) & 0x8000) Engine::MoveEntity(g_cubeMesh, 0.0f, 0.0f, moveSpeed * dt);

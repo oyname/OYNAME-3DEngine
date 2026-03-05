@@ -257,6 +257,26 @@ HRESULT GDXEngine::Graphic(unsigned int width, unsigned int height, bool windowe
 		Debug::Log("gdxengine.cpp: TexturePool an RenderManager uebergeben");
 	}
 
+	// ==================== DEFAULT-MATERIAL (hellgrau, keine Textur) ====================
+	// Wird von GetStandardMaterial() zurueckgegeben wenn CreateMesh ohne Material
+	// aufgerufen wird. Unabhaengig vom User-Code, immer verfuegbar.
+	{
+		Material* defaultMat = GetOM().CreateMaterial();
+		defaultMat->SetDiffuseColor(0.8f, 0.8f, 0.8f, 1.0f);
+		GetOM().AddMaterialToShader(GetSM().GetShader(), defaultMat);
+		hr = InitMaterialBuffer(defaultMat);
+		if (FAILED(hr))
+		{
+			Debug::LogHr(__FILE__, __LINE__, hr);
+			// Nicht fatal – Engine laeuft weiter, GetStandardMaterial faellt auf front() zurueck
+		}
+		else
+		{
+			GetOM().SetDefaultMaterial(defaultMat);
+			Debug::Log("gdxengine.cpp: Default-Material erstellt (hellgrau 0.75 / 0.75 / 0.75)");
+		}
+	}
+
 	// Create layout for the vertices
 	hr = GetILM().CreateInputLayoutVertex(&GetSM().GetShader()->inputlayoutVertex,	// Store the layout
 		GetSM().GetShader(),														// The shader object

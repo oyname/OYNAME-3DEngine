@@ -122,7 +122,7 @@ int main()
     while (Windows::MainLoop() && !KeyDown(VK_ESCAPE))
     {
         Core::BeginFrame();
-        const float dt = (float)Core::GetDeltaTime();
+        const float dt = (float)Timer::GetDeltaTime();
 
         // -------------------------------------------------
         // Light controls (move red point light)

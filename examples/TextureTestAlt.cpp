@@ -128,7 +128,7 @@ int main()
 
         Core::BeginFrame();
 
-        const float dt = static_cast<float>(Core::GetDeltaTime());
+        const float dt = static_cast<float>(Timer::GetDeltaTime());
 
         if (elapsedTime > 0.5) elapsedTime = 0.5;
 
