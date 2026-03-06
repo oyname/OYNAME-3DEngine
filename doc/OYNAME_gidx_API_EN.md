@@ -1,11 +1,11 @@
 
 OYNAME-3DEngine
-gidx.h — API-Referenz und Anwendungserstellung
-Vollständige Functionsreferenz · Schritt-für-Schritt-Anleitung · Codebeispiele
+gidx.h — API reference and application creation
+Complete function reference · Step‑by‑step guide · Code examples
 
-Stand: 2025  ·  Namespace Engine  ·  #include "gidx.h"
+Version: 2025  ·  Namespace Engine  ·  #include "gidx.h"
 
-# 1. Einleitung
+# 1. Introduction
 Die File gidx.h ist die einzige öffentliche Schnittstelle der OYNAME-3DEngine. Sie enthält ausschließlich inline-Functionen im Namespace Engine und verbirgt die gesamte DirectX-11-Implementierung hinter einfachen, direkten Aufrufen. Das Design folgt dem Vorbild von BlitzBasic: Eine Anwendung ruft Functionen auf und bekommt sofort das gewünschte Ergebnis, ohne COM-Interfaces, Ressourcen-Descriptionen oder Render-Zustände zu verwalten.
 
 Um eine Anwendung zu schreiben, genügt ein einziger Include. Alle Typen, alle Functionen und alle Konstanten sind danach verfügbar.
@@ -16,25 +16,25 @@ Um eine Anwendung zu schreiben, genügt ein einziger Include. Alle Typen, alle F
 // Alle Engine-Functionen sind im Namespace Engine:
 using namespace Engine;  // optional fuer kuerzerencode
 
-# 2. Eine Anwendung erstellen — Schritt für Schritt
+# 2. Creating an application — step by step
 ## 2.1 Aufbau einer main()-Function
-Die Engine trennt Initialization und Game-Loop klar. WinMain in main.cpp übernimmt das Fenster-Management und die Engine-Erstellung automatisch. Die eigene main()-Function enthält nur noch Engine::Graphics(), die Szenen-Erstellung und den Frame-Loop. Ein minimales Gerüst sieht so aus:
+Die Engine trennt Initialization und Game loop klar. WinMain in main.cpp übernimmt das Fenster-Management und die Engine-Erstellung automatisch. Die eigene main()-Function enthält nur noch Engine::Graphics(), die Szenen-Erstellung und den Frame-Loop. Ein minimales Gerüst sieht so aus:
 
 
 #include "gidx.h"
 
 int main()
 {
-// 1. Grafik-Modus setzen
+// 1. Set graphics mode
 Engine::Graphics(1280, 720);           // Fenstermodus
 // Engine::Graphics(1920, 1080, false); // Vollbild
 
-// 2. Camera anlegen
+// 2. Create camera
 LPENTITY camera = nullptr;
 Engine::CreateCamera(&camera);
 Engine::PositionEntity(camera, 0.0f, 2.0f, -10.0f);
 
-// 3. Light anlegen
+// 3. Create light
 LPENTITY light = nullptr;
 Engine::CreateLight(&light, D3DLIGHT_DIRECTIONAL);
 Engine::TurnEntity(light, 45.0f, 0.0f, 0.0f);
@@ -42,16 +42,16 @@ Engine::LightColor(light, 1.0f, 1.0f, 1.0f);
 Engine::SetDirectionalLight(light);
 Engine::SetAmbientColor(0.3f, 0.3f, 0.3f);
 
-// 4. Texture laden
+// 4. Load texture
 LPTEXTURE tex = nullptr;
 Engine::LoadTexturee(&tex, L"..\\media\\albedo.png");
 
-// 5. Material anlegen
+// 5. Create material
 LPMATERIAL mat = nullptr;
 Engine::CreateMaterial(&mat);
 Engine::MaterialSetAlbedo(mat, tex);
 
-// 6. Mesh anlegen (eigene Geometrie-Function)
+// 6. Create mesh (eigene Geometrie-Function)
 LPENTITY mesh = nullptr;
 Engine::CreateMesh(&mesh);
 LPSURFACE surf = nullptr;
@@ -61,7 +61,7 @@ Engine::FillBuffer(surf);
 Engine::EntityMaterial(mesh, mat);
 Engine::PositionEntity(mesh, 0.0f, 0.0f, 5.0f);
 
-// 7. Game-Loop
+// 7. Game loop
 while (Windows::MainLoop())
 {
 Core::BeginFrame();
@@ -80,41 +80,41 @@ return 0;
 }
 
 
-## 2.2 Der Frame-Loop im Detail
+## 2.2 Frame loop in detail
 Jeder Frame folgt einer festgelegten Reihenfolge. Core::BeginFrame() muss als Erstes aufgerufen werden, damit Timer-Werte gültig sind. Dann kommt die eigene Logik (Bewegung, KI, Input). Engine::Cls() löscht den Backbuffer. Engine::UpdateWorld() berechnet alle Entity-Transformationen und lädt Constant-Buffer. Engine::RenderWorld() führt Shadow Pass und Normal Pass aus. Engine::Flip() präsentiert den Backbuffer auf dem Monitor. Core::EndFrame() schließt die Frame-Zeitmessung ab.
 
-# 3. Grafik-Initialization
-## 3.1 Adapter und Ausgabe
+# 3. Graphics initialization
+## 3.1 Adapter and output
 Wenn mehrere Grafikkarten oder Monitore im System vorhanden sind, kann vor Graphics() der gewünschte Adapter und die Ausgabe gewählt werden. CountGfxDrivers() gibt die Anzahl verfügbarer Adapter zurück. GfxDriverName() gibt den Namen des aktuellen Adapters aus. SetGfxDriver(index) wählt einen Adapter. SetOutput(index) wählt die Ausgabe für Vollbild.
 
 
-# 4. Entity-Management — Position, Rotation, Skalierung
+# 4. Entity management — position, rotation, scale
 Alle Functionen in diesem Abschnitt arbeiten mit jedem Entity-Typ: Meshes, Cameras und Lighter. LPENTITY ist ein Zeiger auf Entity. Alle Transformations-Functionen sind frame-rate-unabhängig, wenn sie mit Timer::GetDeltaTime() skaliert werden.
 
-## 4.1 Positionierung
+## 4.1 Positioning
 
-## 4.2 Rotation und Ausrichtung
+## 4.2 Rotation and orientation
 
-## 4.3 Hierarchie
+## 4.3 Hierarchy
 
-## 4.4 Sichtbarkeit und Layer
+## 4.4 Visibility and layers
 
 # 5. Camera
 
-Hinweis:  Die Camera-Position und -Rotation werden über die allgemeinen Entity-Functionen PositionEntity und TurnEntity gesteuert. CreateCamera sets die Camera automatisch als aktive Camera.
+Note:  Die Camera-Position und -Rotation werden über die allgemeinen Entity-Functionen PositionEntity und TurnEntity gesteuert. CreateCamera sets die Camera automatisch als aktive Camera.
 
 # 6. Light
 
-# 7. Mesh und Geometrie
-## 7.1 Mesh anlegen
+# 7. Mesh and geometry
+## 7.1 Create mesh
 
-## 7.2 Vertex-Daten hinzufügen
+## 7.2 Add vertex data
 Alle AddVertex/VertexNormal/VertexColor/VertexTexCoord-Aufrufe müssen vor FillBuffer() erfolgen. Nach FillBuffer() sind die CPU-seitigen Arrays weiterhin vorhanden, können aber nur über UpdateVertexBuffer() oder UpdateColorBuffer() an die GPU übertragen werden.
 
 
-## 7.3 Dynamische Buffer-Updates
+## 7.3 Dynamic buffer updates
 
-## 7.4 Asset-Sharing
+## 7.4 Asset sharing
 ShareMeshAsset(source, target) lässt zwei Meshes dieselbe Geometrie teilen. Jede Instanz hat ihren eigenen Transform und eigene Materialien. Die Geometrie liegt nur einmal im GPU-Speicher.
 
 
@@ -135,20 +135,20 @@ Engine::PositionEntity(kopie,     3.0f, 0.0f, 5.0f);
 
 
 # 8. Material
-## 8.1 Material anlegen und zuweisen
+## 8.1 Create material und zuweisen
 
 ## 8.2 Textureen
 
 ## 8.3 Farbe und klassische Eigenschaften
 
 ## 8.4 PBR-Parameters
-PBR (Physically Based Rendering) muss explizit per MaterialUsePBR(mat, true) aktiviert werden. Der Standard-Shader verwendet dann Cook-Torrance GGX statt Blinn-Phong. PBR und Legacy-Modus können im selben Frame auf unterschiedlichen Materialien gleichzeitig verwendet werden.
+PBR (Physically Based Rendering) muss explizit per MaterialUsePBR(mat, true) aktiviert werden. Der Versionard-Shader verwendet dann Cook-Torrance GGX statt Blinn-Phong. PBR und Legacy-Modus können im selben Frame auf unterschiedlichen Materialien gleichzeitig verwendet werden.
 
 
 ## 8.5 Transparenz und Alpha
 
 # 9. Shader
-Der Standard-Shader (VertexShader.hlsl + PixelShader.hlsl) wird automatisch von der Engine geladen. Eigene Shader können erstellt werden, wenn besondere Vertex-Formate oder Shading-Effekte benötigt werden.
+Der Versionard-Shader (VertexShader.hlsl + PixelShader.hlsl) wird automatisch von der Engine geladen. Eigene Shader können erstellt werden, wenn besondere Vertex-Formate oder Shading-Effekte benötigt werden.
 
 
 
@@ -173,7 +173,7 @@ Engine::CreateMaterial(&mat, myShader);
 
 # 10. Textureen — Prozedural und Pixel-Zugriff
 
-# 11. Render-to-Texturee (RTT)
+# 11. Render‑to‑Texture (RTT)
 RTT erlaubt es, eine komplette Szene in eine Texture zu rendern, die dann als Albedo für ein anderes Object verwendet werden kann. Typische Anwendungen sind Spiegel, Sicherheitskameras, Minimap-Rendering oder Post-Processing-Effekte.
 
 
@@ -195,16 +195,16 @@ Engine::ResetRenderTarget();           // Zurueck zum Backbuffer
 Engine::RenderWorld();                 // Normaler Frame
 
 
-# 12. Skeletal Animation
+# 12. Skeletal animation
 
-# 13. Kollision
+# 13. Collision
 
-# 14. Debug-Ausgaben
+# 14. Debug output
 
-Hinweis:  Die Engine-Coding-Regel schreibt vor, dass alle Debug::Log()-Aufrufe mit dem Filenamen beginnen. Example: Debug::Log("game.cpp: Mesh erstellt");
+Note:  Die Engine-Coding-Regel schreibt vor, dass alle Debug::Log()-Aufrufe mit dem Filenamen beginnen. Example: Debug::Log("game.cpp: Mesh erstellt");
 
-# 15. Vollständiges Example — PBR-Szene mit Shadow Mapping
-Dieses Example zeigt einen vollständigen Aufbau mit zwei PBR-Materialien, Directional Light mit Shadow Mapping, Parent/Child-Hierarchie und frame-rate-unabhängiger Animation.
+# 15. Complete Example — PBR-Szene mit Shadow Mapping
+Dieses Example zeigt einen vollständigen Aufbau mit zwei PBR-Materialien, Directional Light mit Shadow Mapping, Parent/Child-Hierarchy und frame-rate-unabhängiger Animation.
 
 
 #include "gidx.h"
@@ -258,7 +258,7 @@ Engine::PositionEntity(child, 3.0f, 0.0f, 0.0f);  // Relativ zum Parent
 
 Engine::DebugPrintScene();
 
-// --- Game-Loop ---
+// --- Game loop ---
 while (Windows::MainLoop())
 {
 Core::BeginFrame();
@@ -277,7 +277,7 @@ return 0;
 }
 
 
-# 16. Typen und Konstanten
-## 16.1 Pointer-Typen
+# 16. Types and constants
+## 16.1 Pointer types
 
-## 16.2 Wichtige Enums und Konstanten
+## 16.2 Important enums and constants
