@@ -56,7 +56,7 @@ namespace Windows
         m_nWidth(500),
         m_nHeight(500),
         m_bInitialized(false),
-        m_sName(L"giDX³ Engine")
+        m_sName(L"giDXÂ³ Engine")
     {
     }
 
@@ -127,7 +127,7 @@ namespace Windows
     {
         if (m_hWnd)
         {
-            DestroyWindow(m_hWnd); // Hinzugefügt
+            DestroyWindow(m_hWnd); // HinzugefÃ¼gt
             m_hWnd = nullptr;
         }
 
@@ -174,9 +174,6 @@ namespace Windows
         FILE* fpErr = nullptr;
         freopen_s(&fpErr, "CONOUT$", "w", stderr);
 
-        // Optional:
-        // FILE* fpIn = nullptr;
-        // freopen_s(&fpIn, "CONIN$", "r", stdin);
 
         HWND consoleWindow = GetConsoleWindow();
         if (!consoleWindow)

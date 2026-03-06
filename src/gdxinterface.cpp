@@ -13,7 +13,7 @@ GDXInterface::~GDXInterface()
 
 HRESULT GDXInterface::Init(unsigned int bpp)
 {
-    (void)bpp; // Original: bpp unbenutzt
+    (void)bpp;
 
     Release();
 
@@ -22,15 +22,13 @@ HRESULT GDXInterface::Init(unsigned int bpp)
     interfaceManager.CleanupResources();
     interfaceManager.SetDXGI_Format(DXGI_FORMAT_R8G8B8A8_UNORM);
 
-    // Create Factory
     hr = CreateDXGIFactory(__uuidof(IDXGIFactory), (void**)&m_factory);
     if (FAILED(hr))
     {
-        Debug::LogHr(__FILE__, __LINE__, hr);
+        DBLOG_HR(hr);
         return hr;
     }
 
-    // Enumerate system information
     hr = GetSystemInfo();
 
     if (SUCCEEDED(hr))
@@ -76,7 +74,7 @@ HRESULT GDXInterface::GetSystemInfo()
         hr = adapter->GetDesc(&gxAdapter.Desc);
         if (FAILED(hr))
         {
-            Debug::LogHr(__FILE__, __LINE__, hr);
+            DBLOG_HR(hr);
             Memory::SafeRelease(adapter);
             return hr;
         }
@@ -84,7 +82,7 @@ HRESULT GDXInterface::GetSystemInfo()
         hr = EnumerateAdapterOutputs(adapter, gxAdapter);
         if (FAILED(hr))
         {
-            Debug::LogHr(__FILE__, __LINE__, hr);
+            DBLOG_HR(hr);
             Memory::SafeRelease(adapter);
             return hr;
         }
@@ -115,7 +113,7 @@ HRESULT GDXInterface::EnumerateAdapterOutputs(IDXGIAdapter* adapter, GXADAPTER& 
         hr = output->GetDesc(&gxOutput.OutputDesc);
         if (FAILED(hr))
         {
-            Debug::LogHr(__FILE__, __LINE__, hr);
+            DBLOG_HR(hr);
             Memory::SafeRelease(output);
             return hr;
         }

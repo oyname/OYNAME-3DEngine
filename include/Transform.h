@@ -16,7 +16,7 @@ private:
     DirectX::XMVECTOR rotationQuat;      // Quaternion (X, Y, Z, W)
     DirectX::XMVECTOR scale;             // W=0.0f
 
-    // GECACHTE MATRIZEN (mutable für const Getter)
+    // GECACHTE MATRIZEN (mutable fÃ¼r const Getter)
     mutable DirectX::XMMATRIX rotationMatrix;
     mutable DirectX::XMMATRIX translationMatrix;
     mutable DirectX::XMMATRIX scalingMatrix;
@@ -25,7 +25,7 @@ private:
     // EXTERNE REFERENZ (nicht mutable - nur zum Schreiben)
     DirectX::XMMATRIX* worldMatrix;
 
-    // CACHED DIRECTION VECTORS (mutable für const Getter)
+    // CACHED DIRECTION VECTORS (mutable fÃ¼r const Getter)
     mutable DirectX::XMVECTOR lookAt;
     mutable DirectX::XMVECTOR up;
     mutable DirectX::XMVECTOR right;

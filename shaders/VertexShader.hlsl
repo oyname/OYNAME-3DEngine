@@ -29,7 +29,7 @@ cbuffer LightBuffer : register(b1)
     float3 lightPadding; // Padding fuer 16-Byte Alignment
 };
 
-// MaterialBuffer: 128 Bytes – identisch mit PixelShader.hlsl (b2)
+// MaterialBuffer: 128 Bytes Â– identisch mit PixelShader.hlsl (b2)
 cbuffer MaterialBuffer : register(b2)
 {
     float4 gBaseColor;

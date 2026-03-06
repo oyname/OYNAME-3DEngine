@@ -40,9 +40,6 @@
     <Filter Include="01 Engine\scene\manager">
       <UniqueIdentifier>{136b666b-6917-4534-9028-c6b1dcc8b4bd}</UniqueIdentifier>
     </Filter>
-    <Filter Include="01 Engine\app\TRASH">
-      <UniqueIdentifier>{b57ff201-c7b2-422f-a48f-586cecc126cf}</UniqueIdentifier>
-    </Filter>
     <Filter Include="01 Engine\app\10_example_MultiShader">
       <UniqueIdentifier>{3022191d-48bc-4207-b23e-8df35bf97e9b}</UniqueIdentifier>
     </Filter>
@@ -162,15 +159,6 @@
     <ClCompile Include="..\src\Dx11LightManagerGpuData.cpp">
       <Filter>01 Engine\backend</Filter>
     </ClCompile>
-    <ClCompile Include="..\examples\UnlitShader.cpp">
-      <Filter>01 Engine\app\TRASH</Filter>
-    </ClCompile>
-    <ClCompile Include="..\examples\Speculartest.cpp">
-      <Filter>01 Engine\app\TRASH</Filter>
-    </ClCompile>
-    <ClCompile Include="..\examples\TextureTestAlt.cpp">
-      <Filter>01 Engine\app\TRASH</Filter>
-    </ClCompile>
     <ClCompile Include="..\examples\00_example_Adapter.cpp">
       <Filter>01 Engine\app</Filter>
     </ClCompile>
@@ -223,6 +211,12 @@
       <Filter>01 Engine\app</Filter>
     </ClCompile>
     <ClCompile Include="..\examples\15_example_SkinningTest.cpp">
+      <Filter>01 Engine\app</Filter>
+    </ClCompile>
+    <ClCompile Include="..\examples\16_example_Speculartest.cpp">
+      <Filter>01 Engine\app</Filter>
+    </ClCompile>
+    <ClCompile Include="..\examples\17_example_Quad.cpp">
       <Filter>01 Engine\app</Filter>
     </ClCompile>
   </ItemGroup>

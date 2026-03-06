@@ -1,4 +1,4 @@
-// Mesh.cpp: kein direktes DX11. GPU-Upload ueber gpuData->Upload().
+// Mesh.cpp: No direct DX11. GPU upload goes through gpuData->Upload().
 #include "Mesh.h"
 #include "Surface.h"
 #include "MeshAsset.h"
@@ -13,7 +13,6 @@ Mesh::Mesh() :
 
 Mesh::~Mesh()
 {
-    // Slots aus dem Asset loeschen (nicht die Surfaces selbst – Ownership beim ObjectManager)
     if (meshRenderer.asset)
         meshRenderer.asset->GetSlots(); // kein Clear noetig, Asset gehoert dem ObjectManager
 
@@ -40,8 +39,8 @@ void Mesh::Update(const GDXDevice* device, const MatrixSet* inMatrixSet)
     if (collisionType != COLLISION::NONE)
         CalculateOBB(0);
 
-    // Die world matrix kommt bereits korrekt berechnet vom RenderManager (inkl. Parent-Chain).
-    // Nicht ueberschreiben - direkt aus dem uebergebenen MatrixSet verwenden.
+    // The world matrix arrives pre-computed from the RenderManager (including parent chain).
+    // Do not overwrite - use it directly from the supplied MatrixSet.
     if (gpuData) gpuData->Upload(device, *inMatrixSet);
 }
 
@@ -57,8 +56,8 @@ void Mesh::AddSurface(Surface* surface)
 
     meshRenderer.asset->AddSlot(surface);
 
-    // SlotMaterials bleiben leer bis explizit per SurfaceMaterial()/SetSlotMaterial() gesetzt.
-    // Ungesetzte Slots fallen auf ObjectManager::GetStandardMaterial() zurueck.
+    // SlotMaterials remain empty until explicitly set via SurfaceMaterial()/SetSlotMaterial().
+    // Unset slots fall back to ObjectManager::GetStandardMaterial().
 }
 
 void Mesh::RemoveSurface(Surface* surface)

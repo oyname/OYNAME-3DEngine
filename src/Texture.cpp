@@ -30,7 +30,7 @@ HRESULT Texture::AddTexture(ID3D11Device* device, ID3D11DeviceContext* deviceCon
     int desiredChannels = 4;
 
     char* narrowFilename = nullptr;
-    size_t length = wcslen(filename) + 1; // +1 fuer das Nullzeichen am Ende
+    size_t length = wcslen(filename) + 1; // +1 for null terminator
     narrowFilename = new char[length];
     size_t convertedChars = 0;
     wcstombs_s(&convertedChars, narrowFilename, length, filename, length);
@@ -39,7 +39,7 @@ HRESULT Texture::AddTexture(ID3D11Device* device, ID3D11DeviceContext* deviceCon
 
     if (!imageData)
     {
-        Debug::Log("Texture.cpp: FAIL LOAD IMAGE ", __FILE__, __LINE__);
+        DBLOG("Texture.cpp: FAIL LOAD IMAGE ", __FILE__, __LINE__);
         return E_FAIL;
     }
 
@@ -68,7 +68,7 @@ HRESULT Texture::AddTexture(ID3D11Device* device, ID3D11DeviceContext* deviceCon
     HRESULT hr = device->CreateTexture2D(&m_desc, &subresourceData, &m_texture);
     if (FAILED(hr))
     {
-        Debug::LogHr(__FILE__, __LINE__, hr);
+        DBLOG_HR(hr);
         stbi_image_free(imageData); 
         return hr; 
     }
@@ -82,7 +82,7 @@ HRESULT Texture::AddTexture(ID3D11Device* device, ID3D11DeviceContext* deviceCon
     hr = device->CreateShaderResourceView(m_texture, &srvDesc, &m_textureView);
     if (FAILED(hr))
     {
-        Debug::LogHr(__FILE__, __LINE__, hr);
+        DBLOG_HR(hr);
         Memory::SafeRelease(m_texture); 
         stbi_image_free(imageData); 
         return hr; 
@@ -107,7 +107,7 @@ HRESULT Texture::AddTexture(ID3D11Device* device, ID3D11DeviceContext* deviceCon
     hr = device->CreateSamplerState(&ImageSamplerDesc, &m_imageSamplerState);
     if (FAILED(hr))
     {
-        Debug::LogHr(__FILE__, __LINE__, hr);
+        DBLOG_HR(hr);
         Memory::SafeRelease(m_texture);
         stbi_image_free(imageData); 
         return hr; 
@@ -161,7 +161,7 @@ HRESULT Texture::CreateTexture(ID3D11Device* device, int width, int height)
     hr = device->CreateShaderResourceView(m_texture, &srvDesc, &m_textureView);
     if (FAILED(hr))
     {
-        Debug::LogHr(__FILE__, __LINE__, hr);
+        DBLOG_HR(hr);
         Memory::SafeRelease(m_texture);
         return hr;
     }
@@ -185,7 +185,7 @@ HRESULT Texture::CreateTexture(ID3D11Device* device, int width, int height)
     hr = device->CreateSamplerState(&ImageSamplerDesc, &m_imageSamplerState);
     if (FAILED(hr))
     {
-        Debug::LogHr(__FILE__, __LINE__, hr);
+        DBLOG_HR(hr);
         Memory::SafeRelease(m_texture);
         return hr;
     }
@@ -233,7 +233,7 @@ HRESULT Texture::LockBuffer(ID3D11DeviceContext* deviceContext)
     hr = deviceContext->Map(m_texture, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
     if (FAILED(hr))
     {
-        Debug::LogHr(__FILE__, __LINE__, hr);
+        DBLOG_HR(hr);
         return hr;
     }
 

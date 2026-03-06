@@ -5,7 +5,7 @@
 class Timer
 {
 public:
-    // Kompatibel: VSYNC_ONLY bleibt als Alias f¸r variable timestep
+    // Kompatibel: VSYNC_ONLY bleibt als Alias f√ºr variable timestep
     enum class TimeMode : int
     {
         FIXED_TIMESTEP = 0,
@@ -15,7 +15,7 @@ public:
 private:
     TimeMode timeMode = TimeMode::VARIABLE_TIMESTEP;
 
-    double deltaTime = 0.0;        // f¸r VARIABLE: raw dt, f¸r FIXED: fixedStep (nur wenn steps > 0)
+    double deltaTime = 0.0;        // f√ºr VARIABLE: raw dt, f√ºr FIXED: fixedStep (nur wenn steps > 0)
     double accumulator = 0.0;
     std::chrono::high_resolution_clock::time_point lastFrameTime;
 
@@ -37,7 +37,7 @@ public:
 
     // Core-API
     static void Init();         // idempotent
-    static void Shutdown();     // bleibt leer (Kompatibilit‰t)
+    static void Shutdown();     // bleibt leer (Kompatibilit√§t)
     static void Tick();         // ruft Update() auf
 
     // Alt-API kompatibel lassen

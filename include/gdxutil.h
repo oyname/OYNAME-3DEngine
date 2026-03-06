@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #ifndef GDXUTIL_H_INCLUDED
 #define GDXUTIL_H_INCLUDED
@@ -16,16 +16,36 @@ using Microsoft::WRL::ComPtr;
 #include <mutex>
 #include <iomanip>
 #include <chrono>
-
 #include <d3d11.h>
 #include <dxgi.h>
 #include <DirectXMath.h>
-
 #include <unordered_set>
-
 #include <cstdint>
-
 #include "gxformat.h"
+
+// ---------------------------------------------------------------------------
+//  Debug-Makros
+//  DBLOG / DBWARN / DBLOG_ONCE / DBLOG_HR / DBLOG_WIN32
+//  werden im Release-Build vollstaendig entfernt (kein Laufzeit-Overhead,
+//  keine Argument-Auswertung).
+//  DBERROR bleibt immer aktiv.
+// ---------------------------------------------------------------------------
+#ifdef _DEBUG
+#define DBLOG(...)              Debug::Log(__VA_ARGS__)
+#define DBWARN(...)             Debug::LogWarning(__VA_ARGS__)
+#define DBLOG_ONCE(key, ...)    Debug::LogOnce(key, __VA_ARGS__)
+#define DBLOG_HR(hr)            Debug::LogHr(__FILE__, __LINE__, hr)
+#define DBLOG_WIN32()           Debug::LogWin32(__FILE__, __LINE__)
+#else
+#define DBLOG(...)              ((void)0)
+#define DBWARN(...)             ((void)0)
+#define DBLOG_ONCE(key, ...)    ((void)0)
+#define DBLOG_HR(hr)            ((void)0)
+#define DBLOG_WIN32()           ((void)0)
+#endif
+
+// DBERROR ist immer aktiv (Release + Debug)
+#define DBERROR(...) Debug::LogError(__VA_ARGS__)
 
 inline std::string Ptr(const void* p)
 {
@@ -116,7 +136,9 @@ namespace GXUTIL
     }
 }
 
-// Debug (header-only) � getrennt HR / Win32, thread-safe
+// ---------------------------------------------------------------------------
+//  Debug-Klasse  (header-only, thread-safe)
+// ---------------------------------------------------------------------------
 class Debug
 {
 public:
@@ -136,13 +158,12 @@ public:
     {
         constexpr const char* key = "__Debug_LogOnce_NoArgs__";
         if (!TryMarkSeen(key)) return;
-        Log("LogOnce() fired"); // <- deine Message
+        Log("LogOnce() fired");
     }
 
     static void ResetLogOnce(const char* key)
     {
         if (!key) key = "__null__";
-
         std::lock_guard<std::mutex> lock(s_onceMutex);
         s_seenOnce.erase(key);
     }
@@ -179,15 +200,12 @@ public:
 
 private:
     inline static std::mutex s_mutex;
-
-    // Shared once-state
     inline static std::unordered_set<std::string> s_seenOnce;
     inline static std::mutex s_onceMutex;
 
     static bool TryMarkSeen(const char* key)
     {
         if (!key) key = "__null__";
-
         std::lock_guard<std::mutex> lock(s_onceMutex);
         return s_seenOnce.emplace(key).second;
     }
@@ -264,8 +282,8 @@ private:
     }
 };
 
-#define GDX_HR(x)   do { HRESULT _hr=(x); Debug::LogHr(__FILE__, __LINE__, _hr); } while(0)
-#define GDX_WIN32() do { Debug::LogWin32(__FILE__, __LINE__); } while(0)
+#define GDX_HR(x)   do { HRESULT _hr=(x); DBLOG_HR(_hr); } while(0)
+#define GDX_WIN32() do { DBLOG_WIN32(); } while(0)
 
 // Memory helpers
 namespace Memory

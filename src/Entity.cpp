@@ -1,4 +1,4 @@
-// Entity.cpp: kein DX11. GPU-Upload laeuft ueber gpuData->Upload().
+// Entity.cpp: No DX11. GPU upload goes through gpuData->Upload().
 #include "Entity.h"
 #include "Dx11EntityGpuData.h"
 
@@ -21,7 +21,7 @@ Entity::Entity(EntityType type)
 
 Entity::~Entity()
 {
-    // Sauber vom Parent trennen und alle Kinder benachrichtigen
+    // Cleanly detach from parent and notify all children
     DetachFromParent();
     for (Entity* child : m_children)
         if (child) child->m_parent = nullptr;
@@ -31,10 +31,10 @@ Entity::~Entity()
     gpuData = nullptr;
 }
 
-// Liefert die vollstaendige Weltmatrix.
-// Wenn ein Parent vorhanden ist, wird dessen Weltmatrix rekursiv davorgemultipliziert:
+// Returns the full world matrix.
+// If a parent exists, its world matrix is multiplied in recursively:
 //   worldMatrix = localMatrix * parent->GetWorldMatrix()
-// Ohne Parent entspricht das direkt der lokalen Transformationsmatrix.
+// Without a parent this equals the local transformation matrix directly.
 XMMATRIX Entity::GetWorldMatrix() const
 {
     XMMATRIX local = transform.GetLocalTransformationMatrix();
@@ -54,9 +54,9 @@ void Entity::Update(const GDXDevice* device)
     if (gpuData) gpuData->Upload(device, matrixSet);
 }
 
-// Haengt diese Entity als Kind an parent.
-// Traegt sie automatisch in die Children-Liste des Parents ein.
-// parent = nullptr entspricht DetachFromParent().
+// Attaches this entity as a child of parent.
+// Automatically registers it in the parent's children list.
+// parent = nullptr is equivalent to DetachFromParent().
 void Entity::SetParent(Entity* parent)
 {
     if (parent == m_parent) return;
@@ -67,10 +67,9 @@ void Entity::SetParent(Entity* parent)
     if (m_parent)
         m_parent->m_children.push_back(this);
 
-    Debug::Log("Entity.cpp: SetParent - Parent gesetzt");
+    DBLOG("Entity.cpp: SetParent - parent set");
 }
 
-// Trennt diese Entity vom Parent.
 void Entity::DetachFromParent()
 {
     if (!m_parent) return;
@@ -79,7 +78,7 @@ void Entity::DetachFromParent()
     siblings.erase(std::remove(siblings.begin(), siblings.end(), this), siblings.end());
 
     m_parent = nullptr;
-    Debug::Log("Entity.cpp: DetachFromParent - Entity abgetrennt");
+    DBLOG("Entity.cpp: DetachFromParent - entity detached");
 }
 
 void Entity::GenerateViewMatrix(XMVECTOR position, XMVECTOR lookAt, XMVECTOR up)

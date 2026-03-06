@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 // NOTE:
 // gdxdevice.h is included by a lot of engine/public headers.

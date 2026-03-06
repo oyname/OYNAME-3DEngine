@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 // Small standalone header: GXFORMAT lives here so that high-traffic headers
 // (like gdxdevice.h) don't have to include the heavy gdxutil.h / DirectX headers.

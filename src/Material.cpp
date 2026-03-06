@@ -1,4 +1,4 @@
-// Material.cpp: reiner Daten-Container. Kein DX11.
+// Material.cpp: Pure data container. No DX11.
 #include "gdxutil.h"
 #include "Material.h"
 #include "Dx11MaterialGpuData.h"
@@ -46,7 +46,6 @@ Material::~Material()
     gpuData = nullptr;
 }
 
-// ==================== Setters ====================
 
 void Material::SetDiffuseColor(float r, float g, float b, float a)
 {
@@ -115,7 +114,6 @@ void Material::SetAlphaCutoff(float cutoff)
     properties.alphaCutoff = Clamp01(cutoff);
 }
 
-// ==================== Getters ====================
 
 DirectX::XMFLOAT4 Material::GetDiffuseColor() const
 {

@@ -11,32 +11,26 @@ ObjectManager::~ObjectManager()
     for (auto& shader : m_shaders)
         shader->materials.clear();
 
-    // Surfaces loeschen
     for (auto& surface : m_surfaces)
         Memory::SafeDelete(surface);
     m_surfaces.clear();
 
-    // MeshAssets loeschen (nach Surfaces, da Assets nur Zeiger halten)
     for (auto& asset : m_meshAssets)
         Memory::SafeDelete(asset);
     m_meshAssets.clear();
 
-    // Meshes loeschen
     for (auto& mesh : m_meshes)
         Memory::SafeDelete(mesh);
     m_meshes.clear();
 
-    // Kameras loeschen
     for (auto& camera : m_cameras)
         Memory::SafeDelete(camera);
     m_cameras.clear();
 
-    // Materialien loeschen
     for (auto& material : m_materials)
         Memory::SafeDelete(material);
     m_materials.clear();
 
-    // Shader loeschen
     for (auto& shader : m_shaders)
         Memory::SafeDelete(shader);
     m_shaders.clear();
@@ -65,7 +59,7 @@ bool ObjectManager::ResolveSurfaceBinding(const Surface* surface, Mesh*& outMesh
 
         if (foundMesh)
         {
-            Debug::Log("objectmanager.cpp: ResolveSurfaceBinding - mehrdeutige Surface-Bindung erkannt");
+            DBLOG("objectmanager.cpp: ResolveSurfaceBinding - ambiguous surface binding detected");
             return false;
         }
 
@@ -93,7 +87,7 @@ MeshAsset* ObjectManager::CreateMeshAsset()
 {
     MeshAsset* asset = new MeshAsset;
     m_meshAssets.push_back(asset);
-    Debug::Log("objectmanager.cpp: MeshAsset erstellt");
+    DBLOG("objectmanager.cpp: MeshAsset created");
     return asset;
 }
 
@@ -101,13 +95,11 @@ Mesh* ObjectManager::CreateMesh()
 {
     Mesh* mesh = new Mesh;
 
-    // Jedes neue Mesh bekommt automatisch ein eigenes MeshAsset.
-    // Fuer Instancing kann das Asset spaeter durch ein geteiltes ersetzt werden.
+    // Each new mesh gets its own MeshAsset by default.
+    // For instancing, the asset can later be replaced with a shared one.
     MeshAsset* asset = CreateMeshAsset();
     mesh->meshRenderer.asset = asset;
 
-    // Kein mesh-lokales Default-Material mehr.
-    // Ungesetzte Slots fallen global auf GetStandardMaterial() zurueck.
 
     m_meshes.push_back(mesh);
     m_entities.push_back(mesh);
@@ -152,7 +144,7 @@ void ObjectManager::AddMaterialToSurface(Material* material, Surface* surface)
     unsigned int slot = 0;
     if (!ResolveSurfaceBinding(surface, mesh, slot) || !mesh)
     {
-        Debug::Log("objectmanager.cpp: AddMaterialToSurface - Surface konnte keinem eindeutigen Mesh/Slot zugeordnet werden");
+        DBLOG("objectmanager.cpp: AddMaterialToSurface - surface could not be mapped to a unique mesh/slot");
         return;
     }
 
@@ -166,7 +158,7 @@ void ObjectManager::AddMeshToMaterial(Material* material, Mesh* mesh)
 {
     if (!material || !mesh) return;
 
-    // Kein Mesh-default mehr: Materialzuweisung auf alle aktuell vorhandenen Slots anwenden.
+    // No mesh-level default: apply material assignment to all currently existing slots.
     if (mesh->meshRenderer.asset)
     {
         const auto& slots = mesh->meshRenderer.asset->GetSlots();
@@ -221,12 +213,11 @@ void ObjectManager::DeleteMesh(Mesh* mesh)
     if (entIt != m_entities.end())
         m_entities.erase(entIt);
 
-    // Surfaces vom Asset trennen (nicht loeschen – ObjectManager loescht sie separat)
     if (mesh->meshRenderer.asset)
     {
-        // Asset mitloeschen wenn es exklusiv ist (Normalfall: CreateMesh legt immer
-        // ein eigenes Asset an). Geteilte Assets muessen vorher manuell getrennt werden:
-        //   mesh->meshRenderer.asset = nullptr;  vor DeleteMesh aufrufen.
+        // Delete asset if it is exclusively owned (normal case: CreateMesh always
+        // creates its own asset). Shared assets must be detached manually before calling DeleteMesh:
+        //   mesh->meshRenderer.asset = nullptr;
         MeshAsset* ownedAsset = mesh->meshRenderer.asset;
         mesh->meshRenderer.asset = nullptr;
 
@@ -235,7 +226,7 @@ void ObjectManager::DeleteMesh(Mesh* mesh)
         {
             m_meshAssets.erase(assetIt);
             Memory::SafeDelete(ownedAsset);
-            Debug::Log("objectmanager.cpp: DeleteMesh - MeshAsset mitgeloescht");
+            DBLOG("objectmanager.cpp: DeleteMesh - MeshAsset deleted");
         }
     }
 
@@ -277,8 +268,8 @@ void ObjectManager::DeleteMaterial(Material* material)
 {
     if (!material) return;
 
-    // Slot-Eintraege auf nullptr setzen - Index bleibt unveraendert.
-    // Der Renderer faellt automatisch auf das Standard-Material zurueck.
+    // Set slot entries to nullptr - index remains unchanged.
+    // The renderer automatically falls back to the standard material.
     for (auto* mesh : m_meshes)
     {
         if (!mesh) continue;
@@ -289,7 +280,6 @@ void ObjectManager::DeleteMaterial(Material* material)
         }
     }
 
-    // Aus Shader-Bucket entfernen
     Shader* sh = material->pRenderShader;
     if (sh)
     {
@@ -421,11 +411,11 @@ Surface* ObjectManager::GetSurface(Mesh* mesh, unsigned int index)
 Material* ObjectManager::GetStandardMaterial() const
 {
     // Internes Default-Material hat Vorrang vor dem ersten User-Material.
-    // Wird von GDXEngine beim Start gesetzt – immer hellgrau, keine Textur.
+    // Set by GDXEngine at startup - always light grey, no texture.
     if (m_defaultMaterial)
         return m_defaultMaterial;
 
-    // Fallback fuer den Fall dass SetDefaultMaterial noch nicht aufgerufen wurde.
+    // Fallback if SetDefaultMaterial has not been called yet.
     return m_materials.empty() ? nullptr : m_materials.front();
 }
 
@@ -517,7 +507,7 @@ Light* ObjectManager::CreateLight(LightType type)
 {
     if (m_lights.size() >= MAX_LIGHTS)
     {
-        Debug::Log("objectmanager.cpp: WARNING - MAX_LIGHTS (32) erreicht");
+        DBLOG("objectmanager.cpp: WARNING - MAX_LIGHTS (32) reached");
         return nullptr;
     }
 
@@ -529,7 +519,7 @@ Light* ObjectManager::CreateLight(LightType type)
 
     m_lights.push_back(light);
     m_entities.push_back(light);
-    Debug::Log("objectmanager.cpp: Light erstellt (Gesamt: ", static_cast<int>(m_lights.size()), ")");
+    DBLOG("objectmanager.cpp: Light created (total: ", static_cast<int>(m_lights.size()), ")");
     return light;
 }
 

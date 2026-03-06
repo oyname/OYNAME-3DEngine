@@ -23,7 +23,7 @@ Dx11RenderBackend::Dx11RenderBackend(GDXDevice& device)
     device.AttachDx11Backend(this);
     m_shadow = std::make_unique<Dx11ShadowMap>();
     
-    Debug::Log("Dx11RenderBackend.cpp: Backend erstellt");
+    DBLOG("Dx11RenderBackend.cpp: Backend created");
 }
 
 Dx11RenderBackend::~Dx11RenderBackend()
@@ -92,7 +92,6 @@ void Dx11RenderBackend::UpdateShadowMatrixBuffer(
         DirectX::XMMATRIX lightProjectionMatrix;
     };
 
-    // Original: constexpr bool HLSL_USES_ROW_MAJOR = true;
     constexpr bool HLSL_USES_ROW_MAJOR = true;
 
     ShadowMatrixBuffer* bufferData = reinterpret_cast<ShadowMatrixBuffer*>(mappedResource.pData);
@@ -115,14 +114,14 @@ void Dx11RenderBackend::BindShadowMatrixConstantBufferVS(GDXDevice& device)
     if (!device.IsInitialized()) return;
 
     if (ID3D11Buffer* shadowMatrixBuffer = device.GetShadowMatrixBuffer())
-        device.GetDeviceContext()->VSSetConstantBuffers(3, 1, &shadowMatrixBuffer); // Slot 3 unverändert
+        device.GetDeviceContext()->VSSetConstantBuffers(3, 1, &shadowMatrixBuffer); // slot 3ändert
 }
 
 void Dx11RenderBackend::BindShadowResourcesPS(GDXDevice& device, ShadowMapTarget& shadowTarget)
 {
     if (!device.IsInitialized()) return;
 
-    (void)shadowTarget; // aktuell nur als "Handle"/Tag
+    (void)shadowTarget;
 
     ID3D11DeviceContext* ctx = device.GetDeviceContext();
     if (!ctx) return;
@@ -141,12 +140,12 @@ void Dx11RenderBackend::BeginShadowPass()
     ID3D11DeviceContext* ctx = m_device->GetDeviceContext();
     if (!ctx) return;
 
-    // SRV-Hazard verhindern: Shadow-Slot freigeben bevor als DSV genutzt
+    // Prevent SRV hazard: release shadow slot before using it as DSV
     ID3D11ShaderResourceView* nullSRV[1] = { nullptr };
     ctx->PSSetShaderResources(SHADOW_TEX_SLOT, 1, nullSRV);
     ctx->VSSetShaderResources(SHADOW_TEX_SLOT, 1, nullSRV);
 
-    // Kein Pixel-Shader nötig (Depth-only Pass)
+    // No pixel shader needed (depth-only pass)
     ctx->PSSetShader(nullptr, nullptr, 0);
 
     // Shadow bind/clear/viewport/RS in one place.
@@ -164,7 +163,7 @@ void Dx11RenderBackend::EndShadowPass()
     if (rtv && dsv)
         ctx->OMSetRenderTargets(1, &rtv, dsv);
 
-    // Viewport zurück auf Backbuffer
+    // Restore backbuffer viewport
     UINT w = 0, h = 0;
     if (ID3D11Texture2D* bb = m_device->GetBackBuffer())
     {
@@ -185,14 +184,13 @@ void Dx11RenderBackend::EndShadowPass()
         ctx->RSSetViewports(1, &vp);
     }
 
-    // Standard RS wieder setzen
+    // Restore default rasterizer state
     if (ID3D11RasterizerState* rs = m_device->GetRasterizerState())
         ctx->RSSetState(rs);
     else
         ctx->RSSetState(nullptr);
 }
 
-// Legacy (kept)
 void Dx11RenderBackend::BeginShadowPass(GDXDevice& device, ShadowMapTarget& shadowTarget)
 {
     (void)device;
@@ -205,7 +203,6 @@ void Dx11RenderBackend::BeginMainPass(
     BackbufferTarget& backbufferTarget,
     const Viewport& cameraViewport)
 {
-    // copy + redirect: exakt der bisherige Ablauf, nur zentral im Backend
     (void)backbufferTarget;
 
     if (!device.IsInitialized()) return;
@@ -222,16 +219,16 @@ void Dx11RenderBackend::BeginMainPass(
     dxVp.MinDepth = cameraViewport.minDepth;
     dxVp.MaxDepth = cameraViewport.maxDepth;
 
-    // Backbuffer binden
+    // Bind backbuffer
     ctx->OMSetRenderTargets(1, &rtv, dsv);
 
-    // Pipeline-State fuer Main-Pass (vorher in BackbufferTarget::Bind)
+    // Pipeline state for main pass
     if (ID3D11RasterizerState* rsDefault = device.GetRasterizerState())
         ctx->RSSetState(rsDefault);
     else
         ctx->RSSetState(nullptr);
 
-    // Kamera-Viewport (vorher in BackbufferTarget::Bind)
+    // Camera viewport
     ctx->RSSetViewports(1, &dxVp);
 }
 
@@ -252,8 +249,7 @@ void Dx11RenderBackend::BeginRttPass(GDXDevice& device, RenderTextureTarget& rtt
     ID3D11DepthStencilView* dsv = rttTarget.GetDSV();
     if (!rtv || !dsv) return;
 
-    // SRV-Hazard: relevante Slots freigeben bevor RTV gebunden wird.
-    // copy+redirect: entspricht dem bisherigen Reset in RenderTextureTarget::Bind()
+    // SRV hazard: release relevant slots before binding RTV
     ID3D11ShaderResourceView* nullSRVs[8] = { nullptr };
     ctx->PSSetShaderResources(0, 8, nullSRVs);
 
@@ -263,7 +259,7 @@ void Dx11RenderBackend::BeginRttPass(GDXDevice& device, RenderTextureTarget& rtt
     ctx->ClearRenderTargetView(rtv, rttTarget.GetClearColor());
     ctx->ClearDepthStencilView(dsv, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
-    // Pipeline-State fuer RTT-Pass (vorher in RenderTextureTarget::Bind)
+    // Pipeline state for RTT pass
     if (ID3D11RasterizerState* rsDefault = device.GetRasterizerState())
         ctx->RSSetState(rsDefault);
     else

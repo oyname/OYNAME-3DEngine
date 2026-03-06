@@ -39,7 +39,7 @@ bool Dx11ShadowMap::Create(ID3D11Device* dev, UINT size)
     hr = dev->CreateTexture2D(&shadowMapDesc, nullptr, &m_shadowTex);
     if (FAILED(hr))
     {
-        Debug::LogError("Dx11ShadowMap: Failed to create shadow texture: ", hr);
+        DBERROR("Dx11ShadowMap: Failed to create shadow texture: ", hr);
         Release();
         return false;
     }
@@ -55,7 +55,7 @@ bool Dx11ShadowMap::Create(ID3D11Device* dev, UINT size)
     hr = dev->CreateDepthStencilView(m_shadowTex, &dsvDesc, &m_shadowDSV);
     if (FAILED(hr))
     {
-        Debug::LogError("Dx11ShadowMap: Failed to create shadow DSV: ", hr);
+        DBERROR("Dx11ShadowMap: Failed to create shadow DSV: ", hr);
         Release();
         return false;
     }
@@ -72,7 +72,7 @@ bool Dx11ShadowMap::Create(ID3D11Device* dev, UINT size)
     hr = dev->CreateShaderResourceView(m_shadowTex, &srvDesc, &m_shadowSRV);
     if (FAILED(hr))
     {
-        Debug::LogError("Dx11ShadowMap: Failed to create shadow SRV: ", hr);
+        DBERROR("Dx11ShadowMap: Failed to create shadow SRV: ", hr);
         Release();
         return false;
     }
@@ -98,7 +98,7 @@ bool Dx11ShadowMap::Create(ID3D11Device* dev, UINT size)
     hr = dev->CreateSamplerState(&sampDesc, &m_shadowSampler);
     if (FAILED(hr))
     {
-        Debug::LogError("Dx11ShadowMap: Failed to create comparison sampler: ", hr);
+        DBERROR("Dx11ShadowMap: Failed to create comparison sampler: ", hr);
         Release();
         return false;
     }
@@ -118,7 +118,7 @@ bool Dx11ShadowMap::Create(ID3D11Device* dev, UINT size)
     hr = dev->CreateRasterizerState(&rsDesc, &m_shadowRS);
     if (FAILED(hr))
     {
-        Debug::LogError("Dx11ShadowMap: Failed to create shadow rasterizer state: ", hr);
+        DBERROR("Dx11ShadowMap: Failed to create shadow rasterizer state: ", hr);
         Release();
         return false;
     }
@@ -135,12 +135,12 @@ bool Dx11ShadowMap::Create(ID3D11Device* dev, UINT size)
     hr = dev->CreateBuffer(&bd, nullptr, &m_shadowMatrixCB);
     if (FAILED(hr))
     {
-        Debug::LogError("Dx11ShadowMap: Failed to create shadow matrix CB: ", hr);
+        DBERROR("Dx11ShadowMap: Failed to create shadow matrix CB: ", hr);
         Release();
         return false;
     }
 
-    Debug::Log("Dx11ShadowMap: Created shadow resources (", size, "x", size, ")");
+    DBLOG("Dx11ShadowMap: Created shadow resources (", size, "x", size, ")");
     return true;
 }
 

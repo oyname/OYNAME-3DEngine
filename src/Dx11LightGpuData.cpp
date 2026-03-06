@@ -1,4 +1,4 @@
-// Dx11LightGpuData.cpp: alle DX11-Aufrufe fuer Licht-GPU-Ressourcen.
+// Dx11LightGpuData.cpp: All DX11 calls for light GPU resources.
 #include <d3d11.h>
 #include "gdxutil.h"
 #include "gdxdevice.h"
@@ -24,7 +24,7 @@ void LightGpuData::Upload(const GDXDevice* device, const LightBufferData& data)
 
     if (FAILED(hr))
     {
-        Debug::Log("Dx11LightGpuData.cpp: Upload - Map fehlgeschlagen");
+        DBLOG("Dx11LightGpuData.cpp: Upload - Map fehlgeschlagen");
         return;
     }
 

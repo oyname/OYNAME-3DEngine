@@ -1,4 +1,4 @@
-// Dx11MaterialGpuData.cpp: alle DX11-Aufrufe gehoeren hierher.
+// Dx11MaterialGpuData.cpp: All DX11 calls for material GPU data.
 #include <d3d11.h>
 #include <DirectXMath.h>
 #include "gdxutil.h"
@@ -74,7 +74,7 @@ void MaterialGpuData::UpdateConstantBuffer(
     if (materialBuffer == nullptr || context == nullptr)
         return;
 
-    // GPU-Layout passend zum HLSL cbuffer (b2)
+    // GPU layout matching the HLSL cbuffer at b2
     struct alignas(16) MaterialCB
     {
         DirectX::XMFLOAT4 baseColor;
@@ -95,7 +95,6 @@ void MaterialGpuData::UpdateConstantBuffer(
         return (v <= 15u) ? v : fallback;
     };
 
-    // GDX::Float4 -> DirectX::XMFLOAT4: identisches Memory-Layout, direkte Member-Kopie.
     MaterialCB cb{};
     cb.baseColor      = { baseColor.x,      baseColor.y,      baseColor.z,      baseColor.w      };
     cb.specularColor  = { specularColor.x,  specularColor.y,  specularColor.z,  specularColor.w  };
@@ -112,7 +111,7 @@ void MaterialGpuData::UpdateConstantBuffer(
         clampIdx(decalIndex,  0u)
     );
 
-    // gMisc.z: blendFactor als float-Bits, im Shader per asfloat() gelesen
+    // gMisc.z: blendFactor as float bits, read in shader via asfloat()
     uint32_t blendFactorBits = 0u;
     memcpy(&blendFactorBits, &blendFactor, sizeof(blendFactorBits));
 

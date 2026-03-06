@@ -1,4 +1,4 @@
-﻿#include "ShaderManager.h"
+#include "ShaderManager.h"
 #include <fstream>
 
 ShaderManager::ShaderManager() : m_device(nullptr), m_objectManager(nullptr), m_standardShader(nullptr)
@@ -26,7 +26,7 @@ HRESULT ShaderManager::CreateShader(SHADER* shader, const std::wstring& vertexSh
     hr = m_device->CreateVertexShader(blobVS->GetBufferPointer(), blobVS->GetBufferSize(), nullptr, &shader->vertexShader);
     if (FAILED(hr))
     {
-        Debug::LogHr(__FILE__, __LINE__, hr);
+        DBLOG_HR(hr);
         Memory::SafeRelease(blobVS);
         return hr;
     }
@@ -35,7 +35,7 @@ HRESULT ShaderManager::CreateShader(SHADER* shader, const std::wstring& vertexSh
     hr = CompileShaderFromFile(pixelShaderFile, pixelEntryPoint, "ps_5_0", &blobPS);
     if (FAILED(hr))
     {
-        Debug::LogHr(__FILE__, __LINE__, hr);
+        DBLOG_HR(hr);
         Memory::SafeRelease(blobVS);
         Memory::SafeRelease(shader->vertexShader);
         return hr;
@@ -45,14 +45,14 @@ HRESULT ShaderManager::CreateShader(SHADER* shader, const std::wstring& vertexSh
     hr = m_device->CreatePixelShader(blobPS->GetBufferPointer(), blobPS->GetBufferSize(), nullptr, &shader->pixelShader);
     if (FAILED(hr))
     {
-        Debug::LogHr(__FILE__, __LINE__, hr);
+        DBLOG_HR(hr);
         Memory::SafeRelease(blobVS);
         Memory::SafeRelease(blobPS);
         Memory::SafeRelease(shader->vertexShader);
         return hr;
     }
 
-    // Speichere Blobs für Input Layout (müssen später manuell freigegeben werden)
+    // Store blobs for input layout (must be released manually later)
     shader->blobVS = blobVS;
     shader->blobPS = blobPS;
 
@@ -71,7 +71,7 @@ HRESULT ShaderManager::CompileShaderFromFile(const std::wstring& filename, const
     // Compile the shader from file
     hr = D3DCompileFromFile(
         filename.c_str(),
-        nullptr,                    // Keine Defines
+        nullptr,                    // No defines
         nullptr,                    // Standard Include Handler
         entryPoint.c_str(),
         shaderModel.c_str(),
@@ -83,10 +83,10 @@ HRESULT ShaderManager::CompileShaderFromFile(const std::wstring& filename, const
 
     if (FAILED(hr)) {
         if (errorBlob != nullptr) {
-            Debug::Log("ShaderManager.cpp: Shader Compilation Error: ", (const char*)errorBlob->GetBufferPointer());
+            DBLOG("ShaderManager.cpp: Shader Compilation Error: ", (const char*)errorBlob->GetBufferPointer());
             Memory::SafeRelease(errorBlob);
         }
-        return hr;  // hr zurueckgeben, nicht 0 (0 == S_OK!)
+        return hr;  // return hr, not 0 (0 == S_OK)
     }
 
     return hr;

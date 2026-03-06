@@ -9,14 +9,14 @@ void RenderCommand::Execute(const GDXDevice* device) const
 {
     if (!mesh || !surface || !device) return;
 
-    // Backend ist fuer Bindings zustaendig.
+    // The backend is responsible for bindings.
     // Ohne Backend: wir koennen trotzdem zeichnen, aber dann fehlen ggf. CB-Bindings.
     GDXDevice& dev = *const_cast<GDXDevice*>(device);
 
-    // Mesh-Matrix hochladen (nur beim ersten Auftritt pro Frame)
+    // Upload mesh matrix (only on first occurrence per frame)
     if (!mesh->IsUpdatedThisFrame())
     {
-        // MatrixSet wird vom RenderManager vor dem Flush gesetzt --
+        // MatrixSet is set by RenderManager before the flush --
         // hier greifen wir direkt auf das bereits korrekt befuellte matrixSet zu.
         mesh->Update(device, &mesh->matrixSet);
         mesh->MarkUpdated();

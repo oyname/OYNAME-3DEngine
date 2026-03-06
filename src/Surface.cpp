@@ -70,7 +70,7 @@ void Surface::AddIndex(unsigned int index)
 // ---------------------------------------------------------------------------
 // Tangent-Berechnung (Tangent-Space Normalmapping)
 // Speichert float4(T.xyz, handedness) pro Vertex.
-// Handedness = +1/-1, damit Bitangent im Shader rekonstruiert werden kann.
+// Handedness = +1/-1 so the bitangent can be reconstructed in the shader.
 // ---------------------------------------------------------------------------
 void Surface::ComputeTangents()
 {

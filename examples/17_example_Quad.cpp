@@ -40,7 +40,7 @@ int main()
     LPENTITY g_directionalLight = nullptr;
     Engine::CreateLight(&g_directionalLight, D3DLIGHT_DIRECTIONAL);  // ← DIRECTIONAL!
     Engine::PositionEntity(g_directionalLight, 0.0f, 0.0f, 0.0f);
-    Engine::LightColor(g_directionalLight, 1.0f, 0.0f, 0.0f);
+    Engine::LightColor(g_directionalLight, 1.0f, 1.0f, 1.0f);
 
     while (Windows::MainLoop() && !(GetAsyncKeyState(VK_ESCAPE) & 0x8000)) 
     {
@@ -58,7 +58,7 @@ void CreateQuad(LPENTITY* mesh, MATERIAL* material)
 {
     LPSURFACE quad = NULL;
 
-    Engine::CreateMesh(mesh, material);
+    Engine::CreateMesh(mesh);
     Engine::CreateSurface(&quad, (*mesh));
 
     // Definition der Eckpunkte f�r jede Seite des W�rfels
@@ -75,6 +75,9 @@ void CreateQuad(LPENTITY* mesh, MATERIAL* material)
     // Definition der Dreiecke fuer jede Seite des W�rfels
     Engine::AddTriangle(quad, 0, 1, 2);
     Engine::AddTriangle(quad, 3, 2, 1);
+
+    if (material)
+        Engine::SurfaceMaterial(quad, material);
 
     Engine::FillBuffer(quad);
 }

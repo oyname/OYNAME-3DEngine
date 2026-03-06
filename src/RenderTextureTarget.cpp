@@ -20,7 +20,7 @@ HRESULT RenderTextureTarget::Create(ID3D11Device* device, ID3D11DeviceContext* c
 {
     if (!device || !context || width == 0 || height == 0)
     {
-        Debug::LogError("RenderTextureTarget.cpp: Create() – ungueltige Parameter");
+        DBERROR("RenderTextureTarget.cpp: Create() – ungueltige Parameter");
         return E_INVALIDARG;
     }
 
@@ -48,7 +48,7 @@ HRESULT RenderTextureTarget::Create(ID3D11Device* device, ID3D11DeviceContext* c
         hr = device->CreateTexture2D(&desc, nullptr, &m_rttTexture);
         if (FAILED(hr))
         {
-            Debug::LogError("RenderTextureTarget.cpp: Create() – CreateTexture2D (Color) fehlgeschlagen");
+            DBERROR("RenderTextureTarget.cpp: Create() – CreateTexture2D (Color) fehlgeschlagen");
             Release();
             return hr;
         }
@@ -63,7 +63,7 @@ HRESULT RenderTextureTarget::Create(ID3D11Device* device, ID3D11DeviceContext* c
         hr = device->CreateRenderTargetView(m_rttTexture, &rtvDesc, &m_rttRTV);
         if (FAILED(hr))
         {
-            Debug::LogError("RenderTextureTarget.cpp: Create() – CreateRenderTargetView fehlgeschlagen");
+            DBERROR("RenderTextureTarget.cpp: Create() – CreateRenderTargetView fehlgeschlagen");
             Release();
             return hr;
         }
@@ -80,7 +80,7 @@ HRESULT RenderTextureTarget::Create(ID3D11Device* device, ID3D11DeviceContext* c
         hr = device->CreateShaderResourceView(m_rttTexture, &srvDesc, &m_rttSRV);
         if (FAILED(hr))
         {
-            Debug::LogError("RenderTextureTarget.cpp: Create() – CreateShaderResourceView fehlgeschlagen");
+            DBERROR("RenderTextureTarget.cpp: Create() – CreateShaderResourceView fehlgeschlagen");
             Release();
             return hr;
         }
@@ -101,7 +101,7 @@ HRESULT RenderTextureTarget::Create(ID3D11Device* device, ID3D11DeviceContext* c
         hr = device->CreateTexture2D(&depthDesc, nullptr, &m_depthTexture);
         if (FAILED(hr))
         {
-            Debug::LogError("RenderTextureTarget.cpp: Create() – CreateTexture2D (Depth) fehlgeschlagen");
+            DBERROR("RenderTextureTarget.cpp: Create() – CreateTexture2D (Depth) fehlgeschlagen");
             Release();
             return hr;
         }
@@ -116,7 +116,7 @@ HRESULT RenderTextureTarget::Create(ID3D11Device* device, ID3D11DeviceContext* c
         hr = device->CreateDepthStencilView(m_depthTexture, &dsvDesc, &m_depthView);
         if (FAILED(hr))
         {
-            Debug::LogError("RenderTextureTarget.cpp: Create() – CreateDepthStencilView fehlgeschlagen");
+            DBERROR("RenderTextureTarget.cpp: Create() – CreateDepthStencilView fehlgeschlagen");
             Release();
             return hr;
         }
@@ -127,14 +127,14 @@ HRESULT RenderTextureTarget::Create(ID3D11Device* device, ID3D11DeviceContext* c
     m_textureWrapper.m_textureView = m_rttSRV;
     m_textureWrapper.m_texture = m_rttTexture;
 
-    Debug::Log("RenderTextureTarget.cpp: Create() OK – ", width, "x", height,
+    DBLOG("RenderTextureTarget.cpp: Create() OK – ", width, "x", height,
         " (RTV + SRV + Depth)");
     return S_OK;
 }
 
 void RenderTextureTarget::Release()
 {
-    // Wrapper-Pointer nullen, BEVOR die echten Ressourcen freigegeben werden,
+    // Null wrapper pointers BEFORE releasing the real resources
     // damit kein Dangling-Pointer in m_textureWrapper verbleibt.
     m_textureWrapper.m_textureView = nullptr;
     m_textureWrapper.m_texture = nullptr;

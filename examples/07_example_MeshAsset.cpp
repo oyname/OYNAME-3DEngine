@@ -47,7 +47,7 @@ int main()
     // 2) Entity B: zweites Mesh erstellen, aber Asset von A teilen
     // ------------------------------------------------------------------
     LPENTITY cubeB = nullptr;
-    Engine::CreateMesh(&cubeB, matB);    // Mesh-Instanz B
+    Engine::CreateMesh(&cubeB);    // Mesh-Instanz B
     Engine::PositionEntity(cubeB, 1.5f, 1.0f, 0.0f);
 
     // Asset teilen (beide zeigen auf denselben MeshAsset)
@@ -58,6 +58,8 @@ int main()
     // Slot-Materialien pro Instanz setzen (Slot 0, weil Würfel 1 Surface hat)
     Engine::engine->GetOM().SetSlotMaterial(mA, 0, matA);
     Engine::engine->GetOM().SetSlotMaterial(mB, 0, matB);
+
+    Engine::DebugPrintScene();
 
     while (Windows::MainLoop() && !(GetAsyncKeyState(VK_ESCAPE) & 0x8000))
     {

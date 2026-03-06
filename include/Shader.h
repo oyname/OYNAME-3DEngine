@@ -1,4 +1,4 @@
-﻿// Shader.h
+// Shader.h
 #pragma once
 #include <vector>
 #include <d3d11.h>

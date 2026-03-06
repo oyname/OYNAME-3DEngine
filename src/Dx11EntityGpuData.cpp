@@ -1,4 +1,4 @@
-// Dx11EntityGpuData.cpp: alle DX11-Aufrufe fuer Entity-GPU-Ressourcen.
+// Dx11EntityGpuData.cpp: All DX11 calls for entity GPU resources.
 #include <d3d11.h>
 #include "gdxutil.h"
 #include "gdxdevice.h"
@@ -23,7 +23,7 @@ void EntityGpuData::Upload(const GDXDevice* device, const MatrixSet& matrices)
 
     if (FAILED(hr))
     {
-        Debug::LogHr(__FILE__, __LINE__, hr);
+        DBLOG_HR(hr);
         return;
     }
 

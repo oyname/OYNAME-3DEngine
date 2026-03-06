@@ -21,7 +21,7 @@ void Timer::Init()
 
 void Timer::Shutdown()
 {
-    // absichtlich leer: statischer Singleton r‰umt sich automatisch auf
+    // absichtlich leer: statischer Singleton r√§umt sich automatisch auf
 }
 
 void Timer::Tick()
@@ -56,12 +56,12 @@ void Timer::Update()
             fixedSteps = steps;
             accumulator -= static_cast<double>(steps) * FIXED_TIMESTEP_SEC;
 
-            // deltaTime ist im FIXED Mode immer fixedStep (nicht raw!)
+            // In FIXED mode deltaTime is always fixedStep (not raw)
             deltaTime = FIXED_TIMESTEP_SEC;
         }
         else
         {
-            // Kein Step f‰llig -> deltaTime = 0 (aber steps=0 ist der wichtige Indikator)
+            // No step due -> deltaTime = 0 (steps=0 is the key indicator)
             deltaTime = 0.0;
         }
     }
@@ -78,7 +78,7 @@ bool Timer::ConsumeFixedStep()
     if (t->fixedSteps > 0)
     {
         --t->fixedSteps;
-        // deltaTime bleibt FIXED_TIMESTEP_SEC w‰hrend Steps > 0, das passt so.
+        // deltaTime bleibt FIXED_TIMESTEP_SEC w√§hrend Steps > 0, das passt so.
         return true;
     }
     return false;
@@ -99,7 +99,7 @@ double Timer::GetFPS()
     if (dt > 0.0)
         return 1.0 / dt;
 
-    // Wenn FIXED und gerade kein Step f‰llig: FPS nicht aus 0 ableiten
+    // In FIXED mode with no step due: do not derive FPS from 0
     return 0.0;
 }
 

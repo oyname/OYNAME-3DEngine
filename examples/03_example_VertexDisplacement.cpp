@@ -27,10 +27,11 @@ static void CreateWaveGrid(
     float sizeX, float sizeZ,
     std::vector<GridBase>& outBase)
 {
-    Engine::CreateMesh(mesh, material);
+    Engine::CreateMesh(mesh);
 
     LPSURFACE surface = nullptr;
     Engine::CreateSurface(&surface, *mesh);
+    Engine::SurfaceMaterial(surface, material);
 
     const int vertsX = cellsX + 1;
     const int vertsZ = cellsZ + 1;

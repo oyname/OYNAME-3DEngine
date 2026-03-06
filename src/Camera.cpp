@@ -3,7 +3,6 @@ using namespace DirectX;
 
 Camera::Camera() : Entity(EntityType::Camera)
 {
-    // Matrizen werden in Entity::Entity() initialisiert
 }
 
 Camera::~Camera()

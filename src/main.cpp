@@ -53,7 +53,7 @@ INT APIENTRY WinMain(HINSTANCE hInst, HINSTANCE, LPSTR, int)
     if (mainThread.joinable())
         mainThread.join();
 
-    // 6) Alles herunterfahren (Engine -> Timer -> COM)
+    // 6) Shut everything down (Engine -> Timer -> COM)
     Core::Shutdown();
 
     return (int)msg.wParam;

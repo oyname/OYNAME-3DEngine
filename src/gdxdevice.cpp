@@ -1,4 +1,4 @@
-﻿#include "gdxutil.h"
+#include "gdxutil.h"
 #include "gdxdevice.h"
 #include "Dx11RenderBackend.h" 
   
@@ -40,8 +40,7 @@ void GDXDevice::Release()
         Memory::SafeRelease(m_pRenderTargetView);
         Memory::SafeRelease(m_pRasterizerState);
 
-        // Shadow resources are owned by the DX11 backend.
-    }
+        }
 
     m_bInitialized = false;
     m_deviceReady = false;
@@ -90,13 +89,13 @@ ID3D11Buffer* GDXDevice::GetShadowMatrixBuffer() const
 
 HRESULT GDXDevice::EnumerateSystemDevices()
 {
-    Debug::Log("gdxdevice.cpp: EnumerateSystemDevices START...");
+    DBLOG("gdxdevice.cpp: EnumerateSystemDevices START...");
 
     ComPtr<IDXGIFactory> factory;
     HRESULT hr = CreateDXGIFactory(__uuidof(IDXGIFactory), (void**)factory.GetAddressOf());
     if (FAILED(hr))
     {
-        Debug::LogError("gdxdevice.cpp: CreateDXGIFactory failed: 0x", std::hex, hr);
+        DBERROR("gdxdevice.cpp: CreateDXGIFactory failed: 0x", std::hex, hr);
         return hr;
     }
 
@@ -126,7 +125,7 @@ HRESULT GDXDevice::EnumerateSystemDevices()
 
         if (GXUTIL::isWindowsRenderer(adapter.Get()))
         {
-            Debug::LogWarning("gdxdevice.cpp: Skipping Windows Basic Renderer");
+            DBWARN("gdxdevice.cpp: Skipping Windows Basic Renderer");
             continue;
         }
 
@@ -155,27 +154,27 @@ HRESULT GDXDevice::EnumerateSystemDevices()
 
             deviceManager.GetDevices().push_back(gxDevice);
 
-            Debug::Log("gdxdevice.cpp: Device ", i, " added - FeatureLevel: ",
+            DBLOG("gdxdevice.cpp: Device ", i, " added - FeatureLevel: ",
                 GXUTIL::GetFeatureLevelName(achieved));
 
             ++deviceCount;
         }
         else
         {
-            Debug::LogWarning("gdxdevice.cpp: Adapter ", i, " - D3D11CreateDevice failed (hr=0x",
+            DBWARN("gdxdevice.cpp: Adapter ", i, " - D3D11CreateDevice failed (hr=0x",
                 std::hex, hr, std::dec, ")");
         }
     }
 
     if (deviceCount == 0)
     {
-        Debug::LogError("gdxdevice.cpp: CRITICAL: No suitable Direct3D devices found!");
+        DBERROR("gdxdevice.cpp: CRITICAL: No suitable Direct3D devices found!");
         m_bInitialized = false;
         return E_FAIL;
     }
 
-    Debug::Log("gdxdevice.cpp: EnumerateSystemDevices completed - ", deviceCount, " device(s) found");
-    Debug::Log("gdxdevice.cpp: ...EnumerateSystemDevices END");
+    DBLOG("gdxdevice.cpp: EnumerateSystemDevices completed - ", deviceCount, " device(s) found");
+    DBLOG("gdxdevice.cpp: ...EnumerateSystemDevices END");
 
     m_bInitialized = true;
     return S_OK;
@@ -186,12 +185,10 @@ HRESULT GDXDevice::InitializeDirectX(IDXGIAdapter* adapter, D3D_FEATURE_LEVEL* f
     if (!adapter || !featureLevel)
         return E_INVALIDARG;
 
-    // Keep state consistent if re-initialized.
     m_deviceReady = false;
 
     HRESULT hr = S_OK;
 
-    // Create the Direct3D device with single feature level
     hr = D3D11CreateDevice(
         adapter,
         D3D_DRIVER_TYPE_UNKNOWN,
@@ -206,7 +203,7 @@ HRESULT GDXDevice::InitializeDirectX(IDXGIAdapter* adapter, D3D_FEATURE_LEVEL* f
 
     if (FAILED(hr))
     {
-        Debug::LogHr(__FILE__, __LINE__, hr);
+        DBLOG_HR(hr);
         return hr;
     }
 
@@ -224,10 +221,8 @@ HRESULT GDXDevice::CreateSwapChain(IDXGIFactory* pDXGIFactory, HWND hWnd,
 
     HRESULT hr = S_OK;
 
-    // Adjust window size
     ResizeWindow(hWnd, width, height, windowed);
 
-    // Swap Chain Description
     DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
     swapChainDesc.BufferCount = 1;
     swapChainDesc.BufferDesc.Width = width;
@@ -242,41 +237,35 @@ HRESULT GDXDevice::CreateSwapChain(IDXGIFactory* pDXGIFactory, HWND hWnd,
     swapChainDesc.Windowed = windowed;
     swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
-    // Create Swap Chain
     hr = pDXGIFactory->CreateSwapChain(m_pd3dDevice, &swapChainDesc, &m_pSwapChain);
     if (FAILED(hr))
     {
-        Debug::LogHr(__FILE__, __LINE__, hr);
+        DBLOG_HR(hr);
         return hr;
     }
 
-    // Don't release factory here - caller manages it
 
     return hr;
 }
 
 HRESULT GDXDevice::CreateRenderTarget(unsigned int width, unsigned int height)
 {
-    // Width and height are determined by the swap chain, 
-    // these parameters are kept for backward compatibility but not used
     if (!m_pSwapChain || !m_pd3dDevice)
         return E_INVALIDARG;
 
     HRESULT hr = S_OK;
 
-    // Get back-buffer from Swap Chain
     hr = m_pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&m_pBackBuffer);
     if (FAILED(hr))
     {
-        Debug::LogHr(__FILE__, __LINE__, hr);
+        DBLOG_HR(hr);
         return hr;
     }
 
-    // Create render target view
     hr = m_pd3dDevice->CreateRenderTargetView(m_pBackBuffer, NULL, &m_pRenderTargetView);
     if (FAILED(hr))
     {
-        Debug::LogHr(__FILE__, __LINE__, hr);
+        DBLOG_HR(hr);
         return hr;
     }
 
@@ -339,22 +328,18 @@ HRESULT GDXDevice::CreateDepthBuffer(unsigned int width, unsigned int height)
 
     HRESULT hr = S_OK;
 
-    // Create depth texture
     hr = CreateDepthTexture(width, height);
     if (FAILED(hr))
         return hr;
 
-    // Create depth stencil view
     hr = CreateDepthStencilView();
     if (FAILED(hr))
         goto cleanup;
 
-    // Create rasterizer state
     hr = CreateRasterizerState();
     if (FAILED(hr))
         goto cleanup;
 
-    // Create depth stencil state
     hr = CreateDepthStencilState();
     if (FAILED(hr))
         goto cleanup;
@@ -373,10 +358,9 @@ HRESULT GDXDevice::CreateShadowBuffer(unsigned int width, unsigned int height)
     if (width == 0 || height == 0)
         return E_INVALIDARG;
 
-    // Step 3: shadow resources are created/owned by the DX11 backend.
     if (!m_dx11Backend)
     {
-        Debug::LogError("gdxdevice.cpp: CreateShadowBuffer called but no DX11 backend is attached.");
+        DBERROR("gdxdevice.cpp: CreateShadowBuffer called but no DX11 backend is attached.");
         return E_FAIL;
     }
 
@@ -406,7 +390,7 @@ HRESULT GDXDevice::CreateDepthTexture(unsigned int width, unsigned int height)
     HRESULT hr = m_pd3dDevice->CreateTexture2D(&depthBufferDesc, NULL, &m_depthStencilBuffer);
     if (FAILED(hr))
     {
-        Debug::LogHr(__FILE__, __LINE__, hr);
+        DBLOG_HR(hr);
         return hr;
     }
 
@@ -427,7 +411,7 @@ HRESULT GDXDevice::CreateDepthStencilView()
     HRESULT hr = m_pd3dDevice->CreateDepthStencilView(m_depthStencilBuffer, &depthStencilViewDesc, &m_depthStencilView);
     if (FAILED(hr))
     {
-        Debug::LogHr(__FILE__, __LINE__, hr);
+        DBLOG_HR(hr);
         return hr;
     }
 
@@ -449,7 +433,7 @@ HRESULT GDXDevice::CreateRasterizerState()
     HRESULT hr = m_pd3dDevice->CreateRasterizerState(&rasterizerDesc, &m_pRasterizerState);
     if (FAILED(hr))
     {
-        Debug::LogHr(__FILE__, __LINE__, hr);
+        DBLOG_HR(hr);
         return hr;
     }
 
@@ -470,7 +454,7 @@ HRESULT GDXDevice::CreateDepthStencilState()
     HRESULT hr = m_pd3dDevice->CreateDepthStencilState(&depthStencilDesc, &m_depthStencilState);
     if (FAILED(hr))
     {
-        Debug::LogHr(__FILE__, __LINE__, hr);
+        DBLOG_HR(hr);
         return hr;
     }
 

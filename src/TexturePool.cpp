@@ -1,5 +1,5 @@
 // TexturePool.cpp: vereinter Textur-Manager.
-// Kein doppeltes System mehr -- Laden, Caching, Index-Vergabe und
+// Single unified system: loading, caching, index assignment and
 // Default-Texturen laufen hier zusammen.
 #include <d3d11.h>
 #include "TexturePool.h"
@@ -25,7 +25,7 @@ TexturePool::~TexturePool()
 //  LoadTexture
 //
 //  Prueft per Dateiname ob die Textur bereits geladen ist.
-//  Wenn ja: gecachtes Texture-Objekt zurueckgeben.
+//  If so: return the cached texture object.
 //  Wenn nein: laden, SRV im Pool registrieren, speichern.
 // ============================================================
 HRESULT TexturePool::LoadTexture(ID3D11Device* device,
@@ -42,7 +42,7 @@ HRESULT TexturePool::LoadTexture(ID3D11Device* device,
     if (existing >= 0)
     {
         *lpTexture = m_textures[existing];
-        Debug::Log("texturepool.cpp: Textur aus Cache zurueckgegeben: ",
+        DBLOG("texturepool.cpp: Texture returned from cache: ",
             std::wstring(filename).c_str());
         return S_OK;
     }
@@ -51,7 +51,7 @@ HRESULT TexturePool::LoadTexture(ID3D11Device* device,
     HRESULT hr = tex->AddTexture(device, deviceContext, filename);
     if (FAILED(hr))
     {
-        Debug::Log("texturepool.cpp: Laden fehlgeschlagen: ",
+        DBLOG("texturepool.cpp: Laden fehlgeschlagen: ",
             std::wstring(filename).c_str());
         Memory::SafeDelete(tex);
         return hr;
@@ -64,7 +64,7 @@ HRESULT TexturePool::LoadTexture(ID3D11Device* device,
     m_textures.push_back(tex);
     *lpTexture = tex;
 
-    Debug::Log("texturepool.cpp: Textur geladen (Pool-Groesse: ",
+    DBLOG("texturepool.cpp: Textur geladen (Pool-Groesse: ",
         static_cast<int>(m_srvs.size()), ")");
     return S_OK;
 }
@@ -132,7 +132,7 @@ bool TexturePool::InitializeDefaults(ID3D11Device* device)
     orm->Release();
 
     m_defaultsReady = true;
-    Debug::Log("texturepool.cpp: Default-Texturen erstellt (weiss=",
+    DBLOG("texturepool.cpp: Default textures created (white=",
         m_whiteIndex, " flatNormal=", m_flatNormalIndex,
         " orm=", m_ormIndex, ")");
     return true;

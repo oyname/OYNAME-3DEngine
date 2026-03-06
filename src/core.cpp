@@ -43,7 +43,7 @@ namespace Core
         DWORD result = GetFullPathNameW(relativePath.c_str(), MAX_PATH, absolutePath, nullptr);
 
         if (result == 0 || result >= MAX_PATH) {
-            Debug::Log("core.cpp: WARNING - Could not resolve path: ", relativePath.c_str());
+            DBLOG("core.cpp: WARNING - Could not resolve path: ", relativePath.c_str());
             return relativePath;
         }
 
@@ -55,7 +55,7 @@ namespace Core
     {
         if (g_state == State::Running || g_state == State::Initialized)
         {
-            Debug::Log("core.cpp: Init already called - returning existing HWND");
+            DBLOG("core.cpp: Init already called - returning existing HWND");
             return g_hwnd;
         }
 
@@ -66,7 +66,7 @@ namespace Core
         HRESULT hr = CoInitialize(nullptr);
         if (FAILED(hr))
         {
-            Debug::LogError("core.cpp: CoInitialize failed");
+            DBERROR("core.cpp: CoInitialize failed");
             return nullptr;
         }
         g_comInit = true;
@@ -81,14 +81,14 @@ namespace Core
             return nullptr;
         }
 
-        // cout/cerr nach freopen_s zuruecksetzen (failbit loeschen)
+        // Reset cout/cerr after freopen_s (clear failbit)
         std::cout.clear();
         std::cerr.clear();
 
         // 3. Pfade cachen (jetzt ist die Konsole da, Debug::Log funktioniert)
         g_exeDir = ResolveExeDir();
         g_exeDirResolved = true;
-        Debug::Log("core.cpp: ExeDir = ", g_exeDir.c_str());
+        DBLOG("core.cpp: ExeDir = ", g_exeDir.c_str());
 
         // 4. Timer
         Timer::Init();
@@ -98,7 +98,7 @@ namespace Core
         g_frameCount = 0;
 
         g_state = State::Initialized;
-        Debug::Log("core.cpp: Core initialized successfully");
+        DBLOG("core.cpp: Core initialized successfully");
 
         return g_hwnd;
     }
@@ -107,7 +107,7 @@ namespace Core
     {
         if (g_state != State::Initialized)
         {
-            Debug::LogError("core.cpp: CreateEngine called before Init() or already running");
+            DBERROR("core.cpp: CreateEngine called before Init() or already running");
             return -1;
         }
 
@@ -122,12 +122,12 @@ namespace Core
         int rc = Engine::CreateEngine(g_hwnd, g_hInst, bpp, w, h);
         if (rc != 0)
         {
-            Debug::LogError("core.cpp: Engine::CreateEngine failed with code ", rc);
+            DBERROR("core.cpp: Engine::CreateEngine failed with code ", rc);
             return rc;
         }
 
         g_state = State::Running;
-        Debug::Log("core.cpp: Engine created successfully");
+        DBLOG("core.cpp: Engine created successfully");
 
         return 0;
     }
@@ -144,7 +144,7 @@ namespace Core
     {
         if (g_state != State::Running) return;
 
-        // Platzhalter fuer zukuenftigen Frame-Limiter oder Stats-Sammlung
+        // Placeholder for a future frame limiter or stats collection
     }
 
     void Shutdown()
@@ -153,11 +153,11 @@ namespace Core
             return;
 
         g_state = State::ShuttingDown;
-        Debug::Log("core.cpp: Shutdown started");
+        DBLOG("core.cpp: Shutdown started");
 
         // 1. Engine freigeben
         Engine::ReleaseEngine();
-        Debug::Log("core.cpp: Engine released");
+        DBLOG("core.cpp: Engine released");
 
         // 2. Timer
         Timer::Shutdown();
@@ -170,7 +170,7 @@ namespace Core
         }
 
         g_state = State::Stopped;
-        Debug::Log("core.cpp: Shutdown complete");
+        DBLOG("core.cpp: Shutdown complete");
     }
 
     bool IsRunning()

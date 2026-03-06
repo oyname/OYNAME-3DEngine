@@ -70,14 +70,14 @@ HRESULT InputLayoutManager::CreateInputLayoutVertex(ID3D11InputLayout** layout, 
 
     if (!shader || !shader->blobVS || shader->blobVS->GetBufferSize() == 0)
     {
-        Debug::Log("CreateInputLayout: invalid VS blob");
+        DBLOG("CreateInputLayout: invalid VS blob");
         return E_INVALIDARG;
     }
 
     HRESULT hr = m_device->CreateInputLayout(layoutElements.data(), (unsigned int)layoutElements.size(), bytecode, size, layout);
     if (FAILED(hr))
     {
-        Debug::LogHr(__FILE__, __LINE__, hr);
+        DBLOG_HR(hr);
         return hr;
     }
 

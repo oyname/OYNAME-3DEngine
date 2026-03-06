@@ -1,12 +1,10 @@
-﻿#include "Transform.h"
+#include "Transform.h"
 using namespace DirectX;
 
-// Statische Konstanten
 static const XMVECTOR forwardVector = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
 static const XMVECTOR upVector = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 static const XMVECTOR rightVector = XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f);
 
-// =========== KONSTRUKTOREN ===========
 Transform::Transform() :
     position(XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f)),
     rotationQuat(XMQuaternionIdentity()),
@@ -30,15 +28,12 @@ Transform::Transform(XMMATRIX* world) : Transform()
 
 Transform::~Transform()
 {
-    // Keine dynamisch allozierten Ressourcen - worldMatrix wird extern verwaltet
 }
 
-// =========== PRIVATE HELPER ===========
 void Transform::UpdateMatrices() const
 {
     if (!matricesDirty) return;
 
-    // Ändern von mutable Membern ist in const-Funktion erlaubt
     scalingMatrix = XMMatrixScalingFromVector(scale);
     rotationMatrix = XMMatrixRotationQuaternion(rotationQuat);
     translationMatrix = XMMatrixTranslationFromVector(position);
@@ -46,7 +41,6 @@ void Transform::UpdateMatrices() const
     matricesDirty = false;
     vectorsDirty = true;
 
-    // Update externe World Matrix
     if (worldMatrix) {
         *worldMatrix = scalingMatrix * rotationMatrix * translationMatrix;
     }
@@ -81,23 +75,22 @@ void Transform::QuaternionToEuler(const XMVECTOR& quat, float& pitch, float& yaw
     float z = XMVectorGetZ(quat);
     float w = XMVectorGetW(quat);
 
-    // Pitch (X-Achse)
+    // Pitch (X-axis)
     float sinPitch = 2.0f * (w * x + y * z);
     float cosPitch = 1.0f - 2.0f * (x * x + y * y);
     pitch = XMConvertToDegrees(atan2(sinPitch, cosPitch));
 
-    // Yaw (Y-Achse)
+    // Yaw (Y-axis)
     float sinYaw = 2.0f * (w * y - z * x);
     sinYaw = (sinYaw > 1.0f) ? 1.0f : ((sinYaw < -1.0f) ? -1.0f : sinYaw);
     yaw = XMConvertToDegrees(asin(sinYaw));
 
-    // Roll (Z-Achse)
+    // Roll (Z-axis)
     float sinRoll = 2.0f * (w * z + x * y);
     float cosRoll = 1.0f - 2.0f * (y * y + z * z);
     roll = XMConvertToDegrees(atan2(sinRoll, cosRoll));
 }
 
-// =========== EXISTIERENDE API ===========
 void Transform::Rotate(float fRotateX, float fRotateY, float fRotateZ, Space space)
 {
     XMVECTOR delta = EulerToQuaternion(fRotateX, fRotateY, fRotateZ);
@@ -148,7 +141,7 @@ void Transform::LookAt(const XMVECTOR& target, const XMVECTOR& upVec)
 
     XMVECTOR up = upVec;
 
-    // Degenerationsschutz
+    // Degeneration guard
     float dot = fabsf(XMVectorGetX(XMVector3Dot(forward, up)));
     if (dot > 0.9999f) {
         up = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
@@ -169,7 +162,7 @@ void Transform::LookAt(const XMVECTOR& target, const XMVECTOR& upVec)
 
     rotationQuat = XMQuaternionNormalize(XMQuaternionRotationMatrix(rotMatrix));
     matricesDirty = true;
-    vectorsDirty = true;  // ← WICHTIG: Vektoren müssen neu berechnet werden!
+    vectorsDirty = true;
 }
 
 float Transform::Distance(const XMVECTOR& target) const
@@ -220,7 +213,6 @@ XMMATRIX Transform::GetScaling() const
     return scalingMatrix;
 }
 
-// Legacy-Methoden
 float Transform::GetRoll(const XMMATRIX* XMMatrix_p_Rotation) const
 {
     XMFLOAT4X4 values;
@@ -265,7 +257,6 @@ void Transform::RotateQuaternion(const XMVECTOR& quaternion, Space space)
     matricesDirty = true;
 }
 
-// 2. EULER-WINKEL GETTER
 float Transform::GetPitch() const
 {
     float pitch, yaw, roll;
@@ -287,7 +278,6 @@ float Transform::GetRoll() const
     return roll;
 }
 
-// 3. SKALIERUNG GETTER/SETTER
 void Transform::SetScale(float x, float y, float z)
 {
     scale = XMVectorSet(x, y, z, 0.0f);
@@ -300,7 +290,6 @@ void Transform::SetScale(float uniformScale)
     matricesDirty = true;
 }
 
-// 4. TRANSFORM OPERATIONEN
 void Transform::Translate(const XMVECTOR& translation, Space space)
 {
     if (space == Space::Local) {
@@ -318,10 +307,9 @@ void Transform::SetPosition(const XMVECTOR& pos)
     matricesDirty = true;
 }
 
-// 5. INTERPOLATION
 void Transform::Lerp(const Transform& target, float t)
 {
-    // Linear interpolation für Position, Scale und Rotation
+    // Linear interpolation for position, scale and rotation
     position = XMVectorLerp(position, target.position, t);
     scale = XMVectorLerp(scale, target.scale, t);
     rotationQuat = XMQuaternionSlerp(rotationQuat, target.rotationQuat, t);
@@ -330,8 +318,7 @@ void Transform::Lerp(const Transform& target, float t)
 
 void Transform::Slerp(const Transform& target, float t)
 {
-    // Spherical linear interpolation für alle (Position, Scale und Rotation)
-    // Position: Slerp für gleichmäßigere Bewegung
+    // Spherical linear interpolation for position, scale and rotation
     XMVECTOR posLength = XMVector3Length(XMVectorSubtract(target.position, position));
     float distance = XMVectorGetX(posLength);
 
@@ -343,7 +330,7 @@ void Transform::Slerp(const Transform& target, float t)
         position = XMVectorLerp(position, target.position, t);
     }
 
-    // Scale: Slerp für konsistente Skalierung
+    // Scale: slerp for consistent scaling
     XMFLOAT3 currentScale, targetScale;
     XMStoreFloat3(&currentScale, scale);
     XMStoreFloat3(&targetScale, target.scale);
@@ -353,19 +340,16 @@ void Transform::Slerp(const Transform& target, float t)
     float scaleZ = currentScale.z + (targetScale.z - currentScale.z) * t;
     scale = XMVectorSet(scaleX, scaleY, scaleZ, 0.0f);
 
-    // Rotation: Slerp
     rotationQuat = XMQuaternionSlerp(rotationQuat, target.rotationQuat, t);
     matricesDirty = true;
 }
 
-// 6. HELPER
 XMMATRIX Transform::GetWorldMatrix() const
 {
     UpdateMatrices();
     return scalingMatrix * rotationMatrix * translationMatrix;
 }
 
-// 7. TRANSFORM COMBINATIONS
 Transform Transform::Combine(const Transform& other) const
 {
     Transform result;
@@ -400,7 +384,7 @@ Transform Transform::Inverse() const
     XMFLOAT3 s;
     XMStoreFloat3(&s, scale);
 
-    // Validierung gegen Division durch Zero
+    // Guard against division by zero
     result.scale = XMVectorSet(
         (s.x != 0.0f) ? 1.0f / s.x : 1.0f,
         (s.y != 0.0f) ? 1.0f / s.y : 1.0f,
@@ -412,7 +396,6 @@ Transform Transform::Inverse() const
     return result;
 }
 
-// 8. CONSTANT BUFFER DATA
 Transform::TransformData Transform::GetTransformData() const
 {
     TransformData data;

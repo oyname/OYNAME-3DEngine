@@ -49,10 +49,6 @@ Timer::TimeMode timeMode = Timer::TimeMode::FIXED_TIMESTEP;  // Standard
 std::chrono::high_resolution_clock::time_point GDXEngine::lastFrameTime = std::chrono::high_resolution_clock::now();
 GDXEngine* GDXEngine::s_instance = nullptr;
 
-// Pfad-Utilities jetzt in Core (core.h / core.cpp)
-// GetExeDir() und ResolveAbsolutePath() entfernt.
-
-//
 GDXEngine::GDXEngine(HWND hwnd, HINSTANCE hinst, unsigned int bpp, unsigned int screenX, unsigned int screenY, int* result) :
 	m_objectManager(),
 	m_renderManager(m_objectManager, m_device)
@@ -71,26 +67,26 @@ GDXEngine::GDXEngine(HWND hwnd, HINSTANCE hinst, unsigned int bpp, unsigned int 
 	int bestAdapter = FindBestAdapter();
 	this->SetAdapter(bestAdapter);
 
-	// Shader-Pfade ueber Core aufloesen
+	// Resolve shader paths via Core
 	vs = Core::ResolvePath(L"..\\..\\shaders\\VertexShader.hlsl");
 	ps = Core::ResolvePath(L"..\\..\\shaders\\PixelShader.hlsl");
 
-	// Prüfe ob Dateien existieren
+	// Check if shader files exist
 	std::wifstream vsFile(vs);
 	std::wifstream psFile(ps);
 
 	if (!vsFile.good()) {
-		Debug::Log("gdxengine.cpp: Vertex Shader NOT FOUND at: ", vs.c_str());
+		DBLOG("gdxengine.cpp: Vertex Shader NOT FOUND at: ", vs.c_str());
 	}
 	else {
-		Debug::Log("gdxengine.cpp: Vertex Shader found at: ", vs.c_str());
+		DBLOG("gdxengine.cpp: Vertex Shader found at: ", vs.c_str());
 	}
 
 	if (!psFile.good()) {
-		Debug::Log("gdxengine.cpp: Pixel Shader NOT FOUND at: ", ps.c_str());
+		DBLOG("gdxengine.cpp: Pixel Shader NOT FOUND at: ", ps.c_str());
 	}
 	else {
-		Debug::Log("gdxengine.cpp: Pixel Shader found at: ", ps.c_str());
+		DBLOG("gdxengine.cpp: Pixel Shader found at: ", ps.c_str());
 	}
 
 	m_bInitialized = true;
@@ -101,14 +97,12 @@ int GDXEngine::FindBestAdapter()
 	int bestIndex = 0;
 	D3D_FEATURE_LEVEL bestLevel = D3D_FEATURE_LEVEL_9_1;
 
-	// Iteriere durch alle Adapters
 	for (size_t i = 0; i < m_device.deviceManager.GetNumAdapters(); ++i)
 	{
 		D3D_FEATURE_LEVEL currentLevel =
 			GXUTIL::GetFeatureLevelFromDirectXVersion(
 				m_device.deviceManager.GetFeatureLevel(i));
 
-		// Ist dieser besser als bisheriger beste?
 		if (currentLevel > bestLevel)
 		{
 			bestLevel = currentLevel;
@@ -116,7 +110,7 @@ int GDXEngine::FindBestAdapter()
 		}
 	}
 
-	Debug::Log("gdxengine.cpp: SELECTED BEST Adapter at index ", bestIndex,
+	DBLOG("gdxengine.cpp: SELECTED BEST Adapter at index ", bestIndex,
 		" with Feature Level: ", GXUTIL::GetFeatureLevelName(GXUTIL::GetFeatureLevelFromDirectXVersion(
 			m_device.deviceManager.GetFeatureLevel(bestIndex))));
 
@@ -157,7 +151,7 @@ HRESULT GDXEngine::Graphic(unsigned int width, unsigned int height, bool windowe
 	hr = m_interface.GetFactory()->EnumAdapters(index, &adapter);
 	if (FAILED(hr))
 	{
-		Debug::LogHr(__FILE__, __LINE__, hr);
+		DBLOG_HR(hr);
 		return hr;
 	}
 
@@ -165,7 +159,7 @@ HRESULT GDXEngine::Graphic(unsigned int width, unsigned int height, bool windowe
 	hr = m_device.InitializeDirectX(adapter, &featureLevel);
 	if (FAILED(hr))
 	{
-		Debug::LogHr(__FILE__, __LINE__, hr);
+		DBLOG_HR(hr);
 		return hr;
 	}
 	m_renderManager.EnsureBackend();
@@ -180,7 +174,7 @@ HRESULT GDXEngine::Graphic(unsigned int width, unsigned int height, bool windowe
 	hr = m_device.CreateSwapChain(m_interface.GetFactory(), GetHWND(), width, height, m_interface.interfaceManager.GetDXGI_Format(), numerator, denominator, windowed);
 	if (FAILED(hr))
 	{
-		Debug::LogHr(__FILE__, __LINE__, hr);
+		DBLOG_HR(hr);
 		return hr;
 	}
 
@@ -188,7 +182,7 @@ HRESULT GDXEngine::Graphic(unsigned int width, unsigned int height, bool windowe
 	hr = m_device.CreateRenderTarget(width, height);
 	if (FAILED(hr))
 	{
-		Debug::LogHr(__FILE__, __LINE__, hr);
+		DBLOG_HR(hr);
 		return hr;
 	}
 
@@ -196,14 +190,14 @@ HRESULT GDXEngine::Graphic(unsigned int width, unsigned int height, bool windowe
 	hr = m_device.CreateDepthBuffer(width, height);
 	if (FAILED(hr))
 	{
-		Debug::LogHr(__FILE__, __LINE__, hr);
+		DBLOG_HR(hr);
 		return hr;
 	}
 
 	hr = m_device.CreateShadowBuffer(2048, 2048);
 	if (FAILED(hr))
 	{
-		Debug::LogHr(__FILE__, __LINE__, hr);
+		DBLOG_HR(hr);
 		return hr;
 	}
 
@@ -212,54 +206,47 @@ HRESULT GDXEngine::Graphic(unsigned int width, unsigned int height, bool windowe
 	// Object manager
 	m_objectManager.Init();
 
-	// Initialize Buffer Manager
 	m_bufferManager.Init(m_device.GetDevice(), m_device.GetDeviceContext());
 
-	// Initialize Shader Manager
 	m_shaderManager.Init(m_device.GetDevice());
 
-	// Initialize Input-Layout Managers
 	m_inputLayoutManager.Init(m_device.GetDevice());
 
-	// Create standard shader.
 	GetSM().SetShader(m_objectManager.CreateShader());
 
-	// ...and load - VERWENDE DIE DYNAMISCHEN PFADE!
+	// Load standard shader
 	hr = GetSM().CreateShader(GetSM().GetShader(), vs.c_str(), "main", ps.c_str(), "main");
 	if (FAILED(hr))
 	{
-		Debug::LogHr(__FILE__, __LINE__, hr);
+		DBLOG_HR(hr);
 		return hr;
 	}
 
-	// Create standard material and add to standard shader
 	GetOM().AddMaterialToShader(GetSM().GetShader(), GetOM().CreateMaterial());
 
-	// ==================== CREATE MATERIAL CONSTANT BUFFER ====================
 	LPMATERIAL standardMaterial = GetSM().GetShader()->materials.front();
 
 	hr = InitMaterialBuffer(standardMaterial);
 	if (FAILED(hr))
 	{
-		Debug::LogHr(__FILE__, __LINE__, hr);
+		DBLOG_HR(hr);
 		return hr;
 	}
 
-	// TexturePool: Defaults (white / flat-normal / ORM) anlegen
+	// Initialize TexturePool defaults (white / flat-normal / ORM)
 	if (!m_texturePool.InitializeDefaults(m_device.GetDevice()))
 	{
-		Debug::LogError("gdxengine.cpp: TexturePool::InitializeDefaults fehlgeschlagen");
+		DBERROR("gdxengine.cpp: TexturePool::InitializeDefaults fehlgeschlagen");
 	}
 	else
 	{
-		Debug::Log("gdxengine.cpp: TexturePool initialisiert – Defaults bei Index 0/1/2");
+		DBLOG("gdxengine.cpp: TexturePool initialisiert – Defaults bei Index 0/1/2");
 		m_renderManager.SetTexturePool(&m_texturePool);
-		Debug::Log("gdxengine.cpp: TexturePool an RenderManager uebergeben");
+		DBLOG("gdxengine.cpp: TexturePool passed to RenderManager");
 	}
 
-	// ==================== DEFAULT-MATERIAL (hellgrau, keine Textur) ====================
-	// Wird von GetStandardMaterial() zurueckgegeben wenn CreateMesh ohne Material
-	// aufgerufen wird. Unabhaengig vom User-Code, immer verfuegbar.
+	// Default material (light grey, no texture).
+	// Returned by GetStandardMaterial() when CreateMesh is called without a material.
 	{
 		Material* defaultMat = GetOM().CreateMaterial();
 		defaultMat->SetDiffuseColor(0.8f, 0.8f, 0.8f, 1.0f);
@@ -267,17 +254,16 @@ HRESULT GDXEngine::Graphic(unsigned int width, unsigned int height, bool windowe
 		hr = InitMaterialBuffer(defaultMat);
 		if (FAILED(hr))
 		{
-			Debug::LogHr(__FILE__, __LINE__, hr);
-			// Nicht fatal – Engine laeuft weiter, GetStandardMaterial faellt auf front() zurueck
+			DBLOG_HR(hr);
+			// Non-fatal - engine continues, GetStandardMaterial falls back to front()
 		}
 		else
 		{
 			GetOM().SetDefaultMaterial(defaultMat);
-			Debug::Log("gdxengine.cpp: Default-Material erstellt (hellgrau 0.75 / 0.75 / 0.75)");
+			DBLOG("gdxengine.cpp: Default material created (light grey 0.75/0.75/0.75)");
 		}
 	}
 
-	// Create layout for the vertices
 	hr = GetILM().CreateInputLayoutVertex(&GetSM().GetShader()->inputlayoutVertex,	// Store the layout
 		GetSM().GetShader(),														// The shader object
 		GetSM().GetShader()->flagsVertex,											// Store the flag
@@ -285,7 +271,7 @@ HRESULT GDXEngine::Graphic(unsigned int width, unsigned int height, bool windowe
 
 	if (FAILED(hr))
 	{
-		Debug::LogHr(__FILE__, __LINE__, hr);
+		DBLOG_HR(hr);
 		return hr;
 	}
 
@@ -302,14 +288,14 @@ HRESULT GDXEngine::RenderWorld()
 	auto* pContext = this->m_device.GetDeviceContext();
 	if (!pContext)
 	{
-		Debug::Log("gdxengine.cpp: RenderWorld - Device Context is null.");
+		DBLOG("gdxengine.cpp: RenderWorld - Device Context is null.");
 		return E_FAIL;
 	}
 
 	auto* pCamera = m_currentCam;
 	if (!pCamera)
 	{
-		Debug::Log("gdxengine.cpp: RenderWorld - No valid camera found.");
+		DBLOG("gdxengine.cpp: RenderWorld - No valid camera found.");
 		return E_FAIL;
 	}
 
@@ -334,7 +320,7 @@ void GDXEngine::UpdateWorld()
 	auto* cam = m_currentCam;
 
 	if (cam == nullptr) {
-		Debug::Log("gdxengine.cpp: ERROR - UpdateWorld - No camera set");
+		DBLOG("gdxengine.cpp: ERROR - UpdateWorld - No camera set");
 		return;
 	}
 
@@ -342,7 +328,6 @@ void GDXEngine::UpdateWorld()
 	DirectX::XMVECTOR forward = DirectX::XMVector3Normalize(cam->transform.GetLookAt());
 	DirectX::XMVECTOR up = DirectX::XMVector3Normalize(cam->transform.GetUp());
 
-	// Funktioniert - cam ist Camera*
 	cam->UpdateCamera(position, forward, up);
 }
 
@@ -358,7 +343,7 @@ HRESULT GDXEngine::Cls(float r, float g, float b, float a)
 	hr = m_device.GetDevice()->GetDeviceRemovedReason(); // Check for device error
 	if (FAILED(hr))
 	{
-		Debug::LogHr(__FILE__, __LINE__, hr);
+		DBLOG_HR(hr);
 		return hr;
 	}
 
@@ -428,14 +413,13 @@ void GDXEngine::SetOutput(unsigned int index)
 void GDXEngine::SetCamera(LPENTITY entity)
 {
 	if (entity == nullptr) {
-		Debug::Log("gdxengine.cpp: ERROR - SetCamera - entity is nullptr");
+		DBLOG("gdxengine.cpp: ERROR - SetCamera - entity is nullptr");
 		return;
 	}
 
-	// Type-Check mit dynamic_cast
 	Camera* camera = (entity->IsCamera() ? entity->AsCamera() : nullptr);
 	if (camera == nullptr) {
-		Debug::Log("gdxengine.cpp: ERROR - SetCamera - Entity is not a Camera!");
+		DBLOG("gdxengine.cpp: ERROR - SetCamera - Entity is not a Camera!");
 		return;
 	}
 
@@ -446,19 +430,18 @@ void GDXEngine::SetCamera(LPENTITY entity)
 void GDXEngine::SetDirectionalLight(LPENTITY entity)
 {
 	if (entity == nullptr) {
-		Debug::Log("gdxengine.cpp: ERROR - SetDirectionalLight - entity is nullptr");
+		DBLOG("gdxengine.cpp: ERROR - SetDirectionalLight - entity is nullptr");
 		return;
 	}
 
-	// Type-Check mit dynamic_cast
 	Light* light = (entity->IsLight()  ? entity->AsLight()  : nullptr);
 	if (light == nullptr) {
-		Debug::Log("gdxengine.cpp: ERROR - SetDirectionalLight - Entity is not a Light!");
+		DBLOG("gdxengine.cpp: ERROR - SetDirectionalLight - Entity is not a Light!");
 		return;
 	}
 
 	m_renderManager.SetDirectionalLight(entity);
-	Debug::Log("gdxengine.cpp: SetDirectionalLight - Directional Light set for Shadow Mapping");
+	DBLOG("gdxengine.cpp: SetDirectionalLight - directional light set for shadow mapping");
 }
 
 void GDXEngine::SetVSyncInterval(int interval) noexcept
@@ -477,10 +460,9 @@ HRESULT GDXEngine::InitMaterialBuffer(Material* material)
 	if (!material->gpuData) material->gpuData = new MaterialGpuData();
 	if (material->gpuData->materialBuffer) return S_OK;
 
-	// b2-Layout im Shader: 8 * 16 = 128 Bytes
 	constexpr UINT kMaterialCBSize = 128;
 
-	// Initialdaten: sauber 0 setzen, damit gTexIndex/gMisc nicht "random" sind
+	// Zero-initialize so gTexIndex/gMisc are not random
 	alignas(16) uint8_t zero[kMaterialCBSize] = {};
 
 	return GetBM().CreateBuffer(
@@ -491,17 +473,6 @@ HRESULT GDXEngine::InitMaterialBuffer(Material* material)
 		&material->gpuData->materialBuffer
 	);
 
-	//if (!material) return E_INVALIDARG;
-	//if (!material->gpuData) material->gpuData = new MaterialGpuData();
-	if (material->gpuData->materialBuffer) return S_OK; // schon vorhanden
-	//
-	//return GetBM().CreateBuffer(
-	//	&material->properties,
-	//	sizeof(Material::MaterialData),
-	//	1,
-	//	D3D11_BIND_CONSTANT_BUFFER,
-	//	&material->gpuData->materialBuffer
-	//);
 }
 
 RenderManager& GDXEngine::GetRM() {

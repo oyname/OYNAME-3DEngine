@@ -1,4 +1,3 @@
-// (Teil 1/3)
 #include "gdxengine.h"
 #include "RenderManager.h"
 #include "gdxengine.h"
@@ -12,10 +11,7 @@ RenderManager::RenderManager(ObjectManager& objectManager, GDXDevice& device)
     : m_objectManager(objectManager), m_device(device),
     m_currentCam(nullptr), m_directionLight(nullptr)
 {
-    // Schritt 1: DX11-Backend verwenden (copy + redirect, keine Behaviour-Aenderung)
-    //m_backend = std::make_unique<Dx11RenderBackend>(m_device);
-
-    Debug::Log("RenderManager.cpp: RenderManager erstellt - ShadowMapTarget + BackbufferTarget initialisiert");
+    DBLOG("RenderManager.cpp: RenderManager created");
 }
 
 RenderManager::~RenderManager()
@@ -56,7 +52,6 @@ void RenderManager::SetRTTTarget(RenderTextureTarget* rtt, LPENTITY rttCamera)
 void RenderManager::UpdateShadowMatrixBuffer(const DirectX::XMMATRIX& viewMatrix,
     const DirectX::XMMATRIX& projMatrix)
 {
-    // Schritt 1: copy + redirect (keine Behaviour-Aenderung)
     if (m_backend) m_backend->UpdateShadowMatrixBuffer(m_device, viewMatrix, projMatrix);
 }
 
@@ -69,7 +64,6 @@ void RenderManager::RenderShadowPass()
     Light* light = (m_directionLight->IsLight() ? m_directionLight->AsLight() : nullptr);
     if (!light) return;
 
-    // Schritt 2: RenderTargets ins Backend verschoben (copy + redirect, keine Behaviour-Aenderung)
     if (m_backend) m_backend->BeginShadowPass();
 
     const DirectX::XMMATRIX lightViewMatrix = light->GetLightViewMatrix();
@@ -85,7 +79,6 @@ void RenderManager::RenderShadowPass()
         if (!mesh->IsActive()) continue;
         if (!mesh->IsVisible()) continue;
 
-        // Mesh-Level: wirft dieses Objekt Schatten?
         if (!mesh->GetCastShadows()) continue;
 
         MatrixSet ms = m_currentCam->matrixSet;
@@ -111,7 +104,7 @@ void RenderManager::RenderShadowPass()
 
             if (!shader->IsValid(ShaderBindMode::VS_ONLY))
             {
-                Debug::LogError("RenderManager.cpp: RenderShadowPass – Shader ungueltig, Draw uebersprungen");
+                DBERROR("RenderManager.cpp: RenderShadowPass - invalid shader, draw skipped");
                 continue;
             }
             shader->UpdateShader(&m_device, ShaderBindMode::VS_ONLY);
@@ -141,8 +134,8 @@ void RenderManager::RenderMainPassAtomic()
     if (isRtt)
     {
         m_backend->BeginRttPass(m_device, *m_activeRTT);
-        Debug::LogOnce("RenderMainPassAtomic_RTT",
-            "RenderManager.cpp: RenderMainPassAtomic - RTT-Pass aktiv");
+        DBLOG_ONCE("RenderMainPassAtomic_RTT",
+            "RenderManager.cpp: RenderMainPassAtomic - RTT pass active");
     }
     else
     {
@@ -163,7 +156,6 @@ void RenderManager::RenderMainPassAtomic()
     }
 
     // 3) Per-frame lighting constants
-    // Licht-GPU-Upload (ehemals LightManager::Update)
     {
         auto& lights = m_objectManager.GetLights();
 
@@ -208,13 +200,12 @@ void RenderManager::InvalidateFrame()
     m_transFrame.clear();
 }
 
-// (Teil 2/3)
 void RenderManager::BuildRenderQueue()
 {
     m_opaque.Clear();
     m_transFrame.clear();
 
-    // Frame-Update-Flags aller Meshes zuruecksetzen
+    // Reset frame-update flags for all meshes
     for (Mesh* mesh : m_objectManager.GetMeshes())
         if (mesh) mesh->ResetFrameFlag();
 
@@ -222,7 +213,7 @@ void RenderManager::BuildRenderQueue()
     if (Camera* cam = (m_currentCam->IsCamera() ? m_currentCam->AsCamera() : nullptr))
         cameraCullMask = cam->cullMask;
 
-    // Kameraposition fuer Tiefenberechnung (Transparent-Sortierung)
+    // Camera position for depth calculation (transparent sorting)
     DirectX::XMVECTOR camPos = m_currentCam->GetWorldMatrix().r[3];
 
     for (Mesh* mesh : m_objectManager.GetMeshes())
@@ -242,14 +233,13 @@ void RenderManager::BuildRenderQueue()
             Surface* surface = queueSlots[qi];
             if (!surface) continue;
 
-            // Materialaufloesung nur noch ueber Slot-Override oder globales Engine-Standardmaterial.
             Material* material = mesh->meshRenderer.GetMaterial(qi,
                                                                 m_objectManager.GetStandardMaterial());
             if (!material) continue;
 
             Shader* shader = material->pRenderShader;
 
-            Debug::LogOnce("STD_MAT_CHECK",
+            DBLOG_ONCE("STD_MAT_CHECK",
                 "STD=", (void*)m_objectManager.GetStandardMaterial(),
                 " shader=", (void*)(m_objectManager.GetStandardMaterial() ? m_objectManager.GetStandardMaterial()->pRenderShader : nullptr),
                 " gpu=", (void*)(m_objectManager.GetStandardMaterial() ? m_objectManager.GetStandardMaterial()->gpuData : nullptr));
@@ -258,7 +248,7 @@ void RenderManager::BuildRenderQueue()
 
             if (material->IsTransparent())
             {
-                // Tiefe = Abstand Kamera -> Mesh-Mittelpunkt (fuer Back-to-Front-Sortierung)
+                // Depth = distance camera -> mesh center (for back-to-front sorting)
                 DirectX::XMVECTOR meshPos = world.r[3];
                 DirectX::XMVECTOR diff = DirectX::XMVectorSubtract(meshPos, camPos);
                 float depth = DirectX::XMVectorGetX(DirectX::XMVector3LengthSq(diff));
@@ -280,15 +270,14 @@ void RenderManager::BuildRenderQueue()
         }
     }
 
-    // Opaque: nach Shader/Material sortieren
+    // Opaque: sort by shader/material
     m_opaque.Sort();
 
-    // Transparent: nach Tiefe absteigend sortieren (hinten zuerst)
+    // Transparent: sort by depth descending (back to front)
     std::sort(m_transFrame.begin(), m_transFrame.end(),
         [](const auto& a, const auto& b) { return a.first > b.first; });
 
-    // Debug-Guard: pro Kamera-Pointer eigener Eintrag.
-    // Funktioniert fuer beliebig viele Kameras (Haupt, RTT, Simulation, ...).
+    // Debug guard: one entry per camera pointer, works for any number of cameras.
     static std::unordered_map<void*, size_t> s_lastOpaque;
     static std::unordered_map<void*, size_t> s_lastTrans;
 
@@ -300,26 +289,26 @@ void RenderManager::BuildRenderQueue()
         s_lastOpaque[camKey] = m_opaque.Count();
         s_lastTrans[camKey] = m_transFrame.size();
 
-        Debug::Log("RenderManager.cpp: BuildRenderQueue [cam=", camKey, "]"
+        DBLOG("RenderManager.cpp: BuildRenderQueue [cam=", camKey, "]"
             " opaque=", m_opaque.Count(),
             " transparent=", m_transFrame.size());
 
-        // Opaque-Reihenfolge: Shader -> Material -> Mesh
+        // Opaque order: shader -> material -> mesh
         for (size_t i = 0; i < m_opaque.commands.size(); ++i)
         {
             const RenderCommand& cmd = m_opaque.commands[i];
-            Debug::Log("RenderManager.cpp:   opaque[", (int)i, "]"
+            DBLOG("RenderManager.cpp:   opaque[", (int)i, "]"
                 " shader=", (void*)cmd.shader,
                 " mat=", (void*)cmd.material,
                 " mesh=", (void*)cmd.mesh,
-                " surface=", (void*)cmd.surface);  // war: slot=
+                " surface=", (void*)cmd.surface);
         }
 
-        // Transparent-Reihenfolge: Tiefe (gross = weit weg = zuerst)
+        // Transparent order: depth (large = far = first)
         for (size_t i = 0; i < m_transFrame.size(); ++i)
         {
             const RenderCommand& cmd = m_transFrame[i].second;
-            Debug::Log("RenderManager.cpp:   trans[", (int)i, "]"
+            DBLOG("RenderManager.cpp:   trans[", (int)i, "]"
                 " depth=", m_transFrame[i].first,
                 " mat=", (void*)cmd.material,
                 " mesh=", (void*)cmd.mesh);
@@ -339,12 +328,12 @@ void RenderManager::FlushRenderQueue()
     Material* lastMaterial = nullptr;
     ID3D11DeviceContext* ctx = m_device.GetDeviceContext();
 
-    // SRV-Cache zu Beginn jedes Flush zuruecksetzen.
+    // Reset SRV cache at the start of each flush.
     // BeginRttPass/BeginShadowPass koennen GPU-Slots geleert haben ohne den Cache
     // zu invalidieren – staelter Cache verhindert dann das Rebinden der Texturen.
     memset(m_boundSRVs, 0, sizeof(m_boundSRVs));
 
-    // Sampler s0 einmalig binden (gilt fuer alle Materials / gSampler in PS)
+    // Bind sampler s0 once (applies to all materials / gSampler in PS)
     if (m_defaultSampler && ctx)
         ctx->PSSetSamplers(0, 1, &m_defaultSampler);
 
@@ -352,12 +341,12 @@ void RenderManager::FlushRenderQueue()
     {
         if (!cmd.shader || !cmd.material || !cmd.mesh || !cmd.surface) continue;
 
-        // Shader nur binden wenn gewechselt
+        // Bind shader only on change
         if (cmd.shader != lastShader)
         {
             if (!cmd.shader->IsValid(ShaderBindMode::VS_PS))
             {
-                Debug::LogError("RenderManager.cpp: FlushRenderQueue – Shader ungueltig, Draw uebersprungen");
+                DBERROR("RenderManager.cpp: FlushRenderQueue - invalid shader, draw skipped");
                 continue;
             }
             cmd.shader->UpdateShader(&m_device);
@@ -365,19 +354,18 @@ void RenderManager::FlushRenderQueue()
 
             ++shaderBinds;
             if (!once) {
-                Debug::Log("RenderManager.cpp: FlushRenderQueue - SHADER BIND shader=",
+                DBLOG("RenderManager.cpp: FlushRenderQueue - SHADER BIND shader=",
                     (void*)cmd.shader);
             }
         }
 
-        // Material nur binden wenn gewechselt
+        // Bind material only on change
         if (cmd.material != lastMaterial)
         {
             // --- TexturePool-Pfad: feste Slots t0..t6 aus Pool-Indizes ---
             if (m_texturePool && ctx)
             {
-                // Feste Slot-Bindings (DX11/SM5.0): Shader sampelt aus festen t#-Slots.
-                // Erweiterung Schritt 3: separate PBR-Maps (t4..t6).
+                // Fixed slot bindings (DX11/SM5.0): shader samples from fixed t# slots.
                 ID3D11ShaderResourceView* srvs[7] = {
                     m_texturePool->GetSRV(cmd.material->albedoIndex),
                     m_texturePool->GetSRV(cmd.material->normalIndex),
@@ -388,17 +376,17 @@ void RenderManager::FlushRenderQueue()
                     m_texturePool->GetSRV(cmd.material->metallicIndex)
                 };
 
-                // Fallback auf White/FlatNormal/ORM/White falls Index ausserhalb Pool
+                // Fallback to white/flat-normal/ORM/white if index is out of pool range
                 if (!srvs[0]) srvs[0] = m_texturePool->GetSRV(m_texturePool->WhiteIndex());
                 if (!srvs[1]) srvs[1] = m_texturePool->GetSRV(m_texturePool->FlatNormalIndex());
                 if (!srvs[2]) srvs[2] = m_texturePool->GetSRV(m_texturePool->OrmIndex());
                 if (!srvs[3]) srvs[3] = m_texturePool->GetSRV(m_texturePool->WhiteIndex());
-                // Separate Maps: Default = White (AO=1, Roughness=1, Metallic=1 aber Flag steuert Nutzung)
+                // Separate maps: default = white (AO=1, roughness=1, metallic=1; flags control usage)
                 if (!srvs[4]) srvs[4] = m_texturePool->GetSRV(m_texturePool->WhiteIndex());
                 if (!srvs[5]) srvs[5] = m_texturePool->GetSRV(m_texturePool->WhiteIndex());
                 if (!srvs[6]) srvs[6] = m_texturePool->GetSRV(m_texturePool->WhiteIndex());
 
-                // Nur neu binden wenn sich die Slots geaendert haben (State-Cache)
+                // Rebind only if slots have changed (state cache)
                 if (memcmp(srvs, m_boundSRVs, sizeof(srvs)) != 0)
                 {
                     ctx->PSSetShaderResources(0, 7, srvs);
@@ -407,7 +395,7 @@ void RenderManager::FlushRenderQueue()
             }
             else
             {
-                // Fallback: alter Slot-Pfad (kein Pool aktiv)
+                // Fallback: legacy slot path (no pool active)
                 if (cmd.material->gpuData) cmd.material->gpuData->SetTexture(&m_device);
             }
 
@@ -437,26 +425,25 @@ void RenderManager::FlushRenderQueue()
 
             ++materialBinds;
             if (!once) {
-                Debug::Log("RenderManager.cpp:   MATERIAL BIND mat=",
+                DBLOG("RenderManager.cpp:   MATERIAL BIND mat=",
                     (void*)cmd.material);
             }
         }
 
-        // ...Draw Call...
         ++drawCalls;
         if (!once) {
-            Debug::Log("RenderManager.cpp:      DRAW mesh=",
+            DBLOG("RenderManager.cpp:      DRAW mesh=",
                 (void*)cmd.mesh, " surface=", (void*)cmd.surface);
         }
 
-        // MatrixSet der Kamera in den Command schreiben und ausfuehren
+        // Write camera MatrixSet into the command and execute
         cmd.mesh->matrixSet = m_currentCam->matrixSet;
         cmd.mesh->matrixSet.worldMatrix = cmd.world;
         cmd.Execute(&m_device);
     }
 
     if (!once) {
-        Debug::Log("RenderManager.cpp:SUMMARY"
+        DBLOG("RenderManager.cpp:SUMMARY"
             " shaderBinds=", shaderBinds,
             " materialBinds=", materialBinds,
             " drawCalls=", drawCalls);
@@ -464,7 +451,6 @@ void RenderManager::FlushRenderQueue()
     }
 }
 
-// (Teil 3/3)
 void RenderManager::FlushTransparentQueue()
 {
     if (m_transFrame.empty()) return;
@@ -472,12 +458,12 @@ void RenderManager::FlushTransparentQueue()
     ID3D11DeviceContext* ctx = m_device.GetDeviceContext();
     if (!ctx) return;
 
-    // Alpha-Blending aktivieren
+    // Enable alpha blending
     const float blendFactor[4] = { 0.f, 0.f, 0.f, 0.f };
     if (m_alphaBlendState)
         ctx->OMSetBlendState(m_alphaBlendState, blendFactor, 0xFFFFFFFF);
 
-    // Sampler binden (wie im opaken Pass)
+    // Bind sampler (same as in opaque pass)
     if (m_defaultSampler)
         ctx->PSSetSamplers(0, 1, &m_defaultSampler);
 
@@ -552,7 +538,7 @@ void RenderManager::FlushTransparentQueue()
         cmd.Execute(&m_device);
     }
 
-    // Blending wieder deaktivieren
+    // Disable blending
     if (m_noBlendState)
         ctx->OMSetBlendState(m_noBlendState, blendFactor, 0xFFFFFFFF);
 }
@@ -566,7 +552,7 @@ void RenderManager::RenderScene()
     if (!m_backend)
         return;
 
-    // Wenn RTT aktiv, temporaer auf RTT-Kamera umschalten (falls gesetzt)
+    // If RTT is active, temporarily switch to the RTT camera (if set)
     LPENTITY savedCam = m_currentCam;
     if (m_activeRTT && m_rttCamera)
         m_currentCam = m_rttCamera;
@@ -574,7 +560,7 @@ void RenderManager::RenderScene()
     RenderShadowPass();
     RenderNormalPass();
 
-    // Kamera wiederherstellen
+    // Restore camera
     m_currentCam = savedCam;
 }
 
@@ -586,13 +572,13 @@ void RenderManager::EnsureBackend()
     // Device muss bereits existieren (nach InitializeDirectX)
     if (!m_device.GetDevice() || !m_device.GetDeviceContext())
     {
-        Debug::LogError("RenderManager::EnsureBackend - device/context not ready.");
+        DBERROR("RenderManager::EnsureBackend - device/context not ready.");
         return;
     }
 
     m_backend = std::make_unique<Dx11RenderBackend>(m_device);
 
-    // Default-Sampler fuer gSampler (s0): linear, wrap, aniso 1
+    // Default sampler for gSampler (s0): linear, wrap, aniso 1
     if (!m_defaultSampler && m_device.GetDevice())
     {
         D3D11_SAMPLER_DESC sd{};
@@ -605,12 +591,12 @@ void RenderManager::EnsureBackend()
         sd.MaxLOD = D3D11_FLOAT32_MAX;
         HRESULT hr = m_device.GetDevice()->CreateSamplerState(&sd, &m_defaultSampler);
         if (SUCCEEDED(hr))
-            Debug::Log("RenderManager.cpp: Default-Sampler fuer s0 erstellt");
+            DBLOG("RenderManager.cpp: Default sampler for s0 created");
         else
-            Debug::LogError("RenderManager.cpp: Default-Sampler Erstellung fehlgeschlagen");
+            DBERROR("RenderManager.cpp: Failed to create default sampler");
     }
 
-    // Alpha-Blend-State: SRC_ALPHA / INV_SRC_ALPHA
+    // Alpha blend state: SRC_ALPHA / INV_SRC_ALPHA
     if (!m_alphaBlendState && m_device.GetDevice())
     {
         D3D11_BLEND_DESC bd{};
@@ -624,12 +610,12 @@ void RenderManager::EnsureBackend()
         bd.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
         HRESULT hr2 = m_device.GetDevice()->CreateBlendState(&bd, &m_alphaBlendState);
         if (SUCCEEDED(hr2))
-            Debug::Log("RenderManager.cpp: Alpha-BlendState erstellt");
+            DBLOG("RenderManager.cpp: Alpha blend state created");
         else
-            Debug::LogError("RenderManager.cpp: Alpha-BlendState Erstellung fehlgeschlagen");
+            DBERROR("RenderManager.cpp: Failed to create alpha blend state");
     }
 
-    // No-Blend-State: Blending deaktiviert (Default wiederherstellen)
+    // No-blend state: blending disabled (restores default)
     if (!m_noBlendState && m_device.GetDevice())
     {
         D3D11_BLEND_DESC bd{};
@@ -637,8 +623,8 @@ void RenderManager::EnsureBackend()
         bd.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
         HRESULT hr3 = m_device.GetDevice()->CreateBlendState(&bd, &m_noBlendState);
         if (SUCCEEDED(hr3))
-            Debug::Log("RenderManager.cpp: No-BlendState erstellt");
+            DBLOG("RenderManager.cpp: No-blend state created");
         else
-            Debug::LogError("RenderManager.cpp: No-BlendState Erstellung fehlgeschlagen");
+            DBERROR("RenderManager.cpp: Failed to create no-blend state");
     }
 }

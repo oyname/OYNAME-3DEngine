@@ -1,4 +1,4 @@
-// Dx11LightManagerGpuData.cpp: alle DX11-Aufrufe fuer den Light-Array-Buffer.
+// Dx11LightManagerGpuData.cpp: All DX11 calls for the light array buffer.
 #include <d3d11.h>
 #include "Dx11LightManagerGpuData.h"
 //#include "LightManager.h"
@@ -30,11 +30,11 @@ bool Dx11LightManagerGpuData::Init(const GDXDevice* device, unsigned int bufferS
     HRESULT hr = device->GetDevice()->CreateBuffer(&desc, nullptr, &m_lightBuffer);
     if (FAILED(hr))
     {
-        Debug::LogHr(__FILE__, __LINE__, hr);
+        DBLOG_HR(hr);
         return false;
     }
 
-    Debug::Log("Dx11LightManagerGpuData.cpp: Light-Array-Buffer erstellt (", bufferSizeBytes, " Bytes)");
+    DBLOG("Dx11LightManagerGpuData.cpp: Light array buffer created (", bufferSizeBytes, " bytes)");
     return true;
 }
 
@@ -49,7 +49,7 @@ void Dx11LightManagerGpuData::Upload(const GDXDevice* device, const LightArrayBu
 
     if (FAILED(hr))
     {
-        Debug::LogHr(__FILE__, __LINE__, hr);
+        DBLOG_HR(hr);
         return;
     }
 

@@ -1,4 +1,4 @@
-// Light.cpp: kein DX11. GPU-Upload ueber lightGpuData->Upload().
+// Light.cpp: No DX11. GPU upload goes through lightGpuData->Upload().
 #include "Light.h"
 #include "Dx11LightGpuData.h"
 
@@ -75,7 +75,7 @@ void Light::SetShadowFov(float fovRadians)
 void Light::Update(const GDXDevice* device)
 {
     std::string key = "Light.cpp: ";
-    Debug::LogOnce(key.c_str(), "Update Light: ", Ptr(this).c_str());
+    DBLOG_ONCE(key.c_str(), "Update Light: ", Ptr(this).c_str());
 
     Entity::Update(device);
 
