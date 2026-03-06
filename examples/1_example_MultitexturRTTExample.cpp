@@ -92,6 +92,7 @@ int main()
 
     LPENTITY Mesh3 = nullptr;
     CreateCube(&Mesh3, materialFace);
+    Engine::SurfaceMaterial(Engine::GetSurface(Mesh3), materialFace);
     Engine::PositionEntity(Mesh3, -15.0f, 0.0f, 0.0f);
     Engine::ScaleEntity(Mesh3, 1.0f, 20.0f, 20.0f);
 

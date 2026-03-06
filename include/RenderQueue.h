@@ -15,9 +15,9 @@ class IRenderBackend;
 // Vorher: verschachtelte ShaderBatch -> MaterialBatch -> DrawEntry Hierarchie.
 // Jetzt:  jeder Command ist eigenstaendig und traegt alle noetigen Daten.
 //
-// Sort() ordnet nach SortKey (Shader -> Material), um State-Wechsel
-// auf der GPU zu minimieren -- dasselbe Ziel wie die Bucket-Struktur,
-// aber flexibler (z.B. Tiefensortierung fuer Transparenz moeglich).
+// Sort() ordnet nach Shader- dann Material-Pointer (lexikographisch), um
+// State-Wechsel auf der GPU zu minimieren. Dasselbe Ziel wie die alte
+// Bucket-Struktur, aber flexibler (z.B. Tiefensortierung fuer Transparenz).
 struct RenderQueue
 {
     std::vector<RenderCommand> commands;

@@ -11,11 +11,6 @@ ObjectManager::~ObjectManager()
     for (auto& shader : m_shaders)
         shader->materials.clear();
 
-    for (auto& mesh : m_meshes)
-    {
-        mesh->pMaterial = nullptr;
-    }
-
     // Surfaces loeschen
     for (auto& surface : m_surfaces)
         Memory::SafeDelete(surface);
@@ -49,6 +44,42 @@ ObjectManager::~ObjectManager()
     m_entities.clear();
 }
 
+
+
+bool ObjectManager::ResolveSurfaceBinding(const Surface* surface, Mesh*& outMesh, unsigned int& outSlot) const
+{
+    outMesh = nullptr;
+    outSlot = 0;
+    if (!surface) return false;
+
+    Mesh* foundMesh = nullptr;
+    unsigned int foundSlot = 0;
+
+    for (Mesh* mesh : m_meshes)
+    {
+        if (!mesh || !mesh->meshRenderer.asset) continue;
+
+        unsigned int slot = 0;
+        if (!mesh->meshRenderer.asset->FindSlotIndex(surface, slot))
+            continue;
+
+        if (foundMesh)
+        {
+            Debug::Log("objectmanager.cpp: ResolveSurfaceBinding - mehrdeutige Surface-Bindung erkannt");
+            return false;
+        }
+
+        foundMesh = mesh;
+        foundSlot = slot;
+    }
+
+    if (!foundMesh)
+        return false;
+
+    outMesh = foundMesh;
+    outSlot = foundSlot;
+    return true;
+}
 // ==================== CREATE ====================
 
 Surface* ObjectManager::CreateSurface()
@@ -74,6 +105,9 @@ Mesh* ObjectManager::CreateMesh()
     // Fuer Instancing kann das Asset spaeter durch ein geteiltes ersetzt werden.
     MeshAsset* asset = CreateMeshAsset();
     mesh->meshRenderer.asset = asset;
+
+    // Kein mesh-lokales Default-Material mehr.
+    // Ungesetzte Slots fallen global auf GetStandardMaterial() zurueck.
 
     m_meshes.push_back(mesh);
     m_entities.push_back(mesh);
@@ -102,30 +136,11 @@ Shader* ObjectManager::CreateShader()
     return shader;
 }
 
-// ==================== REGISTER / UNREGISTER ====================
-
-void ObjectManager::RegisterRenderable(Mesh* mesh)
-{
-    if (!mesh) return;
-    m_renderMeshes.push_back(mesh);
-}
-
-void ObjectManager::UnregisterRenderable(Mesh* mesh)
-{
-    if (!mesh) return;
-    m_renderMeshes.erase(
-        std::remove(m_renderMeshes.begin(), m_renderMeshes.end(), mesh),
-        m_renderMeshes.end());
-}
-
 // ==================== ADD ====================
 
 void ObjectManager::AddSurfaceToMesh(Mesh* mesh, Surface* surface)
 {
     if (!mesh || !surface) return;
-
-    // Mesh::AddSurface ruft intern MeshAsset::AddSlot (setzt slotIndex)
-    // und Surface::SetOwner auf.
     mesh->AddSurface(surface);
 }
 
@@ -133,46 +148,31 @@ void ObjectManager::AddMaterialToSurface(Material* material, Surface* surface)
 {
     if (!material || !surface) return;
 
-    // Materialzuweisung ueber den Slot-Index im MeshRenderer.
-    // Voraussetzung: surface->slotIndex ist korrekt gesetzt (durch MeshAsset::AddSlot).
-    Mesh* mesh = surface->GetOwner();
-    if (!mesh)
+    Mesh* mesh = nullptr;
+    unsigned int slot = 0;
+    if (!ResolveSurfaceBinding(surface, mesh, slot) || !mesh)
     {
-        Debug::Log("objectmanager.cpp: AddMaterialToSurface - Surface hat keinen Besitzer-Mesh");
+        Debug::Log("objectmanager.cpp: AddMaterialToSurface - Surface konnte keinem eindeutigen Mesh/Slot zugeordnet werden");
         return;
     }
 
-    mesh->meshRenderer.SetMaterial(surface->slotIndex, material);
+    mesh->meshRenderer.SetMaterial(slot, material);
 
     if (material->pRenderShader)
         AssignShaderToMaterial(material->pRenderShader, material);
 }
 
-//void ObjectManager::AddMeshToMaterial(Material* material, Mesh* mesh)
-//{
-//    if (!material || !mesh) return;
-//
-//    mesh->pMaterial = material;
-//
-//    if (material->pRenderShader)
-//        AssignShaderToMaterial(material->pRenderShader, material);
-//}
-
 void ObjectManager::AddMeshToMaterial(Material* material, Mesh* mesh)
 {
     if (!material || !mesh) return;
 
-    // Mesh-Property (optional weiter behalten, z.B. fuer Editor/Debug)
-    mesh->pMaterial = material;
-
-    // WICHTIG: Material gilt fuer das Mesh => Slot-Overrides setzen
-    // (damit der Renderer NICHT mehr auf Standardmaterial faellt)
+    // Kein Mesh-default mehr: Materialzuweisung auf alle aktuell vorhandenen Slots anwenden.
     if (mesh->meshRenderer.asset)
     {
         const auto& slots = mesh->meshRenderer.asset->GetSlots();
         for (unsigned int i = 0; i < (unsigned int)slots.size(); ++i)
         {
-            if (!slots[i]) continue;                 // tombstone skip
+            if (!slots[i]) continue;
             mesh->meshRenderer.SetMaterial(i, material);
         }
     }
@@ -202,13 +202,8 @@ void ObjectManager::DeleteSurface(Surface* surface)
 {
     if (!surface) return;
 
-    if (surface->GetOwner())
-        surface->GetOwner()->RemoveSurface(surface);
-    else
-    {
-        for (auto& mesh : m_meshes)
-            mesh->RemoveSurface(surface);
-    }
+    for (auto& mesh : m_meshes)
+        mesh->RemoveSurface(surface);
 
     auto it = std::find(m_surfaces.begin(), m_surfaces.end(), surface);
     if (it != m_surfaces.end())
@@ -226,18 +221,10 @@ void ObjectManager::DeleteMesh(Mesh* mesh)
     if (entIt != m_entities.end())
         m_entities.erase(entIt);
 
-    UnregisterRenderable(mesh);
-
     // Surfaces vom Asset trennen (nicht loeschen – ObjectManager loescht sie separat)
     if (mesh->meshRenderer.asset)
     {
-        const auto& slots = mesh->meshRenderer.asset->GetSlots();
-        for (Surface* s : slots)
-        {
-            if (s) s->SetOwner(nullptr);
-        }
-
-        // Asset mitloeschen, wenn es exklusiv ist (Normalfall: CreateMesh legt immer
+        // Asset mitloeschen wenn es exklusiv ist (Normalfall: CreateMesh legt immer
         // ein eigenes Asset an). Geteilte Assets muessen vorher manuell getrennt werden:
         //   mesh->meshRenderer.asset = nullptr;  vor DeleteMesh aufrufen.
         MeshAsset* ownedAsset = mesh->meshRenderer.asset;
@@ -252,7 +239,6 @@ void ObjectManager::DeleteMesh(Mesh* mesh)
         }
     }
 
-    mesh->pMaterial = nullptr;
 
     auto it = std::find(m_meshes.begin(), m_meshes.end(), mesh);
     if (it != m_meshes.end())
@@ -337,7 +323,9 @@ void ObjectManager::MoveSurface(Surface* surface, Mesh* from, Mesh* to)
 {
     if (!surface || !to) return;
 
-    from = surface->GetOwner();
+    unsigned int slot = 0;
+    if (!from && !ResolveSurfaceBinding(surface, from, slot))
+        return;
     if (!from) return;
 
     from->RemoveSurface(surface);
@@ -424,6 +412,12 @@ Surface* ObjectManager::GetSurface(Mesh* mesh)
     return mesh->meshRenderer.asset->GetSlot(0);
 }
 
+Surface* ObjectManager::GetSurface(Mesh* mesh, unsigned int index)
+{
+    if (!mesh || !mesh->meshRenderer.asset || index > mesh->meshRenderer.asset->NumSlots()) return nullptr;
+    return mesh->meshRenderer.asset->GetSlot(index);
+}
+
 Material* ObjectManager::GetStandardMaterial() const
 {
     // Internes Default-Material hat Vorrang vor dem ersten User-Material.
@@ -437,15 +431,19 @@ Material* ObjectManager::GetStandardMaterial() const
 
 Shader* ObjectManager::GetShader(const Surface& surface) const
 {
-    Mesh* owner = surface.GetOwner();
-    if (owner && owner->pMaterial)
-        return owner->pMaterial->pRenderShader;
-    return nullptr;
+    Mesh* mesh = nullptr;
+    unsigned int slot = 0;
+    if (!ResolveSurfaceBinding(&surface, mesh, slot) || !mesh)
+        return nullptr;
+
+    Material* mat = mesh->meshRenderer.GetMaterial(slot, GetStandardMaterial());
+    return mat ? mat->pRenderShader : nullptr;
 }
 
-Shader* ObjectManager::GetShader(const Mesh& mesh) const
+Shader* ObjectManager::GetShader(const Mesh& /*mesh*/) const
 {
-    return mesh.pMaterial ? mesh.pMaterial->pRenderShader : nullptr;
+    Material* standard = GetStandardMaterial();
+    return standard ? standard->pRenderShader : nullptr;
 }
 
 Shader* ObjectManager::GetShader(const Material& material) const

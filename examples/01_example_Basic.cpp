@@ -44,7 +44,7 @@ int main()
     // -------------------------------------------------
     LPENTITY cube = nullptr;
 
-    CreateCube(&cube, nullptr);                     // Generate cube geometry + assign material
+    CreateCube(&cube, material);                     // Generate cube geometry + assign material
 
     Engine::EntityMaterial(cube, material);
 

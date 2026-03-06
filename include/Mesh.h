@@ -16,14 +16,6 @@ enum COLLISION {
     SPHERE = 2,
 };
 
-// Mesh: Entity mit Transform und MeshRenderer-Komponente.
-//
-// Die Geometriedaten liegen im MeshAsset (mesh->meshRenderer.asset).
-// Die Materialzuweisungen liegen im MeshRenderer (mesh->meshRenderer.slotMaterials).
-//
-// pMaterial: Mesh-weites Fallback-Material. Wird verwendet wenn fuer einen
-// Slot kein spezifisches Material in slotMaterials eingetragen ist.
-// Wird durch CreateMesh(..., material) gesetzt.
 class Mesh : public Entity
 {
 public:
@@ -51,10 +43,6 @@ public:
     void AddSurface(Surface* surface);    // delegiert an meshRenderer.asset
     void RemoveSurface(Surface* surface);
 
-    // Mesh-weites Fallback-Material.
-    // Wird durch CreateMesh() gesetzt und von MeshRenderer::GetMaterial
-    // als dritter Fallback verwendet, wenn kein Slot-Material vorhanden ist.
-    Material* pMaterial = nullptr;
 
     // ==================== KOLLISION ====================
     void SetCollisionMode(COLLISION collision);

@@ -101,9 +101,8 @@ void RenderManager::RenderShadowPass()
             if (!s) continue;
 
             //Material* mat = mesh->meshRenderer.GetMaterial(si, s, m_objectManager.GetStandardMaterial());
-            const unsigned slot = s->slotIndex;
-            Material* fallback = mesh->pMaterial ? mesh->pMaterial : m_objectManager.GetStandardMaterial();
-            Material* mat = mesh->meshRenderer.GetMaterial(slot, s, fallback);
+            Material* mat = mesh->meshRenderer.GetMaterial(si,
+                                                           m_objectManager.GetStandardMaterial());
 
             if (!mat || !mat->castShadows) continue;
 
@@ -243,10 +242,9 @@ void RenderManager::BuildRenderQueue()
             Surface* surface = queueSlots[qi];
             if (!surface) continue;
 
-            //Material* material = mesh->meshRenderer.GetMaterial(qi, surface, m_objectManager.GetStandardMaterial());
-            const unsigned slot = surface->slotIndex; // nicht qi
-            Material* fallback = mesh->pMaterial ? mesh->pMaterial : m_objectManager.GetStandardMaterial();
-            Material* material = mesh->meshRenderer.GetMaterial(slot, surface, fallback);
+            // Materialaufloesung nur noch ueber Slot-Override oder globales Engine-Standardmaterial.
+            Material* material = mesh->meshRenderer.GetMaterial(qi,
+                                                                m_objectManager.GetStandardMaterial());
             if (!material) continue;
 
             Shader* shader = material->pRenderShader;
@@ -341,6 +339,11 @@ void RenderManager::FlushRenderQueue()
     Material* lastMaterial = nullptr;
     ID3D11DeviceContext* ctx = m_device.GetDeviceContext();
 
+    // SRV-Cache zu Beginn jedes Flush zuruecksetzen.
+    // BeginRttPass/BeginShadowPass koennen GPU-Slots geleert haben ohne den Cache
+    // zu invalidieren – staelter Cache verhindert dann das Rebinden der Texturen.
+    memset(m_boundSRVs, 0, sizeof(m_boundSRVs));
+
     // Sampler s0 einmalig binden (gilt fuer alle Materials / gSampler in PS)
     if (m_defaultSampler && ctx)
         ctx->PSSetSamplers(0, 1, &m_defaultSampler);
@@ -360,8 +363,8 @@ void RenderManager::FlushRenderQueue()
             cmd.shader->UpdateShader(&m_device);
             lastShader = cmd.shader;
 
+            ++shaderBinds;
             if (!once) {
-                ++shaderBinds;
                 Debug::Log("RenderManager.cpp: FlushRenderQueue - SHADER BIND shader=",
                     (void*)cmd.shader);
             }
@@ -432,16 +435,16 @@ void RenderManager::FlushRenderQueue()
             );
             lastMaterial = cmd.material;
 
+            ++materialBinds;
             if (!once) {
-                ++materialBinds;
                 Debug::Log("RenderManager.cpp:   MATERIAL BIND mat=",
                     (void*)cmd.material);
             }
         }
 
         // ...Draw Call...
+        ++drawCalls;
         if (!once) {
-            ++drawCalls;
             Debug::Log("RenderManager.cpp:      DRAW mesh=",
                 (void*)cmd.mesh, " surface=", (void*)cmd.surface);
         }
@@ -552,9 +555,6 @@ void RenderManager::FlushTransparentQueue()
     // Blending wieder deaktivieren
     if (m_noBlendState)
         ctx->OMSetBlendState(m_noBlendState, blendFactor, 0xFFFFFFFF);
-
-    // SRV-Cache ungueltig setzen (Zustand geaendert)
-    memset(m_boundSRVs, 0, sizeof(m_boundSRVs));
 }
 
 void RenderManager::RenderScene()

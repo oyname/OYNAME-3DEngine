@@ -10,8 +10,6 @@
 #include "Dx11EntityGpuData.h"
 #include "SurfaceGpuBuffer.h"
 
-extern Timer Time;
-
 namespace Engine
 {
     struct Color
@@ -385,7 +383,7 @@ namespace Engine
         engine->SetDirectionalLight(light);
     }
 
-    inline void CreateMesh(LPENTITY* mesh, MATERIAL* material = nullptr)
+    inline void CreateMesh(LPENTITY* mesh)
     {
         if (mesh == nullptr) {
             Debug::Log("gidx.h: ERROR: CreateMesh - mesh pointer is nullptr");
@@ -397,16 +395,6 @@ namespace Engine
             Debug::Log("gidx.h: ERROR: CreateMesh - Failed to create mesh");
             return;
         }
-
-        material = material == nullptr ? engine->GetOM().GetStandardMaterial() : material;
-
-        if (material == nullptr) {
-            Debug::Log("gidx.h: ERROR: CreateMesh - No valid material available");
-            engine->GetOM().DeleteMesh(m);
-            return;
-        }
-
-        engine->GetOM().AddMeshToMaterial(material, m);
 
         if (!m->gpuData) m->gpuData = new EntityGpuData();
         HRESULT hr = engine->GetBM().CreateBuffer(
@@ -608,22 +596,52 @@ namespace Engine
         return engine->GetOM().GetSurface(mesh);
     }
 
+    // Anzahl der Surfaces abfragen
+    inline unsigned int GetSurfaceCount(LPENTITY entity)
+    {
+        if (entity == nullptr) {
+            Debug::Log("gidx.h: ERROR: GetSurfaceCount - entity is nullptr");
+            return 0;
+        }
+
+        Mesh* mesh = (entity->IsMesh() ? entity->AsMesh() : nullptr);
+        if (mesh == nullptr) {
+            Debug::Log("gidx.h: ERROR: GetSurfaceCount - Entity is not a Mesh!");
+            return 0;
+        }
+
+        return mesh->meshRenderer.asset ? mesh->meshRenderer.asset->NumSlots() : 0;
+    }
+
+    // Surface per Index holen
+    inline LPSURFACE GetSurface(LPENTITY entity, unsigned int index)
+    {
+        if (entity == nullptr) {
+            Debug::Log("gidx.h: ERROR: GetSurface - entity is nullptr");
+            return nullptr;
+        }
+
+        Mesh* mesh = (entity->IsMesh() ? entity->AsMesh() : nullptr);
+        if (mesh == nullptr) {
+            Debug::Log("gidx.h: ERROR: GetSurface - Entity is not a Mesh!");
+            return nullptr;
+        }
+
+        if (index >= GetSurfaceCount(entity)) {
+            Debug::Log("gidx.h: ERROR: GetSurface - index ", (int)index,
+                " out of range (max ", (int)GetSurfaceCount(entity), ")");
+            return nullptr;
+        }
+
+        return mesh->GetSurface(index);
+    }
+
+
     inline void FillBuffer(LPSURFACE surface)
     {
         if (!surface) { Debug::Log("gidx.h: ERROR: FillBuffer - surface is nullptr"); return; }
 
-        Shader* shader = nullptr;
-        Mesh* __owner = surface->GetOwner();
-        if (__owner)
-        {
-            // Aufgeloestes Material fuer diesen Slot holen (slotMaterials[i] oder Default)
-            Material* mat = __owner->meshRenderer.GetMaterial(
-                surface->slotIndex, surface,
-                engine->GetOM().GetStandardMaterial());
-            if (mat)
-                shader = mat->pRenderShader;
-        }
-
+        Shader* shader = engine->GetOM().GetShader(*surface);
         if (!shader) { Debug::Log("gidx.h: ERROR: FillBuffer - cannot resolve shader"); return; }
 
         // FillBuffer ist DX11-spezifisch: Cast auf konkreten Typ erlaubt
@@ -632,12 +650,12 @@ namespace Engine
 
         // Stride-Werte und Index-Count setzen
         gpuDX11->stridePosition = sizeof(DirectX::XMFLOAT3);
-        gpuDX11->strideNormal = sizeof(DirectX::XMFLOAT3);
-        gpuDX11->strideTangent = sizeof(DirectX::XMFLOAT4);
-        gpuDX11->strideColor = sizeof(DirectX::XMFLOAT4);
-        gpuDX11->strideUV1 = sizeof(DirectX::XMFLOAT2);
-        gpuDX11->strideUV2 = sizeof(DirectX::XMFLOAT2);
-        gpuDX11->indexCount = surface->CountIndices();
+        gpuDX11->strideNormal   = sizeof(DirectX::XMFLOAT3);
+        gpuDX11->strideTangent  = sizeof(DirectX::XMFLOAT4);
+        gpuDX11->strideColor    = sizeof(DirectX::XMFLOAT4);
+        gpuDX11->strideUV1      = sizeof(DirectX::XMFLOAT2);
+        gpuDX11->strideUV2      = sizeof(DirectX::XMFLOAT2);
+        gpuDX11->indexCount     = surface->CountIndices();
 
         // Vertexbuffer
         if (shader->flagsVertex & D3DVERTEX_POSITION && surface->CountVertices() > 0) {
@@ -1318,8 +1336,7 @@ namespace Engine
         // Texture auf das Material in Slot 0 setzen.
         // Slot 0 ist immer die erste Surface – bei einem einfachen Mesh
         // der einzige Slot.
-        Material* mat = mesh->meshRenderer.GetMaterial(
-            0, nullptr, engine->GetOM().GetStandardMaterial());
+        Material* mat = mesh->meshRenderer.GetMaterial(0, engine->GetOM().GetStandardMaterial());
         if (!mat)
         {
             Debug::Log("gidx.h: EntityTexture - kein Material in Slot 0");
@@ -1697,7 +1714,6 @@ namespace Engine
     //   LPENTITY (0x00AABBCC)
     //   +-- Mesh : Entity  active=1  visible=1
     //         +-- transform   pos=(1.50, 1.00, 0.00)
-    //         +-- pMaterial   0x00112233  [Fallback]
     //         +-- meshRenderer
     //               +-- asset --> MeshAsset (0x00DDEEFF)  slots=1  active=1
     //               │     +-- m_slots[0] --> Surface (0x00FFAABB)  verts=24  idx=36
@@ -1733,11 +1749,7 @@ namespace Engine
             DirectX::XMVectorGetY(pos), ", ",
             DirectX::XMVectorGetZ(pos), ")");
 
-        // -- pMaterial (nur noch interner temporaerer Speicher, kein Render-Fallback)
-        if (mesh->pMaterial)
-            Debug::Log("gidx.h:       +-- pMaterial   ", (void*)mesh->pMaterial, "  [temporaer, kein Render-Fallback]");
-        else
-            Debug::Log("gidx.h:       +-- pMaterial   nullptr");
+        Debug::Log("gidx.h:       +-- engineDefaultMaterial   ", (void*)engine->GetOM().GetStandardMaterial(), "  [global]");
 
         // -- MeshRenderer / Asset
         MeshAsset* asset = mesh->meshRenderer.asset;
@@ -1784,14 +1796,14 @@ namespace Engine
             Surface* s = slots[i];
             if (!s) continue;
 
-            Material* resolved = mesh->meshRenderer.GetMaterial(i, s, standardMat);
+            Material* resolved = mesh->meshRenderer.GetMaterial(i, standardMat);
 
             const bool isLast = (i == (unsigned int)slots.size() - 1);
             const char* branch = isLast ? "                  +--" : "                  +--";
 
             const char* source = (i < mats.size() && mats[i] != nullptr)
                 ? "[slotMaterials]"
-                : "[Standard-Material]";
+                : "[engineDefaultMaterial]";
 
             if (resolved)
                 Debug::Log("gidx.h:             ", branch,
@@ -1801,7 +1813,7 @@ namespace Engine
                     " slot[", (int)i, "] --> nullptr  [FEHLER: kein Standard-Material!]");
         }
 
-        Debug::Log("gidx.h: DebugPrintMesh --------------------------------");
+
     }
 
     // Gibt die Struktur aller Meshes in der Szene aus.

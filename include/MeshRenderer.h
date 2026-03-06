@@ -13,7 +13,7 @@ class Surface;
 //
 // Materialaufloesung fuer Slot i (GetMaterial):
 //   1. slotMaterials[i]    – per-Slot-Zuweisung via SurfaceMaterial()
-//   2. meshFallback         – Mesh-weites Fallback (mesh->pMaterial)
+//   2. globalFallback       – globales Engine-Standardmaterial
 //
 // Ownership: MeshRenderer besitzt weder das MeshAsset noch die Materialien.
 // Alle Ressourcen liegen beim ObjectManager.
@@ -27,11 +27,9 @@ public:
     std::vector<Material*> slotMaterials;
 
     // Gibt das Material fuer Slot i zurueck.
-    // Fallback-Kette: slotMaterials[i] -> meshFallback
-    // surface-Parameter wird nur noch fuer kuenftige Erweiterungen mitgefuehrt.
+    // Fallback-Kette: slotMaterials[i] -> globalFallback
     Material* GetMaterial(unsigned int slot,
-                          const Surface* surface,
-                          Material*      meshFallback) const;
+                          Material*      globalFallback) const;
 
     // Setzt das Material fuer einen bestimmten Slot.
     // Vergroessert slotMaterials automatisch, falls noetig.

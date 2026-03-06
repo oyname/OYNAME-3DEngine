@@ -5,7 +5,6 @@ using namespace DirectX;
 
 Surface::Surface()
     : isActive(true)
-    , slotIndex(0)
     , gpu(std::make_unique<SurfaceGpuBuffer>())
 {
 }

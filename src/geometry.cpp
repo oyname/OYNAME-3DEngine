@@ -4,7 +4,7 @@ void CreateCube(LPENTITY* mesh, MATERIAL* material)
 {
     LPSURFACE wuerfel = NULL;
 
-    Engine::CreateMesh(mesh, material);
+    Engine::CreateMesh(mesh);
     Engine::CreateSurface(&wuerfel, (*mesh));
 
     Engine::AddVertex(wuerfel, -1.0f, -1.0f, -1.0f); Engine::VertexNormal(wuerfel, 0.0f, 0.0f, -1.0f);  Engine::VertexColor(wuerfel, 224, 224, 224);
@@ -84,6 +84,9 @@ void CreateCube(LPENTITY* mesh, MATERIAL* material)
     Engine::AddTriangle(wuerfel, 21, 22, 23); Engine::AddTriangle(wuerfel, 22, 21, 20);
 
     Engine::FillBuffer(wuerfel);
+
+    if (material)
+        Engine::SurfaceMaterial(wuerfel, material);
 }
 
 void CreateMultiMaterialCube(LPENTITY* mesh,

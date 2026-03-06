@@ -34,6 +34,10 @@ public:
     // Gibt den Slot an Index i zurueck oder nullptr.
     Surface* GetSlot(unsigned int i) const;
 
+    // Sucht den Slot-Index einer Surface innerhalb dieses Assets.
+    // Gibt true nur bei exaktem Pointer-Treffer zurueck.
+    bool FindSlotIndex(const Surface* surface, unsigned int& outSlot) const;
+
     // Anzahl der Slots.
     unsigned int NumSlots() const;
     unsigned int NumActiveSlots() const;

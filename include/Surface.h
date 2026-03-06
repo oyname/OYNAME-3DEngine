@@ -4,32 +4,17 @@
 #include <DirectXMath.h>
 #include "IGpuResource.h"
 
-class Mesh;     // forward
-class Material; // forward
-
 // Surface haelt die CPU-Geometrie und die GPU-Ressource fuer einen
-// Geometrie-Slot. Sie kennt ihren Besitzer-Mesh und ihren Slot-Index
-// im MeshAsset.
+// Geometrie-Slot. Sie kennt weder ihren Besitzer-Mesh noch ihren Slot-Index.
 //
-// Materialzuweisung erfolgt ausschliesslich ueber den Slot-Index:
-//   MeshRenderer::slotMaterials[slotIndex]
-//
-// Surface hat kein eigenes pMaterial mehr. SurfaceMaterial() im API
-// schreibt in MeshRenderer::slotMaterials[surface->slotIndex].
+// Die Zuordnung Surface -> Mesh/Slot erfolgt ausschliesslich ueber
+// ObjectManager::ResolveSurfaceBinding() (MeshAsset::FindSlotIndex).
+// Materialzuweisung wird von dort in MeshRenderer::slotMaterials[slot] geschrieben.
 class Surface
 {
 public:
     Surface();
     ~Surface() = default;
-
-    // Besitzer setzen (nur durch Mesh::AddSurface/RemoveSurface)
-    void  SetOwner(Mesh* mesh) { m_owner = mesh; }
-    Mesh* GetOwner() const     { return m_owner; }
-
-    // Slot-Index im MeshAsset – wird von MeshAsset::AddSlot gesetzt.
-    // Benoetigt von SurfaceMaterial() und FillBuffer() um das richtige
-    // slotMaterials-Element im MeshRenderer zu lesen/schreiben.
-    unsigned int slotIndex = 0;
 
     // Vertices hinzufuegen / setzen
     void AddVertex(int index, float x, float y, float z);
@@ -99,7 +84,6 @@ private:
     std::vector<unsigned int>       m_indices;
     std::vector<DirectX::XMUINT4>   m_boneIndices;
     std::vector<DirectX::XMFLOAT4>  m_boneWeights;
-    Mesh* m_owner = nullptr;  // non-owning
 };
 
 typedef Surface* LPSURFACE;

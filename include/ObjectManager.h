@@ -33,9 +33,6 @@ public:
     Surface*   CreateSurface();
     MeshAsset* CreateMeshAsset();
 
-    void RegisterRenderable(Mesh* mesh);
-    void UnregisterRenderable(Mesh* mesh);
-
     // ADD
     void AddSurfaceToMesh(Mesh* mesh, Surface* surface);
     void AddMeshToMaterial(Material* material, Mesh* mesh);
@@ -71,6 +68,7 @@ public:
     // GET
     void      ProcessMesh();
     Surface*  GetSurface(Mesh* mesh);
+    Surface*  GetSurface(Mesh* mesh, unsigned int index);
     Material* GetStandardMaterial() const;
     Shader*   GetShader(const Surface& surface) const;
     Shader*   GetShader(const Mesh& mesh) const;
@@ -93,11 +91,12 @@ public:
     void SetDefaultMaterial(Material* material) { m_defaultMaterial = material; }
 
 private:
+    bool ResolveSurfaceBinding(const Surface* surface, Mesh*& outMesh, unsigned int& outSlot) const;
+
     std::vector<Entity*>    m_entities;
     std::vector<Surface*>   m_surfaces;
     std::vector<MeshAsset*> m_meshAssets;
     std::vector<Mesh*>      m_meshes;
-    std::vector<Mesh*>      m_renderMeshes;
     std::vector<Camera*>    m_cameras;
     std::vector<Light*>     m_lights;
     std::vector<Material*>  m_materials;

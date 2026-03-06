@@ -3,19 +3,12 @@
 #include "Surface.h"
 #include "Material.h"
 
-// Materialaufloesung fuer Slot i (zwei Ebenen):
-//   1. slotMaterials[i]   -- per-Slot-Zuweisung via SurfaceMaterial() oder SetSlotMaterial()
-//   2. meshFallback        -- immer das Engine-Default-Material (hellgrau), nie nullptr
-//
-// surface-Parameter ist reserviert fuer kuenftige Erweiterungen.
-Material* MeshRenderer::GetMaterial(unsigned int slot,
-                                    const Surface* /*surface*/,
-                                    Material*      meshFallback) const
+Material* MeshRenderer::GetMaterial(unsigned int slot, Material* standardMaterial) const
 {
     if (slot < slotMaterials.size() && slotMaterials[slot] != nullptr)
         return slotMaterials[slot];
 
-    return meshFallback;
+    return standardMaterial;
 }
 
 void MeshRenderer::SetMaterial(unsigned int slot, Material* mat)

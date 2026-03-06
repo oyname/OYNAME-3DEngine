@@ -7,8 +7,7 @@
 using namespace DirectX;
 
 Mesh::Mesh() :
-    Entity(EntityType::Mesh),
-    pMaterial(nullptr)
+    Entity(EntityType::Mesh)
 {
 }
 
@@ -57,28 +56,10 @@ void Mesh::AddSurface(Surface* surface)
     if (!meshRenderer.asset) return;
 
     meshRenderer.asset->AddSlot(surface);
-    surface->SetOwner(this);
 
-    // WICHTIG:
-    // SlotMaterials bleiben leer, bis explizit per SurfaceMaterial()/SetMaterial() gesetzt.
-    // pMaterial bleibt das Mesh-weite Default, das als Fallback genutzt wird.
+    // SlotMaterials bleiben leer bis explizit per SurfaceMaterial()/SetSlotMaterial() gesetzt.
+    // Ungesetzte Slots fallen auf ObjectManager::GetStandardMaterial() zurueck.
 }
-
-//void Mesh::AddSurface(Surface* surface)
-//{
-//    if (!surface) return;
-//    if (!meshRenderer.asset) return;
-//
-//    // AddSlot setzt surface->slotIndex bevor er den Slot eintraegt.
-//    meshRenderer.asset->AddSlot(surface);
-//    surface->SetOwner(this);
-//
-//    // pMaterial in den Slot kopieren, damit slotMaterials von Anfang an
-//    // befuellt ist. pMaterial dient danach nur noch als temporaerer Speicher
-//    // und spielt fuer den Renderer keine Rolle mehr.
-//    if (pMaterial)
-//        meshRenderer.SetMaterial(surface->slotIndex, pMaterial);
-//}
 
 void Mesh::RemoveSurface(Surface* surface)
 {
@@ -86,8 +67,6 @@ void Mesh::RemoveSurface(Surface* surface)
 
     meshRenderer.asset->RemoveSlot(surface);
 
-    if (surface && surface->GetOwner() == this)
-        surface->SetOwner(nullptr);
 }
 
 void Mesh::SetCollisionMode(COLLISION collision)

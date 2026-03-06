@@ -6,10 +6,6 @@ void MeshAsset::AddSlot(Surface* surface)
 {
     if (!surface) return;
 
-    // Slot-Index setzen bevor der Surface dem Vektor hinzugefuegt wird.
-    // Der Index entspricht der aktuellen Vektorgrösse (naechster freier Index).
-    surface->slotIndex = static_cast<unsigned int>(m_slots.size());
-
     m_slots.push_back(surface);
 }
 
@@ -33,6 +29,22 @@ Surface* MeshAsset::GetSlot(unsigned int i) const
     if (i < m_slots.size())
         return m_slots[i];
     return nullptr;
+}
+
+bool MeshAsset::FindSlotIndex(const Surface* surface, unsigned int& outSlot) const
+{
+    if (!surface) return false;
+
+    for (unsigned int i = 0; i < static_cast<unsigned int>(m_slots.size()); ++i)
+    {
+        if (m_slots[i] == surface)
+        {
+            outSlot = i;
+            return true;
+        }
+    }
+
+    return false;
 }
 
 unsigned int MeshAsset::NumSlots() const

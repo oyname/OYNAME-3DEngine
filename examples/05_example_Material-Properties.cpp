@@ -116,6 +116,8 @@ int main()
     // Place cube in front of the camera
     Engine::PositionEntity(cube, 0.0f, 0.0f, 5.0f);
 
+    Engine::DebugPrintScene();
+
     // -------------------------------------------------
     // Main Render Loop
     // -------------------------------------------------

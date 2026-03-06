@@ -165,15 +165,6 @@
     <ClCompile Include="..\examples\UnlitShader.cpp">
       <Filter>01 Engine\app\TRASH</Filter>
     </ClCompile>
-    <ClCompile Include="..\examples\Rendertotexture.cpp">
-      <Filter>01 Engine\app\TRASH</Filter>
-    </ClCompile>
-    <ClCompile Include="..\examples\ShaderExample.cpp">
-      <Filter>01 Engine\app\TRASH</Filter>
-    </ClCompile>
-    <ClCompile Include="..\examples\SkinningTest.cpp">
-      <Filter>01 Engine\app\TRASH</Filter>
-    </ClCompile>
     <ClCompile Include="..\examples\Speculartest.cpp">
       <Filter>01 Engine\app\TRASH</Filter>
     </ClCompile>
@@ -223,6 +214,15 @@
       <Filter>01 Engine\app</Filter>
     </ClCompile>
     <ClCompile Include="..\examples\12_example_Performance.cpp">
+      <Filter>01 Engine\app</Filter>
+    </ClCompile>
+    <ClCompile Include="..\examples\13_example_Rendertotexture.cpp">
+      <Filter>01 Engine\app</Filter>
+    </ClCompile>
+    <ClCompile Include="..\examples\14_example_ShaderExample.cpp">
+      <Filter>01 Engine\app</Filter>
+    </ClCompile>
+    <ClCompile Include="..\examples\15_example_SkinningTest.cpp">
       <Filter>01 Engine\app</Filter>
     </ClCompile>
   </ItemGroup>
