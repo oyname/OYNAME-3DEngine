@@ -43,6 +43,9 @@
     <Filter Include="01 Engine\app\10_example_MultiShader">
       <UniqueIdentifier>{3022191d-48bc-4207-b23e-8df35bf97e9b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="01 Engine\shader\Skin">
+      <UniqueIdentifier>{31cbe66d-9b2a-4e60-ac1b-82ef6b81d821}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\examples\0_example_Multishaderexample.cpp">
@@ -240,6 +243,9 @@
     <ClCompile Include="..\examples\24_example_Parenting_showcase.cpp">
       <Filter>01 Engine\app</Filter>
     </ClCompile>
+    <ClCompile Include="..\examples\25_example_Bone_animation_showcase.cpp">
+      <Filter>01 Engine\app</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\examples\Neontimebuffer.h">
@@ -408,6 +414,12 @@
     </Text>
     <Text Include="..\shaders\VertexShaderSkinning.hlsl">
       <Filter>01 Engine\shader</Filter>
+    </Text>
+    <Text Include="..\shaders\SkinPixelShader.hlsl">
+      <Filter>01 Engine\shader\Skin</Filter>
+    </Text>
+    <Text Include="..\shaders\SkinVertexShader.hlsl">
+      <Filter>01 Engine\shader\Skin</Filter>
     </Text>
   </ItemGroup>
 </Project>
