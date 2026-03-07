@@ -219,6 +219,27 @@
     <ClCompile Include="..\examples\17_example_Quad.cpp">
       <Filter>01 Engine\app</Filter>
     </ClCompile>
+    <ClCompile Include="..\examples\18_example_Transparent.cpp">
+      <Filter>01 Engine\app</Filter>
+    </ClCompile>
+    <ClCompile Include="..\examples\19_example_PBR_showcase.cpp">
+      <Filter>01 Engine\app</Filter>
+    </ClCompile>
+    <ClCompile Include="..\examples\20_example_Shadow_Showcase.cpp">
+      <Filter>01 Engine\app</Filter>
+    </ClCompile>
+    <ClCompile Include="..\examples\21_example_Water_showcase.cpp">
+      <Filter>01 Engine\app</Filter>
+    </ClCompile>
+    <ClCompile Include="..\examples\22_example_Arcane_hall_showcase.cpp">
+      <Filter>01 Engine\app</Filter>
+    </ClCompile>
+    <ClCompile Include="..\examples\23_example_Ortho_rtt_Camera.cpp">
+      <Filter>01 Engine\app</Filter>
+    </ClCompile>
+    <ClCompile Include="..\examples\24_example_Parenting_showcase.cpp">
+      <Filter>01 Engine\app</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\examples\Neontimebuffer.h">

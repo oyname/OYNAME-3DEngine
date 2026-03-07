@@ -67,7 +67,7 @@ void Entity::SetParent(Entity* parent)
     if (m_parent)
         m_parent->m_children.push_back(this);
 
-    DBLOG("Entity.cpp: SetParent - parent set");
+    Debug::Log("Entity.cpp: SetParent - parent set");
 }
 
 void Entity::DetachFromParent()
@@ -78,7 +78,7 @@ void Entity::DetachFromParent()
     siblings.erase(std::remove(siblings.begin(), siblings.end(), this), siblings.end());
 
     m_parent = nullptr;
-    DBLOG("Entity.cpp: DetachFromParent - entity detached");
+    Debug::Log("Entity.cpp: DetachFromParent - entity detached");
 }
 
 void Entity::GenerateViewMatrix(XMVECTOR position, XMVECTOR lookAt, XMVECTOR up)
@@ -91,6 +91,13 @@ void Entity::GenerateProjectionMatrix(float fieldOfView, float screenAspect,
 {
     matrixSet.projectionMatrix =
         XMMatrixPerspectiveFovLH(fieldOfView, screenAspect, nearZ, farZ);
+}
+
+void Entity::GenerateOrthoMatrix(float width, float height,
+    float nearZ, float farZ)
+{
+    matrixSet.projectionMatrix =
+        XMMatrixOrthographicLH(width, height, nearZ, farZ);
 }
 
 void Entity::GenerateViewport(float TopLeftX, float TopLeftY,

@@ -1,4 +1,5 @@
 #include "geometry.h"
+#include <cmath>
 
 void CreateCube(LPENTITY* mesh, MATERIAL* material)
 {

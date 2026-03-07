@@ -47,6 +47,9 @@ public:
     void GenerateProjectionMatrix(float fieldOfView, float screenAspect,
         float nearZ, float farZ);
 
+    void GenerateOrthoMatrix(float width, float height,
+        float nearZ, float farZ);
+
     void GenerateViewport(float TopLeftX, float TopLeftY,
         float Width, float Height,
         float MinDepth, float MaxDepth);

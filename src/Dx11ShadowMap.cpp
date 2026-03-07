@@ -39,7 +39,7 @@ bool Dx11ShadowMap::Create(ID3D11Device* dev, UINT size)
     hr = dev->CreateTexture2D(&shadowMapDesc, nullptr, &m_shadowTex);
     if (FAILED(hr))
     {
-        DBERROR("Dx11ShadowMap: Failed to create shadow texture: ", hr);
+        Debug::LogError("Dx11ShadowMap: Failed to create shadow texture: ", hr);
         Release();
         return false;
     }
@@ -55,7 +55,7 @@ bool Dx11ShadowMap::Create(ID3D11Device* dev, UINT size)
     hr = dev->CreateDepthStencilView(m_shadowTex, &dsvDesc, &m_shadowDSV);
     if (FAILED(hr))
     {
-        DBERROR("Dx11ShadowMap: Failed to create shadow DSV: ", hr);
+        Debug::LogError("Dx11ShadowMap: Failed to create shadow DSV: ", hr);
         Release();
         return false;
     }
@@ -72,7 +72,7 @@ bool Dx11ShadowMap::Create(ID3D11Device* dev, UINT size)
     hr = dev->CreateShaderResourceView(m_shadowTex, &srvDesc, &m_shadowSRV);
     if (FAILED(hr))
     {
-        DBERROR("Dx11ShadowMap: Failed to create shadow SRV: ", hr);
+        Debug::LogError("Dx11ShadowMap: Failed to create shadow SRV: ", hr);
         Release();
         return false;
     }
@@ -98,7 +98,7 @@ bool Dx11ShadowMap::Create(ID3D11Device* dev, UINT size)
     hr = dev->CreateSamplerState(&sampDesc, &m_shadowSampler);
     if (FAILED(hr))
     {
-        DBERROR("Dx11ShadowMap: Failed to create comparison sampler: ", hr);
+        Debug::LogError("Dx11ShadowMap: Failed to create comparison sampler: ", hr);
         Release();
         return false;
     }
@@ -108,17 +108,17 @@ bool Dx11ShadowMap::Create(ID3D11Device* dev, UINT size)
     // -------------------------
     D3D11_RASTERIZER_DESC rsDesc{};
     rsDesc.FillMode = D3D11_FILL_SOLID;
-    rsDesc.CullMode = D3D11_CULL_FRONT;
+    rsDesc.CullMode = D3D11_CULL_BACK;   // BACK statt FRONT: kein Peter-Panning an der Objektbasis
     rsDesc.FrontCounterClockwise = FALSE;
-    rsDesc.DepthBias = 0;
-    rsDesc.DepthBiasClamp = 0.0f;
-    rsDesc.SlopeScaledDepthBias = 1.5f;
+    rsDesc.DepthBias = 2000;             // Integer-Bias verhindert Shadow-Acne auf Vorderflaechen
+    rsDesc.DepthBiasClamp = 0.01f;
+    rsDesc.SlopeScaledDepthBias = 0.5f;  // reduziert von 1.5 -> weniger Versatz bei flachen Winkeln
     rsDesc.DepthClipEnable = TRUE;
 
     hr = dev->CreateRasterizerState(&rsDesc, &m_shadowRS);
     if (FAILED(hr))
     {
-        DBERROR("Dx11ShadowMap: Failed to create shadow rasterizer state: ", hr);
+        Debug::LogError("Dx11ShadowMap: Failed to create shadow rasterizer state: ", hr);
         Release();
         return false;
     }
@@ -135,12 +135,12 @@ bool Dx11ShadowMap::Create(ID3D11Device* dev, UINT size)
     hr = dev->CreateBuffer(&bd, nullptr, &m_shadowMatrixCB);
     if (FAILED(hr))
     {
-        DBERROR("Dx11ShadowMap: Failed to create shadow matrix CB: ", hr);
+        Debug::LogError("Dx11ShadowMap: Failed to create shadow matrix CB: ", hr);
         Release();
         return false;
     }
 
-    DBLOG("Dx11ShadowMap: Created shadow resources (", size, "x", size, ")");
+    Debug::Log("Dx11ShadowMap: Created shadow resources (", size, "x", size, ")");
     return true;
 }
 
