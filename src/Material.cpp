@@ -35,8 +35,8 @@ Material::Material() :
     properties.flags = MF_NONE;
     properties._pad0 = 0.0f;
 
-    castShadows               = true;
-    receiveShadows            = true;
+    m_castShadows             = true;
+    m_receiveShadows          = true;
     properties.receiveShadows = 1.0f;
 }
 

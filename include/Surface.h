@@ -4,19 +4,16 @@
 #include <DirectXMath.h>
 #include "IGpuResource.h"
 
+class MeshAsset;
+
 // Surface haelt die CPU-Geometrie und die GPU-Ressource fuer einen
-// Geometrie-Slot. Sie kennt weder ihren Besitzer-Mesh noch ihren Slot-Index.
-//
-// Die Zuordnung Surface -> Mesh/Slot erfolgt ausschliesslich ueber
-// ObjectManager::ResolveSurfaceBinding() (MeshAsset::FindSlotIndex).
-// Materialzuweisung wird von dort in MeshRenderer::slotMaterials[slot] geschrieben.
+// Geometrie-Slot.
 class Surface
 {
 public:
     Surface();
     ~Surface() = default;
 
-    // Vertices hinzufuegen / setzen
     void AddVertex(int index, float x, float y, float z);
     void VertexNormal(int index, float x, float y, float z);
     void VertexColor(int index, float r, float g, float b);
@@ -25,7 +22,6 @@ public:
 
     void AddIndex(unsigned int index);
 
-    // Getter
     float GetVertexX(unsigned int index) const;
     float GetVertexY(unsigned int index) const;
     float GetVertexZ(unsigned int index) const;
@@ -49,12 +45,8 @@ public:
     unsigned int CountTangents()  const noexcept { return static_cast<unsigned int>(m_tangents.size()); }
     unsigned int CountBoneData()  const noexcept { return static_cast<unsigned int>(m_boneIndices.size()); }
 
-    // Berechnet Tangenten (xyz) + Handedness (w) pro Vertex aus Position + UV0 + Indices.
-    // Voraussetzung: m_positions, m_normals, m_uv1, m_indices sind gefuellt.
     void ComputeTangents();
 
-    // Setzt Bone-Index und Weight fuer einen einzelnen Vertex.
-    // Muss VOR FillBuffer aufgerufen werden.
     void SetBoneData(unsigned int vertexIndex,
                      unsigned int b0, unsigned int b1,
                      unsigned int b2, unsigned int b3,
@@ -69,6 +61,7 @@ public:
         m_boneIndices[vertexIndex] = DirectX::XMUINT4(b0, b1, b2, b3);
         m_boneWeights[vertexIndex] = DirectX::XMFLOAT4(w0, w1, w2, w3);
     }
+
 
 public:
     bool isActive = true;

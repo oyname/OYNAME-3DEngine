@@ -13,9 +13,6 @@ Mesh::Mesh() :
 
 Mesh::~Mesh()
 {
-    if (meshRenderer.asset)
-        meshRenderer.asset->GetSlots(); // kein Clear noetig, Asset gehoert dem ObjectManager
-
     if (boneConstantBuffer)
     {
         boneConstantBuffer->Release();
@@ -39,33 +36,36 @@ void Mesh::Update(const GDXDevice* device, const MatrixSet* inMatrixSet)
     if (collisionType != COLLISION::NONE)
         CalculateOBB(0);
 
-    // The world matrix arrives pre-computed from the RenderManager (including parent chain).
-    // Do not overwrite - use it directly from the supplied MatrixSet.
     if (gpuData) gpuData->Upload(device, *inMatrixSet);
 }
 
 Surface* Mesh::GetSurface(unsigned int n)
 {
-    return meshRenderer.asset ? meshRenderer.asset->GetSlot(n) : nullptr;
+    return m_meshRenderer.GetAsset() ? m_meshRenderer.GetAsset()->GetSlot(n) : nullptr;
+}
+
+
+bool Mesh::TryGetSurfaceSlot(const Surface* surface, unsigned int& outSlot) const noexcept
+{
+    const MeshAsset* asset = m_meshRenderer.GetAsset();
+    return asset ? asset->FindSlotIndex(surface, outSlot) : false;
 }
 
 void Mesh::AddSurface(Surface* surface)
 {
     if (!surface) return;
-    if (!meshRenderer.asset) return;
+    MeshAsset* asset = AccessMeshAssetInternal();
+    if (!asset) return;
 
-    meshRenderer.asset->AddSlot(surface);
-
-    // SlotMaterials remain empty until explicitly set via SurfaceMaterial()/SetSlotMaterial().
-    // Unset slots fall back to ObjectManager::GetStandardMaterial().
+    asset->AddSlot(surface);
 }
 
 void Mesh::RemoveSurface(Surface* surface)
 {
-    if (!meshRenderer.asset) return;
+    MeshAsset* asset = AccessMeshAssetInternal();
+    if (!asset) return;
 
-    meshRenderer.asset->RemoveSlot(surface);
-
+    asset->RemoveSlot(surface);
 }
 
 void Mesh::SetCollisionMode(COLLISION collision)
@@ -78,7 +78,7 @@ void Mesh::CalculateOBB(unsigned int index)
     XMFLOAT3 minSize{ 0.0f, 0.0f, 0.0f };
     XMFLOAT3 maxSize{ 0.0f, 0.0f, 0.0f };
 
-    Surface* s0 = meshRenderer.asset ? meshRenderer.asset->GetSlot(0) : nullptr;
+    Surface* s0 = m_meshRenderer.GetAsset() ? m_meshRenderer.GetAsset()->GetSlot(0) : nullptr;
     if (!s0) return;
 
     GeometryHelper::CalculateSize(*s0, XMMatrixIdentity(), minSize, maxSize);

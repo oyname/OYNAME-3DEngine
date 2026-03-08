@@ -78,6 +78,9 @@ private:
     RenderTextureTarget* m_activeRTT = nullptr;
     LPENTITY             m_rttCamera = nullptr;  // optionale RTT-Kamera (non-owning)
 
+    // Debug: ersetzt static bool once in FlushRenderQueue – als Member resetbar.
+    bool m_flushOnce = false;
+
     // Helper Functions
     void RenderMainPassAtomic();
     void BuildRenderQueue();

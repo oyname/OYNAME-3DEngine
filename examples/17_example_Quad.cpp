@@ -77,7 +77,7 @@ void CreateQuad(LPENTITY* mesh, MATERIAL* material)
     Engine::AddTriangle(quad, 3, 2, 1);
 
     if (material)
-        Engine::SurfaceMaterial(quad, material);
+        Engine::SetSlotMaterial(mesh, 0, material);
 
-    Engine::FillBuffer(quad);
+    Engine::FillBuffer(mesh, 0);
 }

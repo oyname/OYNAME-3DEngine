@@ -61,6 +61,22 @@ void Entity::SetParent(Entity* parent)
 {
     if (parent == m_parent) return;
 
+    // Zyklus-Guard: verhindert Stack Overflow durch rekursives GetWorldMatrix.
+    // Traversiert die Parent-Chain des neuen Parents und prueft ob this darin vorkommt.
+    if (parent)
+    {
+        Entity* p = parent;
+        while (p)
+        {
+            if (p == this)
+            {
+                DBERROR("Entity.cpp: SetParent - cycle detected, assignment rejected");
+                return;
+            }
+            p = p->m_parent;
+        }
+    }
+
     DetachFromParent();
 
     m_parent = parent;

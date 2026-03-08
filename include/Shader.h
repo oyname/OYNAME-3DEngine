@@ -33,6 +33,11 @@ public:
 
     bool isActive;
 
+    // Stabiler numerischer Bezeichner – wird von ObjectManager::CreateShader vergeben.
+    // Wird in RenderQueue::Sort() als SortKey genutzt (ersetzt Pointer-Truncation).
+    // 0 = nicht initialisiert (Shader nicht ueber CreateShader erstellt).
+    uint32_t id = 0;
+
     // Vertex Format Flags (Bitwise kombiniert)
     // z.B. D3DVERTEX_POSITION | D3DVERTEX_COLOR | D3DVERTEX_NORMAL
     // Wird für Input Layout Creation genutzt

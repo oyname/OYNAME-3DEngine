@@ -11,9 +11,6 @@ void MeshAsset::AddSlot(Surface* surface)
 
 void MeshAsset::RemoveSlot(Surface* surface)
 {
-    // Tombstone: slot is set to nullptr instead of being erased from the vector.
-    // This keeps all subsequent slot indices stable.
-    // The render loop in RenderManager skips nullptr slots (if (!surface) continue).
     for (auto& slot : m_slots)
     {
         if (slot == surface)
@@ -49,14 +46,11 @@ bool MeshAsset::FindSlotIndex(const Surface* surface, unsigned int& outSlot) con
 
 unsigned int MeshAsset::NumSlots() const
 {
-    // Total slot count (including tombstoned nullptr slots).
-    // Safe to use as an upper index bound.
     return static_cast<unsigned int>(m_slots.size());
 }
 
 unsigned int MeshAsset::NumActiveSlots() const
 {
-    // Non-empty slots only - useful for draw call prediction.
     unsigned int count = 0;
     for (const auto* s : m_slots)
         if (s) ++count;

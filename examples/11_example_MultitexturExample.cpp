@@ -79,7 +79,7 @@ int main()
 
     Engine::AddTriangle(quad, 0, 1, 2);
     Engine::AddTriangle(quad, 3, 2, 1);
-    Engine::FillBuffer(quad);
+    Engine::FillBuffer(g_quadMesh, 0);
 
     Engine::DebugPrintScene();
 

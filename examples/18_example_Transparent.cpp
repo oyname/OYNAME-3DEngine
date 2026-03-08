@@ -93,7 +93,7 @@ void main()
         Engine::MaterialColor(matFloor, 0.4f, 0.4f, 0.4f, 1.0f);
         Engine::MaterialUsePBR(matFloor, false);
         CreatePlate(&floor);
-        Engine::SurfaceMaterial(Engine::EntitySurface(floor, 0), matFloor);
+        Engine::SetSlotMaterial(floor, 0, matFloor);
     }
     Engine::ScaleEntity(floor, 8.0f, 1.0f, 8.0f);
     Engine::PositionEntity(floor, 0.0f, -2.0f, 0.0f);

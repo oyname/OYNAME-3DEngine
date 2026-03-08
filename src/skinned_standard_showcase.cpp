@@ -75,16 +75,16 @@ static void CreateArmMesh(LPENTITY* mesh, LPMATERIAL material)
 
     auto sub = [](const XMFLOAT3& a, const XMFLOAT3& b) -> XMFLOAT3 {
         return XMFLOAT3(a.x - b.x, a.y - b.y, a.z - b.z);
-        };
+    };
     auto cross = [](const XMFLOAT3& a, const XMFLOAT3& b) -> XMFLOAT3 {
         return XMFLOAT3(
             a.y * b.z - a.z * b.y,
             a.z * b.x - a.x * b.z,
             a.x * b.y - a.y * b.x);
-        };
+    };
     auto dot = [](const XMFLOAT3& a, const XMFLOAT3& b) -> float {
         return a.x * b.x + a.y * b.y + a.z * b.z;
-        };
+    };
 
     for (int side = 0; side < 4; ++side)
     {
@@ -144,7 +144,7 @@ int main()
     LPTEXTURE ormTex = nullptr;
     Engine::LoadTexture(&albedoTex, L"..\\media\\albedo.png");
     Engine::LoadTexture(&normalTex, L"..\\media\\normal.png");
-    Engine::LoadTexture(&ormTex, L"..\\media\\orm.png");
+    Engine::LoadTexture(&ormTex,    L"..\\media\\orm.png");
 
     LPMATERIAL staticMat = nullptr;
     Engine::CreateMaterial(&staticMat);

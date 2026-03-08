@@ -5,40 +5,35 @@
 class MeshAsset;
 class Material;
 class Surface;
+class Mesh;
 
-// MeshRenderer: Rendering-Komponente einer Entity.
-//
-// Verbindet ein MeshAsset (Geometrie) mit einem Material pro Slot.
-// Ein MeshRenderer ohne gueltiges Asset rendert nichts.
-//
-// Materialaufloesung fuer Slot i (GetMaterial):
-//   1. slotMaterials[i]    – per-Slot-Zuweisung via SurfaceMaterial()
-//   2. globalFallback       – globales Engine-Standardmaterial
-//
-// Ownership: MeshRenderer besitzt weder das MeshAsset noch die Materialien.
-// Alle Ressourcen liegen beim ObjectManager.
+// MeshRenderer: interne Renderdaten eines Meshs.
+// Das MeshRenderer-Objekt selbst ist kein oeffentlicher Umbiegepunkt mehr.
+// Asset- und Materialzuweisung laufen kontrolliert ueber Mesh/ObjectManager.
 class MeshRenderer
 {
 public:
-    // Geometriequelle (non-owning). Muss gesetzt sein, damit IsValid() true liefert.
-    MeshAsset* asset = nullptr;
-
-    // Material pro Slot (non-owning). Darf sparser als asset->NumSlots() sein.
-    std::vector<Material*> slotMaterials;
-
-    // Gibt das Material fuer Slot i zurueck.
-    // Fallback-Kette: slotMaterials[i] -> globalFallback
     Material* GetMaterial(unsigned int slot,
                           Material*      globalFallback) const;
-
-    // Setzt das Material fuer einen bestimmten Slot.
-    // Vergroessert slotMaterials automatisch, falls noetig.
-    void SetMaterial(unsigned int slot, Material* mat);
-
-    // Hilfsmethoden
-    bool         IsValid()  const noexcept { return asset != nullptr; }
     unsigned int NumSlots() const noexcept;
-
-    // Direktzugriff auf den Slot-Vektor des Assets fuer Range-based-for.
     const std::vector<Surface*>& GetSlots() const noexcept;
+    const std::vector<Material*>& GetSlotMaterials() const noexcept { return m_slotMaterials; }
+    bool         IsValid()  const noexcept { return m_asset != nullptr; }
+    bool         HasAsset() const noexcept { return m_asset != nullptr; }
+    const MeshAsset* GetAsset() const noexcept { return m_asset; }
+    Surface* GetSlot(unsigned int slot);
+    const Surface* GetSlot(unsigned int slot) const;
+
+private:
+    friend class Mesh;
+
+    void SetMaterial(unsigned int slot, Material* mat);
+    void ClearSlotMaterials() { m_slotMaterials.clear(); }
+    void ClearMaterialReference(Material* material);
+    void SetAsset(MeshAsset* asset) noexcept { m_asset = asset; }
+    void ClearAsset() noexcept { m_asset = nullptr; }
+    MeshAsset* AccessAsset() noexcept { return m_asset; }
+
+    std::vector<Material*> m_slotMaterials;
+    MeshAsset* m_asset = nullptr;
 };

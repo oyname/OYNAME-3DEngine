@@ -3,15 +3,15 @@
 // Demonstriert Bone Animation (Skeletal Skinning) mit manuellem Mesh-Aufbau.
 //
 // Benoetigt im shaders/-Ordner:
-//   SkinVertexShader.hlsl
-//   SkinPixelShader.hlsl
+//   VertexShaderSkinning.hlsl
+//   PixelShader.hlsl
 //
 // Das Mesh ist ein segmentiertes Rohr entlang der Y-Achse mit 6 Knochen.
 // Eine Sinuswelle laeuft von unten nach oben und beugt das Rohr wie einen Tentakel.
 //
 // Knochen-Matrix-Berechnung (DirectX Zeilen-Vektor-Konvention):
 //   boneWorld[0]  = RotX(a0) * RotZ(a0)
-//   boneWorld[i]  = RotX(ai) * RotZ(ai) * Translation(0, SEG_H, 0) * boneWorld[i-1]
+//   boneWorld[i]  = Translation(0, SEG_H, 0) * RotX(ai) * RotZ(ai) * boneWorld[i-1]
 //   invBind[i]    = Translation(0, -i * SEG_H, 0)
 //   finalMat[i]   = invBind[i] * boneWorld[i]
 //
@@ -37,22 +37,19 @@ static void BuildTailMesh(LPENTITY* outMesh, LPMATERIAL mat)
     Engine::CreateMesh(outMesh);
     LPSURFACE surf = nullptr;
     Engine::CreateSurface(&surf, *outMesh);
-    if (mat) Engine::SurfaceMaterial(surf, mat);
+    if (mat) Engine::SetSlotMaterial(*outMesh, 0, mat);
 
-    // Eckpositionen und Normalen fuer einen Ring (4 Ecken)
     const float cx[VERTS_RING] = { -HALF_W,  HALF_W,  HALF_W, -HALF_W };
     const float cz[VERTS_RING] = { -HALF_D, -HALF_D,  HALF_D,  HALF_D };
     const float nx[VERTS_RING] = { -0.707f,  0.707f,  0.707f, -0.707f };
     const float nz[VERTS_RING] = { -0.707f, -0.707f,  0.707f,  0.707f };
 
-    // ---- Vertices ---------------------------------------------------------
     for (int r = 0; r < N_RINGS; ++r)
     {
         const float t = r * 0.5f;
         const float y = t * SEG_H;
         const float gradient = y / (N_BONES * SEG_H);
 
-        // Farbverlauf: dunkles Indigo -> helles Cyan
         const unsigned int cr = static_cast<unsigned int>(20 + 30 * gradient);
         const unsigned int cg = static_cast<unsigned int>(60 + 195 * gradient);
         const unsigned int cb = static_cast<unsigned int>(140 + 115 * gradient);
@@ -62,15 +59,13 @@ static void BuildTailMesh(LPENTITY* outMesh, LPMATERIAL mat)
             Engine::AddVertex(surf, cx[c], y, cz[c]);
             Engine::VertexNormal(surf, nx[c], 0.0f, nz[c]);
             Engine::VertexColor(surf, cr, cg, cb);
-            Engine::VertexTexCoord(surf,
-                static_cast<float>(c) / static_cast<float>(VERTS_RING - 1),
-                gradient);
+
+            const float u = static_cast<float>(c) / static_cast<float>(VERTS_RING - 1);
+            Engine::VertexTexCoord(surf, u, gradient);
+            Engine::VertexTexCoord2(surf, u, gradient);
         }
     }
 
-    // ---- Bone-Daten -------------------------------------------------------
-    // Grenzringe (r gerade): 50/50 zwischen Knochen r/2-1 und r/2
-    // Innenringe (r ungerade): vollstaendig Knochen r/2
     for (int r = 0; r < N_RINGS; ++r)
     {
         const int  boneBase = r / 2;
@@ -82,14 +77,20 @@ static void BuildTailMesh(LPENTITY* outMesh, LPMATERIAL mat)
             if (isBoundary)
             {
                 if (boneBase == 0)
+                {
                     Engine::VertexBoneData(surf, v0 + c,
                         0, 0, 0, 0, 1.0f, 0.0f, 0.0f, 0.0f);
+                }
                 else if (boneBase >= N_BONES)
+                {
                     Engine::VertexBoneData(surf, v0 + c,
                         N_BONES - 1, 0, 0, 0, 1.0f, 0.0f, 0.0f, 0.0f);
+                }
                 else
+                {
                     Engine::VertexBoneData(surf, v0 + c,
                         boneBase - 1, boneBase, 0, 0, 0.5f, 0.5f, 0.0f, 0.0f);
+                }
             }
             else
             {
@@ -99,7 +100,6 @@ static void BuildTailMesh(LPENTITY* outMesh, LPMATERIAL mat)
         }
     }
 
-    // ---- Dreiecke (doppelseitig) ------------------------------------------
     for (int r = 0; r < N_RINGS - 1; ++r)
     {
         const int b = r * VERTS_RING;
@@ -115,7 +115,7 @@ static void BuildTailMesh(LPENTITY* outMesh, LPMATERIAL mat)
         }
     }
 
-    Engine::FillBuffer(surf);
+    Engine::FillBuffer(*outMesh, 0);
 
     Debug::Log("bone_animation_showcase.cpp: BuildTailMesh abgeschlossen - ",
         N_RINGS * VERTS_RING, " Vertices");
@@ -128,28 +128,6 @@ void main(LPVOID hwnd)
 {
     Debug::Log("bone_animation_showcase.cpp: main() gestartet");
     Engine::Graphics(1280, 720, true);
-
-    // ---- Skinning-Shader laden -------------------------------------------
-    // SkinVertexShader.hlsl und SkinPixelShader.hlsl muessen im shaders/-Ordner liegen.
-    // Vertex Flags muessen BONE_INDICES und BONE_WEIGHTS enthalten damit FillBuffer
-    // die Bone-Daten in GPU-Buffer schreibt.
-    LPSHADER skinShader = nullptr;
-    DWORD skinFlags = D3DVERTEX_POSITION | D3DVERTEX_NORMAL |
-        D3DVERTEX_COLOR | D3DVERTEX_TEX1 |
-        D3DVERTEX_BONE_INDICES | D3DVERTEX_BONE_WEIGHTS;
-
-    HRESULT hr = Engine::CreateShader(
-        &skinShader,
-        L"..\\shaders\\SkinVertexShader.hlsl", "main",
-        L"..\\shaders\\PixelShader.hlsl", "main",
-        skinFlags);
-
-    if (FAILED(hr))
-    {
-        Debug::Log("bone_animation_showcase.cpp: FEHLER - Skinning-Shader konnte nicht geladen werden");
-        return;
-    }
-    Debug::Log("bone_animation_showcase.cpp: Skinning-Shader geladen");
 
     // ---- Kamera ----------------------------------------------------------
     LPENTITY camera = nullptr;
@@ -184,28 +162,30 @@ void main(LPVOID hwnd)
     Engine::ScaleEntity(ground, 12.0f, 0.4f, 12.0f);
 
     // ---- Skinning-Material ----------------------------------------------
-    // CreateMaterial mit explizitem skinShader -- Material wird an diesen Shader gebunden.
-    // Dadurch bekommt FillBuffer den richtigen flagsVertex-Wert mit BONE_INDICES/WEIGHTS.
+    // Nutzt den internen skinned Standardshader:
+    //   VertexShaderSkinning.hlsl + PixelShader.hlsl
     LPMATERIAL tailMat = nullptr;
-    Engine::CreateMaterial(&tailMat, skinShader);
+    Engine::CreateSkinnedMaterial(&tailMat);
     Engine::MaterialColor(tailMat, 1.0f, 1.0f, 1.0f, 1.0f);
+    Engine::MaterialUsePBR(tailMat, true);
+    Engine::MaterialMetallic(tailMat, 0.0f);
+    Engine::MaterialRoughness(tailMat, 0.55f);
+    Engine::MaterialReceiveShadows(tailMat, true);
 
     // ---- Skinned Mesh aufbauen ------------------------------------------
     LPENTITY tailMesh = nullptr;
     BuildTailMesh(&tailMesh, tailMat);
     Engine::PositionEntity(tailMesh, 0.0f, 0.0f, 0.0f);
 
-    // InvBind[i] = Inverse der Bindpose-Welttransformation von Knochen i.
-    // Bindpose: boneWorld[i] = Translation(0, SEG_H, 0)^i = Translation(0, i*SEG_H, 0)
-    // Inverse = Translation(0, -i*SEG_H, 0)
     DirectX::XMMATRIX invBind[N_BONES];
     for (int i = 0; i < N_BONES; ++i)
+    {
         invBind[i] = DirectX::XMMatrixTranslation(
             0.0f, -static_cast<float>(i) * SEG_H, 0.0f);
+    }
 
     Debug::Log("bone_animation_showcase.cpp: Szene aufgebaut");
 
-    // ---- Hauptschleife ---------------------------------------------------
     float timeAcc = 0.0f;
     float camAngle = 0.0f;
 
@@ -222,34 +202,25 @@ void main(LPVOID hwnd)
         timeAcc += dt;
         camAngle += 6.0f * dt;
 
-        // Kamera kreist langsam
         const float camRad = camAngle * DirectX::XM_PI / 180.0f;
         Engine::PositionEntity(camera,
             10.0f * std::sin(camRad), 5.0f,
             -10.0f * std::cos(camRad));
         Engine::LookAt(camera, 0.0f, 4.5f, 0.0f);
 
-        // ---- Bone-Matrizen berechnen -------------------------------------
         DirectX::XMMATRIX boneWorld[N_BONES];
         DirectX::XMMATRIX finalMats[N_BONES];
 
-        // Knochen 0: dreht um Wurzel (Y=0)
         const float ax0 = WAVE_AMP * std::sin(timeAcc * WAVE_FREQ);
-        const float az0 = WAVE_AMP_Z * std::sin(timeAcc * WAVE_FREQ_Z
-            + DirectX::XM_PIDIV2);
+        const float az0 = WAVE_AMP_Z * std::sin(timeAcc * WAVE_FREQ_Z + DirectX::XM_PIDIV2);
         boneWorld[0] = DirectX::XMMatrixRotationX(ax0)
             * DirectX::XMMatrixRotationZ(az0);
 
-        // Knochen i:
-        // Reihenfolge (row-vector): erst zur Elternspitze translieren,
-        // dann lokal rotieren, dann Elternkette anwenden.
-        // Translation vor Rotation = Pivot liegt an der Elternspitze.
         for (int i = 1; i < N_BONES; ++i)
         {
             const float phi = i * PHASE_STEP;
             const float axi = WAVE_AMP * std::sin(timeAcc * WAVE_FREQ + phi);
-            const float azi = WAVE_AMP_Z * std::sin(timeAcc * WAVE_FREQ_Z
-                + phi + DirectX::XM_PIDIV2);
+            const float azi = WAVE_AMP_Z * std::sin(timeAcc * WAVE_FREQ_Z + phi + DirectX::XM_PIDIV2);
 
             boneWorld[i] = DirectX::XMMatrixTranslation(0.0f, SEG_H, 0.0f)
                 * DirectX::XMMatrixRotationX(axi)

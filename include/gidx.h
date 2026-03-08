@@ -628,21 +628,40 @@ namespace Engine
         }
     }
 
-    inline void CreateSurface(LPSURFACE* surface, LPENTITY entity)
+    inline void CreateSkinnedMaterial(LPMATERIAL* material)
+    {
+        if (material == nullptr) {
+            Debug::Log("gidx.h: ERROR: CreateSkinnedMaterial - material pointer is nullptr");
+            return;
+        }
+
+        if (engine == nullptr) {
+            Debug::Log("gidx.h: ERROR: CreateSkinnedMaterial - engine is nullptr");
+            *material = nullptr;
+            return;
+        }
+
+        SHADER* shader = engine->GetSM().GetShader(ShaderKey::StandardSkinned);
+        if (shader == nullptr) {
+            Debug::Log("gidx.h: ERROR: CreateSkinnedMaterial - skinned standard shader not available");
+            *material = nullptr;
+            return;
+        }
+
+        CreateMaterial(material, shader);
+    }
+
+    inline void CreateSurface(LPSURFACE* surface, LPENTITY entity, unsigned int* outSlot)
     {
         if (surface == nullptr) {
             Debug::Log("gidx.h: ERROR: CreateSurface - surface pointer is nullptr");
             return;
         }
 
+        if (outSlot) *outSlot = 0;
+
         if (entity == nullptr) {
             Debug::Log("gidx.h: ERROR: CreateSurface - entity is nullptr");
-            return;
-        }
-
-        *surface = engine->GetOM().CreateSurface();
-        if (*surface == nullptr) {
-            Debug::Log("gidx.h: ERROR: CreateSurface - Failed to create surface");
             return;
         }
 
@@ -650,12 +669,25 @@ namespace Engine
         Mesh* mesh = (entity->IsMesh() ? entity->AsMesh() : nullptr);
         if (mesh == nullptr) {
             Debug::Log("gidx.h: ERROR: CreateSurface - Entity is not a Mesh!");
-            engine->GetOM().DeleteSurface(*surface);
             *surface = nullptr;
             return;
         }
 
+        const unsigned int newSlot = mesh->GetSlotCount();
+
+        *surface = engine->GetOM().CreateSurface();
+        if (*surface == nullptr) {
+            Debug::Log("gidx.h: ERROR: CreateSurface - Failed to create surface");
+            return;
+        }
+
         engine->GetOM().AddSurfaceToMesh(mesh, *surface);
+        if (outSlot) *outSlot = newSlot;
+    }
+
+    inline void CreateSurface(LPSURFACE* surface, LPENTITY entity)
+    {
+        CreateSurface(surface, entity, nullptr);
     }
 
     inline LPSURFACE GetSurface(LPENTITY entity)
@@ -688,7 +720,56 @@ namespace Engine
             return 0;
         }
 
-        return mesh->meshRenderer.asset ? mesh->meshRenderer.asset->NumSlots() : 0;
+        return mesh->GetMeshAsset() ? mesh->GetMeshAsset()->NumSlots() : 0;
+    }
+
+    inline unsigned int GetSlotCount(LPENTITY entity)
+    {
+        return GetSurfaceCount(entity);
+    }
+
+    inline bool HasSlot(LPENTITY entity, unsigned int slot)
+    {
+        if (entity == nullptr) {
+            Debug::Log("gidx.h: ERROR: HasSlot - entity is nullptr");
+            return false;
+        }
+
+        Mesh* mesh = (entity->IsMesh() ? entity->AsMesh() : nullptr);
+        if (mesh == nullptr) {
+            Debug::Log("gidx.h: ERROR: HasSlot - Entity is not a Mesh!");
+            return false;
+        }
+
+        return mesh->HasSlot(slot);
+    }
+
+    inline bool GetSurfaceSlot(LPENTITY entity, LPSURFACE surface, unsigned int* outSlot)
+    {
+        if (outSlot == nullptr) {
+            Debug::Log("gidx.h: ERROR: GetSurfaceSlot - outSlot is nullptr");
+            return false;
+        }
+
+        *outSlot = 0;
+
+        if (entity == nullptr) {
+            Debug::Log("gidx.h: ERROR: GetSurfaceSlot - entity is nullptr");
+            return false;
+        }
+
+        if (surface == nullptr) {
+            Debug::Log("gidx.h: ERROR: GetSurfaceSlot - surface is nullptr");
+            return false;
+        }
+
+        Mesh* mesh = (entity->IsMesh() ? entity->AsMesh() : nullptr);
+        if (mesh == nullptr) {
+            Debug::Log("gidx.h: ERROR: GetSurfaceSlot - Entity is not a Mesh!");
+            return false;
+        }
+
+        return mesh->TryGetSurfaceSlot(surface, *outSlot);
     }
 
     // Surface per Index holen
@@ -719,14 +800,12 @@ namespace Engine
     {
         if (!surface) { Debug::Log("gidx.h: ERROR: FillBuffer - surface is nullptr"); return; }
 
-        Shader* shader = engine->GetOM().GetShader(*surface);
-        if (!shader) { Debug::Log("gidx.h: ERROR: FillBuffer - cannot resolve shader"); return; }
+        Shader* shader = engine->GetOM().GetShader(*engine->GetOM().GetStandardMaterial());
+        if (!shader) { Debug::Log("gidx.h: ERROR: FillBuffer - standard shader missing"); return; }
 
-        // FillBuffer ist DX11-spezifisch: Cast auf konkreten Typ erlaubt
         SurfaceGpuBuffer* gpuDX11 = static_cast<SurfaceGpuBuffer*>(surface->gpu.get());
         if (!gpuDX11) { Debug::Log("gidx.h: ERROR: FillBuffer - gpu ist kein SurfaceGpuBuffer"); return; }
 
-        // Stride-Werte und Index-Count setzen
         gpuDX11->stridePosition = sizeof(DirectX::XMFLOAT3);
         gpuDX11->strideNormal = sizeof(DirectX::XMFLOAT3);
         gpuDX11->strideTangent = sizeof(DirectX::XMFLOAT4);
@@ -735,7 +814,6 @@ namespace Engine
         gpuDX11->strideUV2 = sizeof(DirectX::XMFLOAT2);
         gpuDX11->indexCount = surface->CountIndices();
 
-        // Vertexbuffer
         if (shader->flagsVertex & D3DVERTEX_POSITION && surface->CountVertices() > 0) {
             engine->GetBM().CreateBuffer(surface->GetPositions().data(), sizeof(DirectX::XMFLOAT3),
                 surface->CountVertices(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->positionBuffer);
@@ -747,7 +825,6 @@ namespace Engine
 
         if (shader->flagsVertex & D3DVERTEX_TANGENT)
         {
-            // Lazy tangent build (CPU) if missing
             if (surface->CountTangents() != surface->CountVertices())
                 surface->ComputeTangents();
 
@@ -779,10 +856,74 @@ namespace Engine
                 surface->CountBoneData(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->boneWeightBuffer);
         }
 
-        // Indexbuffer
         engine->GetBM().CreateBuffer(surface->GetIndices().data(), sizeof(UINT),
             surface->CountIndices(), D3D11_BIND_INDEX_BUFFER, &gpuDX11->indexBuffer);
     }
+
+    inline void FillBuffer(LPENTITY entity, unsigned int slot)
+    {
+        if (!entity) { Debug::Log("gidx.h: ERROR: FillBuffer(entity) - entity is nullptr"); return; }
+        Mesh* mesh = (entity->IsMesh() ? entity->AsMesh() : nullptr);
+        if (!mesh) { Debug::Log("gidx.h: ERROR: FillBuffer(entity) - Entity is not a Mesh!"); return; }
+        LPSURFACE surface = mesh->GetSurface(slot);
+        if (!surface) { Debug::Log("gidx.h: ERROR: FillBuffer(entity) - invalid slot"); return; }
+
+        Material* material = mesh->GetResolvedMaterial(slot, engine->GetOM().GetStandardMaterial());
+        Shader* shader = material ? material->pRenderShader : nullptr;
+        if (!shader) { Debug::Log("gidx.h: ERROR: FillBuffer(entity) - cannot resolve shader"); return; }
+
+        SurfaceGpuBuffer* gpuDX11 = static_cast<SurfaceGpuBuffer*>(surface->gpu.get());
+        if (!gpuDX11) { Debug::Log("gidx.h: ERROR: FillBuffer(entity) - gpu ist kein SurfaceGpuBuffer"); return; }
+
+        gpuDX11->stridePosition = sizeof(DirectX::XMFLOAT3);
+        gpuDX11->strideNormal = sizeof(DirectX::XMFLOAT3);
+        gpuDX11->strideTangent = sizeof(DirectX::XMFLOAT4);
+        gpuDX11->strideColor = sizeof(DirectX::XMFLOAT4);
+        gpuDX11->strideUV1 = sizeof(DirectX::XMFLOAT2);
+        gpuDX11->strideUV2 = sizeof(DirectX::XMFLOAT2);
+        gpuDX11->indexCount = surface->CountIndices();
+
+        if (shader->flagsVertex & D3DVERTEX_POSITION && surface->CountVertices() > 0) engine->GetBM().CreateBuffer(surface->GetPositions().data(), sizeof(DirectX::XMFLOAT3), surface->CountVertices(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->positionBuffer);
+        if (shader->flagsVertex & D3DVERTEX_NORMAL && surface->CountNormals() > 0) engine->GetBM().CreateBuffer(surface->GetNormals().data(), sizeof(DirectX::XMFLOAT3), surface->CountNormals(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->normalBuffer);
+        if (shader->flagsVertex & D3DVERTEX_TANGENT) { if (surface->CountTangents() != surface->CountVertices()) surface->ComputeTangents(); if (surface->CountTangents() > 0) engine->GetBM().CreateBuffer(surface->GetTangents().data(), sizeof(DirectX::XMFLOAT4), surface->CountTangents(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->tangentBuffer); }
+        if (shader->flagsVertex & D3DVERTEX_COLOR && surface->CountColors() > 0) engine->GetBM().CreateBuffer(surface->GetColors().data(), sizeof(DirectX::XMFLOAT4), surface->CountColors(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->colorBuffer);
+        if (shader->flagsVertex & D3DVERTEX_TEX1 && surface->CountUV1() > 0) engine->GetBM().CreateBuffer(surface->GetUV1().data(), sizeof(DirectX::XMFLOAT2), surface->CountUV1(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->uv1Buffer);
+        if (shader->flagsVertex & D3DVERTEX_TEX2 && surface->CountUV2() > 0) engine->GetBM().CreateBuffer(surface->GetUV2().data(), sizeof(DirectX::XMFLOAT2), surface->CountUV2(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->uv2Buffer);
+        if (shader->flagsVertex & D3DVERTEX_BONE_INDICES && surface->CountBoneData() > 0) engine->GetBM().CreateBuffer(surface->GetBoneIndices().data(), sizeof(DirectX::XMUINT4), surface->CountBoneData(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->boneIndexBuffer);
+        if (shader->flagsVertex & D3DVERTEX_BONE_WEIGHTS && surface->CountBoneData() > 0) engine->GetBM().CreateBuffer(surface->GetBoneWeights().data(), sizeof(DirectX::XMFLOAT4), surface->CountBoneData(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->boneWeightBuffer);
+        engine->GetBM().CreateBuffer(surface->GetIndices().data(), sizeof(UINT), surface->CountIndices(), D3D11_BIND_INDEX_BUFFER, &gpuDX11->indexBuffer);
+    }
+
+    inline bool SetSurfaceMaterial(LPENTITY entity, LPSURFACE surface, LPMATERIAL material)
+    {
+        if (!material) { Debug::Log("gidx.h: ERROR: SetSurfaceMaterial - material nullptr"); return false; }
+
+        unsigned int slot = 0;
+        if (!GetSurfaceSlot(entity, surface, &slot))
+        {
+            Debug::Log("gidx.h: ERROR: SetSurfaceMaterial - surface gehoert nicht zum Mesh");
+            return false;
+        }
+
+        Mesh* mesh = (entity->IsMesh() ? entity->AsMesh() : nullptr);
+        if (!mesh) { Debug::Log("gidx.h: SetSlotMaterial - Entity ist kein Mesh"); return false; }
+        engine->GetOM().SetSlotMaterial(mesh, slot, material);
+
+        return true;
+    }
+
+    //inline bool FillBuffer(LPENTITY entity, LPSURFACE surface)
+    //{
+    //    unsigned int slot = 0;
+    //    if (!GetSurfaceSlot(entity, surface, &slot))
+    //    {
+    //        Debug::Log("gidx.h: ERROR: FillBuffer(entity, surface) - surface gehoert nicht zum Mesh");
+    //        return false;
+    //    }
+    //
+    //    FillBuffer(entity, slot);
+    //    return true;
+    //}
 
 
     // ==================== SKINNING ====================
@@ -856,6 +997,17 @@ namespace Engine
         SurfaceGpuBuffer* gpuDX11 = static_cast<SurfaceGpuBuffer*>(surface->gpu.get());
         if (!gpuDX11) return;
         engine->GetBM().UpdateBuffer(gpuDX11->positionBuffer, surface->GetPositions().data(), sizeof(DirectX::XMFLOAT3) * surface->CountVertices());
+    }
+
+    inline void UpdateNormalBuffer(LPSURFACE surface)
+    {
+        if (surface == nullptr) {
+            Debug::Log("gidx.h: ERROR: UpdateNormalBuffer - surface is nullptr");
+            return;
+        }
+        SurfaceGpuBuffer* gpuDX11 = static_cast<SurfaceGpuBuffer*>(surface->gpu.get());
+        if (!gpuDX11) return;
+        engine->GetBM().UpdateNormal(gpuDX11->normalBuffer, surface->GetNormals().data(), surface->CountNormals());
     }
 
     inline void AddVertex(LPSURFACE surface, float x, float y, float z)
@@ -1349,7 +1501,7 @@ namespace Engine
     {
         if (!surface) { Debug::Log("gidx.h: SurfaceMaterial - surface nullptr");  return; }
         if (!material) { Debug::Log("gidx.h: SurfaceMaterial - material nullptr"); return; }
-        engine->GetOM().AddMaterialToSurface(material, surface);
+        Debug::Log("gidx.h: SurfaceMaterial removed - use SetSlotMaterial(entity, slot, material)");
     }
 
     // Setzt das Material fuer einen Slot-Index direkt im MeshRenderer.
@@ -1366,16 +1518,10 @@ namespace Engine
 
     // Teilt das MeshAsset von source mit target.
     //
-    // Das beim CreateMesh automatisch angelegte eigene Asset von target wird
-    // korrekt aus dem ObjectManager entfernt und geloescht, bevor das
-    // geteilte Asset zugewiesen wird. Danach zeigen beide Entities auf
-    // dasselbe MeshAsset; die Geometrie liegt nur einmal im Speicher.
-    //
-    // Wichtig: Vor DeleteMesh auf einem der Meshes muss das Asset des
-    // zu loeschenden Meshes auf nullptr gesetzt werden, damit der
-    // ObjectManager das geteilte Asset nicht doppelt loescht:
-    //   targetMesh->meshRenderer.asset = nullptr;
-    //   Engine::DeleteMesh(&target);   // (sobald DeleteMesh als API existiert)
+    // MeshAssets werden zentral vom ObjectManager besessen. Meshes sind
+    // nur Nutzer dieser Assets. Das bisherige Ziel-Asset wird daher vor
+    // dem Umhaengen zuerst vom target getrennt und erst danach zentral
+    // geloescht. Danach zeigen beide Meshes auf dasselbe MeshAsset.
     inline void ShareMeshAsset(LPENTITY source, LPENTITY target)
     {
         if (!source) { Debug::Log("gidx.h: ShareMeshAsset - source nullptr"); return; }
@@ -1387,21 +1533,18 @@ namespace Engine
         if (!mSrc) { Debug::Log("gidx.h: ShareMeshAsset - source ist kein Mesh"); return; }
         if (!mDst) { Debug::Log("gidx.h: ShareMeshAsset - target ist kein Mesh"); return; }
 
-        if (!mSrc->meshRenderer.asset)
+        if (!mSrc->GetMeshAsset())
         {
             Debug::Log("gidx.h: ShareMeshAsset - source hat kein MeshAsset");
             return;
         }
 
-        // Das eigene Asset von target aus dem ObjectManager entfernen und loeschen,
-        // damit kein Leak entsteht.
-        if (mDst->meshRenderer.asset && mDst->meshRenderer.asset != mSrc->meshRenderer.asset)
+        if (!engine->GetOM().SetMeshAsset(mDst, mSrc->BorrowMeshAsset(), true))
         {
-            engine->GetOM().DeleteMeshAsset(mDst->meshRenderer.asset);
-            Debug::Log("gidx.h: ShareMeshAsset - altes Asset von target geloescht");
+            Debug::Log("gidx.h: ShareMeshAsset - SetMeshAsset fehlgeschlagen");
+            return;
         }
 
-        mDst->meshRenderer.asset = mSrc->meshRenderer.asset;
         Debug::Log("gidx.h: ShareMeshAsset - Asset geteilt");
     }
 
@@ -1414,7 +1557,7 @@ namespace Engine
         // Texture auf das Material in Slot 0 setzen.
         // Slot 0 ist immer die erste Surface – bei einem einfachen Mesh
         // der einzige Slot.
-        Material* mat = mesh->meshRenderer.GetMaterial(0, engine->GetOM().GetStandardMaterial());
+        Material* mat = mesh->GetResolvedMaterial(0, engine->GetOM().GetStandardMaterial());
         if (!mat)
         {
             Debug::Log("gidx.h: EntityTexture - kein Material in Slot 0");
@@ -1830,7 +1973,7 @@ namespace Engine
         Debug::Log("gidx.h:       +-- engineDefaultMaterial   ", (void*)engine->GetOM().GetStandardMaterial(), "  [global]");
 
         // -- MeshRenderer / Asset
-        MeshAsset* asset = mesh->meshRenderer.asset;
+        const MeshAsset* asset = mesh->GetMeshAsset();
         if (!asset)
         {
             Debug::Log("gidx.h:       +-- meshRenderer  asset=nullptr  [kein Asset!]");
@@ -1868,13 +2011,13 @@ namespace Engine
         // slotMaterials[i] wenn gesetzt, sonst immer das Engine-Standard-Material.
         Debug::Log("gidx.h:             +-- resolved materials per slot");
         Material* standardMat = engine->GetOM().GetStandardMaterial();
-        const auto& mats = mesh->meshRenderer.slotMaterials;
+        const auto& mats = mesh->GetSlotMaterials();
         for (unsigned int i = 0; i < (unsigned int)slots.size(); ++i)
         {
             Surface* s = slots[i];
             if (!s) continue;
 
-            Material* resolved = mesh->meshRenderer.GetMaterial(i, standardMat);
+            Material* resolved = mesh->GetResolvedMaterial(i, standardMat);
 
             const bool isLast = (i == (unsigned int)slots.size() - 1);
             const char* branch = isLast ? "                  +--" : "                  +--";

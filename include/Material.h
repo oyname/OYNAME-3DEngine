@@ -107,7 +107,11 @@ public:
     }
     inline bool IsDoubleSided() const { return (properties.flags & MF_DOUBLE_SIDED) != 0; }
 
-    // ==================== MATERIAL PROPERTY GETTERS ====================
+    // Stabiler numerischer Bezeichner – wird von ObjectManager::CreateMaterial vergeben.
+    // Wird in RenderQueue::Sort() als SortKey genutzt (ersetzt Pointer-Truncation).
+    // 0 = nicht initialisiert (Material nicht ueber CreateMaterial erstellt).
+    uint32_t id = 0;
+
     uint32_t albedoIndex = 0;
     uint32_t normalIndex = 1;
     uint32_t ormIndex = 2;
@@ -180,17 +184,16 @@ public:
     inline bool GetUsePBR() const noexcept { return (properties.flags & MF_SHADING_PBR) != 0u; }
 
 // ==================== SHADOW FLAGS ====================
-    bool castShadows = true;
-    bool receiveShadows = true;
-
-    inline void SetCastShadows(bool enabled) { castShadows = enabled; }
+    // Getter/Setter – direkte Feldzugriffe vermeiden, da receiveShadows
+    // mit properties.receiveShadows (float fuer den Shader) synchron bleiben muss.
+    inline void SetCastShadows(bool enabled)    { m_castShadows = enabled; }
     inline void SetReceiveShadows(bool enabled)
     {
-        receiveShadows = enabled;
+        m_receiveShadows = enabled;
         properties.receiveShadows = enabled ? 1.0f : 0.0f;
     }
-    inline bool GetCastShadows()    const { return castShadows; }
-    inline bool GetReceiveShadows() const { return receiveShadows; }
+    inline bool GetCastShadows()    const { return m_castShadows; }
+    inline bool GetReceiveShadows() const { return m_receiveShadows; }
 
     // ==================== BLEND MODE ====================
     inline void SetBlendMode(int mode) { properties.blendMode = (float)mode; }
@@ -215,6 +218,12 @@ public:
     void operator delete(void* p) noexcept {
         _aligned_free(p);
     }
+
+private:
+    // Shadow-Flags als private Member – Zugriff nur ueber Setter,
+    // damit properties.receiveShadows (float) stets synchron bleibt.
+    bool m_castShadows    = true;
+    bool m_receiveShadows = true;
 };
 
 typedef Material* LPMATERIAL;

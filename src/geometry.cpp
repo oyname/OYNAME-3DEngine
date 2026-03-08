@@ -84,10 +84,9 @@ void CreateCube(LPENTITY* mesh, MATERIAL* material)
     Engine::AddTriangle(wuerfel, 16, 17, 18); Engine::AddTriangle(wuerfel, 18, 17, 19);
     Engine::AddTriangle(wuerfel, 21, 22, 23); Engine::AddTriangle(wuerfel, 22, 21, 20);
 
-    Engine::FillBuffer(wuerfel);
-
     if (material)
-        Engine::SurfaceMaterial(wuerfel, material);
+        Engine::SetSlotMaterial(*mesh, 0, material);
+    Engine::FillBuffer(*mesh, 0u);
 }
 
 void CreateMultiMaterialCube(LPENTITY* mesh,
@@ -107,8 +106,8 @@ void CreateMultiMaterialCube(LPENTITY* mesh,
     Engine::AddVertex(s, 1, 1, -1); Engine::VertexNormal(s, 0, 0, -1); Engine::VertexColor(s, 224, 224, 224); Engine::VertexTexCoord(s, 1.0f, 0.0f);
     Engine::AddTriangle(s, 0, 1, 2);
     Engine::AddTriangle(s, 3, 2, 1);
-    Engine::FillBuffer(s);
-    Engine::SurfaceMaterial(s, matFront);
+    Engine::SetSlotMaterial(*mesh, 0, matFront);
+    Engine::FillBuffer(*mesh, 0);
 
     // ---- Vorne (+Z)  winding: (2,1,0) (2,3,1) ----
     Engine::CreateSurface(&s, *mesh);
@@ -118,8 +117,8 @@ void CreateMultiMaterialCube(LPENTITY* mesh,
     Engine::AddVertex(s, 1, 1, 1); Engine::VertexNormal(s, 0, 0, 1); Engine::VertexColor(s, 224, 224, 224); Engine::VertexTexCoord(s, 1.0f, 0.0f);
     Engine::AddTriangle(s, 2, 1, 0);
     Engine::AddTriangle(s, 2, 3, 1);
-    Engine::FillBuffer(s);
-    Engine::SurfaceMaterial(s, matFront);
+    Engine::SetSlotMaterial(*mesh, 1, matFront);
+    Engine::FillBuffer(*mesh, 1);
 
     // ---- Links (-X)  winding: (0,1,2) (2,1,3) ----
     Engine::CreateSurface(&s, *mesh);
@@ -129,8 +128,8 @@ void CreateMultiMaterialCube(LPENTITY* mesh,
     Engine::AddVertex(s, -1, 1, 1); Engine::VertexNormal(s, -1, 0, 0); Engine::VertexColor(s, 224, 224, 224); Engine::VertexTexCoord(s, 1.0f, 0.0f);
     Engine::AddTriangle(s, 0, 1, 2);
     Engine::AddTriangle(s, 2, 1, 3);
-    Engine::FillBuffer(s);
-    Engine::SurfaceMaterial(s, matSide);
+    Engine::SetSlotMaterial(*mesh, 2, matSide);
+    Engine::FillBuffer(*mesh, 2);
 
     // ---- Rechts (+X)  winding: (2,1,0) (2,3,1) ----
     Engine::CreateSurface(&s, *mesh);
@@ -140,8 +139,8 @@ void CreateMultiMaterialCube(LPENTITY* mesh,
     Engine::AddVertex(s, 1, 1, 1); Engine::VertexNormal(s, 1, 0, 0); Engine::VertexColor(s, 224, 224, 224); Engine::VertexTexCoord(s, 1.0f, 0.0f);
     Engine::AddTriangle(s, 2, 1, 0);
     Engine::AddTriangle(s, 2, 3, 1);
-    Engine::FillBuffer(s);
-    Engine::SurfaceMaterial(s, matSide);
+    Engine::SetSlotMaterial(*mesh, 3, matSide);
+    Engine::FillBuffer(*mesh, 3);
 
     // ---- Unten (-Y)  winding: (0,1,2) (2,1,3) ----
     Engine::CreateSurface(&s, *mesh);
@@ -151,8 +150,8 @@ void CreateMultiMaterialCube(LPENTITY* mesh,
     Engine::AddVertex(s, 1, -1, 1); Engine::VertexNormal(s, 0, -1, 0); Engine::VertexColor(s, 224, 224, 224); Engine::VertexTexCoord(s, 1.0f, 0.0f);
     Engine::AddTriangle(s, 0, 1, 2);
     Engine::AddTriangle(s, 2, 1, 3);
-    Engine::FillBuffer(s);
-    Engine::SurfaceMaterial(s, matTopBot);
+    Engine::SetSlotMaterial(*mesh, 4, matTopBot);
+    Engine::FillBuffer(*mesh, 4);
 
     // ---- Oben (+Y)  winding: (1,2,3) (2,1,0) ----
     Engine::CreateSurface(&s, *mesh);
@@ -162,8 +161,8 @@ void CreateMultiMaterialCube(LPENTITY* mesh,
     Engine::AddVertex(s, 1, 1, 1); Engine::VertexNormal(s, 0, 1, 0); Engine::VertexColor(s, 224, 224, 224); Engine::VertexTexCoord(s, 1.0f, 0.0f);
     Engine::AddTriangle(s, 1, 2, 3);
     Engine::AddTriangle(s, 2, 1, 0);
-    Engine::FillBuffer(s);
-    Engine::SurfaceMaterial(s, matTopBot);
+    Engine::SetSlotMaterial(*mesh, 5, matTopBot);
+    Engine::FillBuffer(*mesh, 5);
 }
 
 void CreatePlate(LPENTITY *mesh)
@@ -196,5 +195,5 @@ void CreatePlate(LPENTITY *mesh)
     Engine::AddTriangle(surface, 1, 2, 3);
     Engine::AddTriangle(surface, 2, 1, 0);
 
-    Engine::FillBuffer(surface);
+    Engine::FillBuffer(*mesh, 0u);
 }

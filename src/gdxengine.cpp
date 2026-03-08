@@ -68,8 +68,8 @@ GDXEngine::GDXEngine(HWND hwnd, HINSTANCE hinst, unsigned int bpp, unsigned int 
 	this->SetAdapter(bestAdapter);
 
 	// Resolve shader paths via Core
-	vs = Core::ResolvePath(L"..\\..\\shaders\\VertexShader.hlsl");
-	ps = Core::ResolvePath(L"..\\..\\shaders\\PixelShader.hlsl");
+	vs = Core::ResolvePath(VERTEX_SHADER_FILE);
+	ps = Core::ResolvePath(PIXEL_SHADER_FILE);
 
 	// Check if shader files exist
 	std::wifstream vsFile(vs);
@@ -205,24 +205,44 @@ HRESULT GDXEngine::Graphic(unsigned int width, unsigned int height, bool windowe
 	//
 	// Object manager
 	m_objectManager.Init();
+	DBLOG("gdxengine.cpp: Graphic - ObjectManager initialized");
 
 	m_bufferManager.Init(m_device.GetDevice(), m_device.GetDeviceContext());
+	DBLOG("gdxengine.cpp: Graphic - BufferManager initialized");
 
 	m_shaderManager.Init(m_device.GetDevice());
+	DBLOG("gdxengine.cpp: Graphic - ShaderManager initialized");
 
 	m_inputLayoutManager.Init(m_device.GetDevice());
+	DBLOG("gdxengine.cpp: Graphic - InputLayoutManager initialized");
 
-	GetSM().SetShader(m_objectManager.CreateShader());
+	{
+		Shader* stdShader = m_objectManager.CreateShader();
+		DBLOG("gdxengine.cpp: Graphic - Standard Shader object created (id=", stdShader ? stdShader->id : 0u, ")");
+		GetSM().SetShader(stdShader);
+		DBLOG("gdxengine.cpp: Graphic - SetShader done");
+	}
 
 	// Load standard shader
+	DBLOG("gdxengine.cpp: Graphic - compiling standard VS/PS (may take a moment)...");
 	hr = GetSM().CreateShader(GetSM().GetShader(), vs.c_str(), "main", ps.c_str(), "main");
 	if (FAILED(hr))
 	{
 		DBLOG_HR(hr);
 		return hr;
 	}
+	DBLOG("gdxengine.cpp: Graphic - standard shader compiled OK");
 
+	DBLOG("gdxengine.cpp: Graphic - creating standard material...");
 	GetOM().AddMaterialToShader(GetSM().GetShader(), GetOM().CreateMaterial());
+	DBLOG("gdxengine.cpp: Graphic - AddMaterialToShader done, materials.size=",
+		(int)GetSM().GetShader()->materials.size());
+
+	if (GetSM().GetShader()->materials.empty())
+	{
+		DBERROR("gdxengine.cpp: Graphic - materials vector is EMPTY – cannot get standard material!");
+		return E_FAIL;
+	}
 
 	LPMATERIAL standardMaterial = GetSM().GetShader()->materials.front();
 
@@ -273,6 +293,48 @@ HRESULT GDXEngine::Graphic(unsigned int width, unsigned int height, bool windowe
 	{
 		DBLOG_HR(hr);
 		return hr;
+	}
+
+	// Optionaler interner Skinned-Standardshader: eigener VS, gleicher PS.
+	{
+		std::wstring vsSkin = Core::ResolvePath(VERTEX_SKINNING_SHADER_FILE);
+		Shader* skinnedShader = GetOM().CreateShader();
+
+		if (skinnedShader == nullptr)
+		{
+			DBLOG("gdxengine.cpp: failed to allocate skinned standard shader");
+		}
+		else
+		{
+			const DWORD skinnedFlags =
+				D3DVERTEX_POSITION | D3DVERTEX_NORMAL | D3DVERTEX_TANGENT |
+				D3DVERTEX_COLOR | D3DVERTEX_TEX1 | D3DVERTEX_TEX2 |
+				D3DVERTEX_BONE_INDICES | D3DVERTEX_BONE_WEIGHTS;
+
+			HRESULT hrSkin = GetSM().CreateShader(skinnedShader, vsSkin.c_str(), "main", ps.c_str(), "main");
+			if (FAILED(hrSkin))
+			{
+				DBLOG_HR(hrSkin);
+			}
+			else
+			{
+				hrSkin = GetILM().CreateInputLayoutVertex(
+					&skinnedShader->inputlayoutVertex,
+					skinnedShader,
+					skinnedShader->flagsVertex,
+					skinnedFlags);
+
+				if (FAILED(hrSkin))
+				{
+					DBLOG_HR(hrSkin);
+				}
+				else
+				{
+					GetSM().SetShader(ShaderKey::StandardSkinned, skinnedShader);
+					DBLOG("gdxengine.cpp: internal skinned standard shader registered");
+				}
+			}
+		}
 	}
 
 	m_screenHeight = height;
@@ -434,7 +496,7 @@ void GDXEngine::SetDirectionalLight(LPENTITY entity)
 		return;
 	}
 
-	Light* light = (entity->IsLight()  ? entity->AsLight()  : nullptr);
+	Light* light = (entity->IsLight() ? entity->AsLight() : nullptr);
 	if (light == nullptr) {
 		DBLOG("gdxengine.cpp: ERROR - SetDirectionalLight - Entity is not a Light!");
 		return;

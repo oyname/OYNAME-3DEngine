@@ -1,7 +1,7 @@
 #include "ShaderManager.h"
 #include <fstream>
 
-ShaderManager::ShaderManager() : m_device(nullptr), m_objectManager(nullptr), m_standardShader(nullptr)
+ShaderManager::ShaderManager() : m_device(nullptr), m_objectManager(nullptr)
 {
 }
 
@@ -92,11 +92,28 @@ HRESULT ShaderManager::CompileShaderFromFile(const std::wstring& filename, const
     return hr;
 }
 
-SHADER* ShaderManager::GetShader() {
-    return m_standardShader;
+SHADER* ShaderManager::GetShader()
+{
+    return GetShader(ShaderKey::Standard);
+}
+
+SHADER* ShaderManager::GetShader(ShaderKey key) const
+{
+    const auto it = m_shaders.find(key);
+    return (it != m_shaders.end()) ? it->second : nullptr;
 }
 
 void ShaderManager::SetShader(LPSHADER shader)
 {
-    m_standardShader = shader;
+    SetShader(ShaderKey::Standard, shader);
+}
+
+void ShaderManager::SetShader(ShaderKey key, LPSHADER shader)
+{
+    m_shaders[key] = shader;
+}
+
+bool ShaderManager::HasShader(ShaderKey key) const
+{
+    return GetShader(key) != nullptr;
 }

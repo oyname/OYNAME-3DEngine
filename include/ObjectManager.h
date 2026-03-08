@@ -1,5 +1,7 @@
 #pragma once
 #include <vector>
+#include <memory>
+#include <algorithm>
 #include "gdxutil.h"
 #include "gdxdevice.h"
 #include "gdxinterface.h"
@@ -23,7 +25,6 @@ public:
     ~ObjectManager();
     void Init() {}
 
-    // CREATE
     Camera*    CreateCamera();
     Light*     CreateLight(LightType type);
     Light*     CreateLight(D3DLIGHTTYPE type);
@@ -33,18 +34,15 @@ public:
     Surface*   CreateSurface();
     MeshAsset* CreateMeshAsset();
 
-    // ADD
     void AddSurfaceToMesh(Mesh* mesh, Surface* surface);
     void AddMeshToMaterial(Material* material, Mesh* mesh);
-    void AddMaterialToSurface(Material* material, Surface* surface);
     void AssignShaderToMaterial(Shader* shader, Material* material);
     void AddMaterialToShader(Shader* shader, Material* material);
 
-    // Setzt das Material fuer einen bestimmten Slot-Index im MeshRenderer.
-    // Ersetzt den alten AddMaterialToSurface-Weg fuer neuen Code.
     void SetSlotMaterial(Mesh* mesh, unsigned int slot, Material* material);
+    bool SetMeshAsset(Mesh* mesh, MeshAsset* asset, bool deleteOldIfUnused = true);
+    bool DetachMeshAsset(Mesh* mesh, bool deleteOldIfUnused = true);
 
-    // DELETE
     void DeleteSurface(Surface* surface);
     void DeleteMesh(Mesh* mesh);
     void DeleteCamera(Camera* camera);
@@ -53,24 +51,20 @@ public:
     void DeleteShader(Shader* shader);
     void DeleteMeshAsset(MeshAsset* asset);
 
-    // REMOVE
     void RemoveSurfaceFromMesh(Mesh* mesh, Surface* surface);
     void RemoveMaterialFromShader(Shader* shader, Material* material);
     void MoveSurface(Surface* s, Mesh* from, Mesh* to);
 
-    // GET PREVIOUS
     Surface*  GetPreviousSurface(Surface* currentSurface);
     Mesh*     GetPreviousMesh(Mesh* currentMesh);
     Camera*   GetPreviousCamera(Camera* currentCamera);
     Material* GetPreviousMaterial(Material* currentMaterial);
     Shader*   GetPreviousShader(Shader* currentShader);
 
-    // GET
     void      ProcessMesh();
     Surface*  GetSurface(Mesh* mesh);
     Surface*  GetSurface(Mesh* mesh, unsigned int index);
     Material* GetStandardMaterial() const;
-    Shader*   GetShader(const Surface& surface) const;
     Shader*   GetShader(const Mesh& mesh) const;
     Shader*   GetShader(const Material& material) const;
 
@@ -84,16 +78,24 @@ public:
         return (index < m_lights.size()) ? m_lights[index] : nullptr;
     }
 
-    // Setzt das interne Default-Material (hellgrau, keine Textur).
-    // Wird von GDXEngine::Graphic() nach dem Shader-Init aufgerufen.
-    // GetStandardMaterial() gibt dieses zurueck solange der User kein
-    // eigenes Material als Standard gesetzt hat.
     void SetDefaultMaterial(Material* material) { m_defaultMaterial = material; }
 
 private:
-    bool ResolveSurfaceBinding(const Surface* surface, Mesh*& outMesh, unsigned int& outSlot) const;
+    bool IsMeshAssetInUse(const MeshAsset* asset) const;
+    unsigned int CountMeshAssetUsers(const MeshAsset* asset) const;
 
-    std::vector<Entity*>    m_entities;
+    template<typename T>
+    static bool RemoveOwned(std::vector<std::unique_ptr<T>>& owner, T* ptr)
+    {
+        auto it = std::find_if(owner.begin(), owner.end(), [ptr](const std::unique_ptr<T>& p) { return p.get() == ptr; });
+        if (it == owner.end()) return false;
+        owner.erase(it);
+        return true;
+    }
+
+    uint32_t m_nextShaderId   = 0;
+    uint32_t m_nextMaterialId = 0;
+
     std::vector<Surface*>   m_surfaces;
     std::vector<MeshAsset*> m_meshAssets;
     std::vector<Mesh*>      m_meshes;
@@ -102,7 +104,13 @@ private:
     std::vector<Material*>  m_materials;
     std::vector<Shader*>    m_shaders;
 
-    // Internes Default-Material – hellgrau, keine Textur.
-    // Wird von GDXEngine beim Start angelegt, unabhaengig vom User-Code.
+    std::vector<std::unique_ptr<Surface>>   m_ownedSurfaces;
+    std::vector<std::unique_ptr<MeshAsset>> m_ownedMeshAssets;
+    std::vector<std::unique_ptr<Mesh>>      m_ownedMeshes;
+    std::vector<std::unique_ptr<Camera>>    m_ownedCameras;
+    std::vector<std::unique_ptr<Light>>     m_ownedLights;
+    std::vector<std::unique_ptr<Material>>  m_ownedMaterials;
+    std::vector<std::unique_ptr<Shader>>    m_ownedShaders;
+
     Material* m_defaultMaterial = nullptr;
 };

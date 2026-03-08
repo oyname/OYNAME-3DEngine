@@ -1,6 +1,5 @@
 #include "gdxengine.h"
 #include "RenderManager.h"
-#include "gdxengine.h"
 #include "LightArrayBuffer.h"
 #include "Viewport.h"
 #include "Light.h"
@@ -74,8 +73,8 @@ void RenderManager::RenderShadowPass()
 
     for (Mesh* mesh : m_objectManager.GetMeshes())
     {
-        if (!mesh || !mesh->meshRenderer.IsValid()) continue;
-        if (mesh->meshRenderer.GetSlots().empty()) continue;
+        if (!mesh || !mesh->HasMeshAsset()) continue;
+        if (mesh->GetSurfaces().empty()) continue;
         if (!mesh->IsActive()) continue;
         if (!mesh->IsVisible()) continue;
 
@@ -87,17 +86,17 @@ void RenderManager::RenderShadowPass()
         ms.worldMatrix = mesh->GetWorldMatrix();
         mesh->Update(&m_device, &ms);
 
-        const auto& shadowSlots = mesh->meshRenderer.GetSlots();
+        const auto& shadowSlots = mesh->GetSurfaces();
         for (unsigned int si = 0; si < static_cast<unsigned int>(shadowSlots.size()); ++si)
         {
             Surface* s = shadowSlots[si];
             if (!s) continue;
 
             //Material* mat = mesh->meshRenderer.GetMaterial(si, s, m_objectManager.GetStandardMaterial());
-            Material* mat = mesh->meshRenderer.GetMaterial(si,
-                                                           m_objectManager.GetStandardMaterial());
+            Material* mat = mesh->GetResolvedMaterial(si,
+                                                     m_objectManager.GetStandardMaterial());
 
-            if (!mat || !mat->castShadows) continue;
+            if (!mat || !mat->GetCastShadows()) continue;
 
             Shader* shader = mat->pRenderShader;
             if (!shader) continue;
@@ -218,8 +217,8 @@ void RenderManager::BuildRenderQueue()
 
     for (Mesh* mesh : m_objectManager.GetMeshes())
     {
-        if (!mesh || !mesh->meshRenderer.IsValid()) continue;
-        if (mesh->meshRenderer.GetSlots().empty()) continue;
+        if (!mesh || !mesh->HasMeshAsset()) continue;
+        if (mesh->GetSurfaces().empty()) continue;
         if (!mesh->IsActive()) continue;
         if (!mesh->IsVisible()) continue;
         if (!(mesh->GetLayerMask() & cameraCullMask)) continue;
@@ -227,14 +226,14 @@ void RenderManager::BuildRenderQueue()
         const DirectX::XMMATRIX world = mesh->GetWorldMatrix();
         mesh->matrixSet.worldMatrix = world;
 
-        const auto& queueSlots = mesh->meshRenderer.GetSlots();
+        const auto& queueSlots = mesh->GetSurfaces();
         for (unsigned int qi = 0; qi < static_cast<unsigned int>(queueSlots.size()); ++qi)
         {
             Surface* surface = queueSlots[qi];
             if (!surface) continue;
 
-            Material* material = mesh->meshRenderer.GetMaterial(qi,
-                                                                m_objectManager.GetStandardMaterial());
+            Material* material = mesh->GetResolvedMaterial(qi,
+                                                       m_objectManager.GetStandardMaterial());
             if (!material) continue;
 
             Shader* shader = material->pRenderShader;
@@ -322,8 +321,6 @@ void RenderManager::FlushRenderQueue()
     int materialBinds = 0;
     int drawCalls = 0;
 
-    static bool once = false;
-
     Shader* lastShader = nullptr;
     Material* lastMaterial = nullptr;
     ID3D11DeviceContext* ctx = m_device.GetDeviceContext();
@@ -353,7 +350,7 @@ void RenderManager::FlushRenderQueue()
             lastShader = cmd.shader;
 
             ++shaderBinds;
-            if (!once) {
+            if (!m_flushOnce) {
                 DBLOG("RenderManager.cpp: FlushRenderQueue - SHADER BIND shader=",
                     (void*)cmd.shader);
             }
@@ -424,14 +421,14 @@ void RenderManager::FlushRenderQueue()
             lastMaterial = cmd.material;
 
             ++materialBinds;
-            if (!once) {
+            if (!m_flushOnce) {
                 DBLOG("RenderManager.cpp:   MATERIAL BIND mat=",
                     (void*)cmd.material);
             }
         }
 
         ++drawCalls;
-        if (!once) {
+        if (!m_flushOnce) {
             DBLOG("RenderManager.cpp:      DRAW mesh=",
                 (void*)cmd.mesh, " surface=", (void*)cmd.surface);
         }
@@ -442,12 +439,12 @@ void RenderManager::FlushRenderQueue()
         cmd.Execute(&m_device);
     }
 
-    if (!once) {
+    if (!m_flushOnce) {
         DBLOG("RenderManager.cpp:SUMMARY"
             " shaderBinds=", shaderBinds,
             " materialBinds=", materialBinds,
             " drawCalls=", drawCalls);
-        once = true;
+        m_flushOnce = true;
     }
 }
 
@@ -457,6 +454,10 @@ void RenderManager::FlushTransparentQueue()
 
     ID3D11DeviceContext* ctx = m_device.GetDeviceContext();
     if (!ctx) return;
+
+    // SRV-Cache invalidieren: Blend-State-Wechsel und BeginMainPass koennen
+    // GPU-Slots leeren ohne den Cache zu invalidieren.
+    memset(m_boundSRVs, 0, sizeof(m_boundSRVs));
 
     // Enable alpha blending
     const float blendFactor[4] = { 0.f, 0.f, 0.f, 0.f };
@@ -501,7 +502,13 @@ void RenderManager::FlushTransparentQueue()
                 if (!srvs[4]) srvs[4] = m_texturePool->GetSRV(m_texturePool->WhiteIndex());
                 if (!srvs[5]) srvs[5] = m_texturePool->GetSRV(m_texturePool->WhiteIndex());
                 if (!srvs[6]) srvs[6] = m_texturePool->GetSRV(m_texturePool->WhiteIndex());
-                ctx->PSSetShaderResources(0, 7, srvs);
+
+                // Rebind nur wenn sich SRVs geaendert haben (state cache)
+                if (memcmp(srvs, m_boundSRVs, sizeof(srvs)) != 0)
+                {
+                    ctx->PSSetShaderResources(0, 7, srvs);
+                    memcpy(m_boundSRVs, srvs, sizeof(srvs));
+                }
             }
             else if (cmd.material->gpuData)
             {

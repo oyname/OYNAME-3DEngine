@@ -17,8 +17,10 @@
 #include "Timer.h"
 #include <thread>
 
-#define VERTEX_SHADER_FILE L"shaders/VertexShader.hlsl" 
-#define PIXEL_SHADER_FILE L"shaders/PixelShader.hlsl"
+#define VERTEX_SHADER_FILE L"..\\..\\shaders\\VertexShader.hlsl"
+#define PIXEL_SHADER_FILE L"..\\..\\shaders\\PixelShader.hlsl"
+#define VERTEX_SKINNING_SHADER_FILE L"..\\..\\shaders\\VertexShaderSkinning.hlsl"
+
 // Forward declaration
 class GDXEngine;
 

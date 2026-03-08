@@ -22,7 +22,7 @@ inline void CreateSphere(LPENTITY* mesh, LPMATERIAL material = nullptr,
     LPSURFACE surface = nullptr;
     Engine::CreateSurface(&surface, *mesh);
     if (material)
-        Engine::SurfaceMaterial(surface, material);
+        Engine::SetSlotMaterial(*mesh, 0, material);
 
     for (int r = 0; r <= rings; ++r)
     {
@@ -69,5 +69,5 @@ inline void CreateSphere(LPENTITY* mesh, LPMATERIAL material = nullptr,
         }
     }
 
-    Engine::FillBuffer(surface);
+    Engine::FillBuffer(*mesh, 0u);
 }

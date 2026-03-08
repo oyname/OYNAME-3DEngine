@@ -20,4 +20,5 @@ public:
 
     HRESULT UpdateConstantBuffer(ID3D11Buffer* buffer, const void* data, UINT dataSize);
     void UpdateBuffer(ID3D11Buffer* buffer, const void* data, UINT dataSize);
+    void UpdateNormal(ID3D11Buffer* buffer, const DirectX::XMFLOAT3* data, UINT count);
 };

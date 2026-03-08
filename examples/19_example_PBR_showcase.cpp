@@ -84,7 +84,7 @@ static void CreateSphere(LPENTITY* mesh, int stacks, int slices, float radius)
         }
     }
 
-    Engine::FillBuffer(surf);
+    Engine::FillBuffer(*mesh, 0);
 }
 
 // -----------------------------------------------------------------------
@@ -123,7 +123,7 @@ void main()
         Engine::MaterialMetallic(matFloor, 0.0f);
         Engine::MaterialRoughness(matFloor, 0.9f);
         CreatePlate(&floor);
-        Engine::SurfaceMaterial(Engine::EntitySurface(floor, 0), matFloor);
+        Engine::SetSlotMaterial(floor, 0, matFloor);
     }
     Engine::ScaleEntity(floor, 14.0f, 1.0f, 6.0f);
     Engine::PositionEntity(floor, 0.0f, -3.2f, 0.0f);
@@ -244,7 +244,7 @@ void main()
             0.6f);
 
         CreatePlate(&bar);
-        Engine::SurfaceMaterial(Engine::EntitySurface(bar, 0), matBar);
+        Engine::SetSlotMaterial(bar, 0, matBar);
         Engine::ScaleEntity(bar, totalWidth * 0.5f + SPACING * 0.5f, 1.0f, 0.08f);
         Engine::PositionEntity(bar,
             0.0f,

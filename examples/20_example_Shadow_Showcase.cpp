@@ -91,7 +91,7 @@ void main(LPVOID hwnd)
         Engine::MaterialReceiveShadows(matFloor, true);
 
         CreatePlate(&floor);
-        Engine::SurfaceMaterial(Engine::EntitySurface(floor, 0), matFloor);
+        Engine::SetSlotMaterial(floor, 0, matFloor);
     }
     Engine::EntityCastShadows(floor, false);   // Boden wirft keinen Schatten
     Engine::ScaleEntity(floor, 12.0f, 1.0f, 12.0f);

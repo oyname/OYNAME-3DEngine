@@ -71,7 +71,7 @@ int main()
     // can end up in the same render queue bucket.
     Engine::CreateMesh(&g_plateMesh);
     CreatePlate(&g_plateMesh);
-    Engine::SurfaceMaterial(Engine::GetSurface(g_plateMesh), matTopBot);
+    Engine::SetSlotMaterial(g_plateMesh, 0, matTopBot);
 
     Engine::PositionEntity(g_plateMesh, 0.0f, 0.0f, 0.0f);
     Engine::ScaleEntity(g_plateMesh, 100.0f, 1.0f, 100.0f);

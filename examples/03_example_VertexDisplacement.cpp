@@ -31,7 +31,7 @@ static void CreateWaveGrid(
 
     LPSURFACE surface = nullptr;
     Engine::CreateSurface(&surface, *mesh);
-    Engine::SurfaceMaterial(surface, material);
+    Engine::SetSlotMaterial(plane, 0, material);
 
     const int vertsX = cellsX + 1;
     const int vertsZ = cellsZ + 1;
@@ -89,7 +89,7 @@ static void CreateWaveGrid(
     }
 
     // Build GPU buffers once. After that we only update the vertex buffer.
-    Engine::FillBuffer(surface);
+    Engine::FillBuffer(plane, 0);
 }
 
 // -------------------------------------------------

@@ -75,16 +75,16 @@ static void CreateArmMesh(LPENTITY* mesh, LPMATERIAL material)
 
     auto sub = [](const XMFLOAT3& a, const XMFLOAT3& b) -> XMFLOAT3 {
         return XMFLOAT3(a.x - b.x, a.y - b.y, a.z - b.z);
-        };
+    };
     auto cross = [](const XMFLOAT3& a, const XMFLOAT3& b) -> XMFLOAT3 {
         return XMFLOAT3(
             a.y * b.z - a.z * b.y,
             a.z * b.x - a.x * b.z,
             a.x * b.y - a.y * b.x);
-        };
+    };
     auto dot = [](const XMFLOAT3& a, const XMFLOAT3& b) -> float {
         return a.x * b.x + a.y * b.y + a.z * b.z;
-        };
+    };
 
     for (int side = 0; side < 4; ++side)
     {
@@ -128,23 +128,23 @@ int main()
 
     LPENTITY camera = nullptr;
     Engine::CreateCamera(&camera);
-    Engine::PositionEntity(camera, 0.f, 1.0f, -12.f);
+    Engine::PositionEntity(camera, 0.f, 1.0f, -7.f);
     Engine::LookAt(camera, 0.f, 0.f, 5.f);
 
     LPENTITY light = nullptr;
     Engine::CreateLight(&light, D3DLIGHT_DIRECTIONAL);
-    Engine::PositionEntity(light, 0.0f, 10.0f, -10.0f);
-    Engine::RotateEntity(light, -35.0f, 20.0f, 0.f);
-    Engine::LightColor(light, 1.f, 1.f, 1.f, 1.0f);
+    Engine::PositionEntity(light, 10.0f, 0.0f, -10.0f);
+    Engine::LookAt(light, 0.0f, 0.0f, 0.0f);
+    Engine::LightColor(light, 2.f, 2.f, 2.5f);
     Engine::SetDirectionalLight(light);
-    Engine::SetAmbientColor(0.2f, 0.2f, 0.24f);
+    Engine::SetAmbientColor(0.4f, 0.4f, 0.54f);
 
     LPTEXTURE albedoTex = nullptr;
     LPTEXTURE normalTex = nullptr;
     LPTEXTURE ormTex = nullptr;
     Engine::LoadTexture(&albedoTex, L"..\\media\\albedo.png");
     Engine::LoadTexture(&normalTex, L"..\\media\\normal.png");
-    Engine::LoadTexture(&ormTex, L"..\\media\\orm.png");
+    Engine::LoadTexture(&ormTex,    L"..\\media\\orm.png");
 
     LPMATERIAL staticMat = nullptr;
     Engine::CreateMaterial(&staticMat);

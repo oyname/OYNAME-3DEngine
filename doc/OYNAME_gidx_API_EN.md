@@ -1,462 +1,1137 @@
-# OYNAME-3DEngine
+# OYNAME-3DEngine — `gidx.h` API Reference and Application Development
 
-`gidx.h` - API Reference and Application Development
+**Version:** February 2026
 
-Complete function reference · Step-by-step guide · Code examples
+---
 
-Status: 2025 · Namespace `Engine` · `#include "gidx.h"`
+## Table of Contents
+
+1. [Introduction](#1-introduction)
+2. [Type Aliases](#2-type-aliases)
+3. [Application Structure](#3-application-structure)
+4. [Graphics Device and Display](#4-graphics-device-and-display)
+5. [Camera](#5-camera)
+6. [Lighting](#6-lighting)
+7. [Mesh and Surface](#7-mesh-and-surface)
+8. [Vertex Building](#8-vertex-building)
+9. [GPU Upload](#9-gpu-upload)
+10. [Material](#10-material)
+11. [Texture](#11-texture)
+12. [Shader](#12-shader)
+13. [Entity Transform](#13-entity-transform)
+14. [Entity Properties](#14-entity-properties)
+15. [Scene Hierarchy](#15-scene-hierarchy)
+16. [Render Layers and Camera Culling](#16-render-layers-and-camera-culling)
+17. [Render-to-Texture](#17-render-to-texture)
+18. [Skeletal Animation](#18-skeletal-animation)
+19. [Collision](#19-collision)
+20. [Render Loop](#20-render-loop)
+21. [Debug Utilities](#21-debug-utilities)
+22. [Complete Examples](#22-complete-examples)
+
+---
 
 ## 1. Introduction
 
-The file `gidx.h` is the only public interface of the OYNAME-3DEngine. It contains only inline functions in the `Engine` namespace and hides the entire DirectX 11 implementation behind simple, direct calls. The design follows the BlitzBasic model: an application calls functions and immediately gets the desired result, without managing COM interfaces, resource descriptions, or render states.
+`gidx.h` is the only header game code needs to include. It exposes the entire engine API through the `Engine::` namespace as thin inline wrappers. No DirectX types, no COM interfaces, and no internal engine classes are visible to game code.
 
-To write an application, a single include is enough. All types, all functions, and all constants are available afterward.
-
-```cpp
-#include "gidx.h"
-
-// All engine functions are in the Engine namespace:
-using namespace Engine; // optional for shorter code
-```
-
-## 2. Creating an Application - Step by Step
-
-### 2.1 Structure of a `main()` Function
-
-The engine clearly separates initialization and the game loop. `WinMain` in `main.cpp` automatically handles window management and engine creation. Your own `main()` function only contains `Engine::Graphics()`, scene creation, and the frame loop. A minimal skeleton looks like this:
+All objects are created and destroyed through the engine API. Never use `new` or `delete` on engine objects.
 
 ```cpp
 #include "gidx.h"
 
 int main()
 {
-    // 1. Set graphics mode
-    Engine::Graphics(1280, 720);            // Windowed mode
-    // Engine::Graphics(1920, 1080, false); // Fullscreen
-
-    // 2. Create camera
-    LPENTITY camera = nullptr;
-    Engine::CreateCamera(&camera);
-    Engine::PositionEntity(camera, 0.0f, 2.0f, -10.0f);
-
-    // 3. Create light
-    LPENTITY light = nullptr;
-    Engine::CreateLight(&light, D3DLIGHT_DIRECTIONAL);
-    Engine::TurnEntity(light, 45.0f, 0.0f, 0.0f);
-    Engine::LightColor(light, 1.0f, 1.0f, 1.0f);
-    Engine::SetDirectionalLight(light);
-    Engine::SetAmbientColor(0.3f, 0.3f, 0.3f);
-
-    // 4. Load texture
-    LPTEXTURE tex = nullptr;
-    Engine::LoadTexture(&tex, L"..\\media\\albedo.png");
-
-    // 5. Create material
-    LPMATERIAL mat = nullptr;
-    Engine::CreateMaterial(&mat);
-    Engine::MaterialSetAlbedo(mat, tex);
-
-    // 6. Create mesh (custom geometry function)
-    LPENTITY mesh = nullptr;
-    Engine::CreateMesh(&mesh);
-    LPSURFACE surf = nullptr;
-    Engine::CreateSurface(&surf, mesh);
-    // ... add vertices and triangles ...
-    Engine::FillBuffer(surf);
-    Engine::EntityMaterial(mesh, mat);
-    Engine::PositionEntity(mesh, 0.0f, 0.0f, 5.0f);
-
-    // 7. Game loop
-    while (Windows::MainLoop())
-    {
-        Core::BeginFrame();
-        float dt = (float)Timer::GetDeltaTime();
-
-        Engine::TurnEntity(mesh, 45.0f * dt, 45.0f * dt, 0.0f);
-
-        Engine::Cls(0, 64, 128);
-        Engine::UpdateWorld();
-        Engine::RenderWorld();
-        Engine::Flip();
-
-        Core::EndFrame();
-    }
+    Engine::Graphics(1280, 720);
+    // ... setup and game loop
     return 0;
 }
 ```
 
-### 2.2 The Frame Loop in Detail
-
-Each frame follows a fixed order. `Core::BeginFrame()` must be called first so that timer values are valid. Then comes your own logic (movement, AI, input). `Engine::Cls()` clears the backbuffer. `Engine::UpdateWorld()` calculates all entity transformations and uploads constant buffers. `Engine::RenderWorld()` executes the shadow pass and normal pass. `Engine::Flip()` presents the backbuffer on the monitor. `Core::EndFrame()` completes the frame timing.
-
-## 3. Graphics Initialization
-
-### 3.1 Adapter and Output
-
-If multiple graphics cards or monitors are present in the system, the desired adapter and output can be selected before calling `Graphics()`. `CountGfxDrivers()` returns the number of available adapters. `GfxDriverName()` returns the name of the current adapter. `SetGfxDriver(index)` selects an adapter. `SetOutput(index)` selects the output for fullscreen mode.
-
-| **Function** | **Description** |
-|---|---|
-| `Graphics(w, h, windowed=true)` | Initializes the DirectX swap chain with the given resolution. `windowed=false` for fullscreen. |
-| `CountGfxDrivers()` | Returns the number of graphics adapters in the system. |
-| `GfxDriverName()` | Name of the currently selected adapter (e.g. NVIDIA GeForce RTX...). |
-| `SetGfxDriver(index)` | Selects an adapter by index (0-based). Call before `Graphics()`. |
-| `CountOutputs()` | Number of monitors connected to the current adapter. |
-| `SetOutput(index)` | Selects the output monitor for fullscreen mode. |
-| `CountGfxModes(output)` | Number of supported resolutions on the selected output. |
-| `GfxModeWidth(mode)` | Width of a specific display mode in pixels. |
-| `GfxModeHeight(mode)` | Height of a specific display mode in pixels. |
-| `GetGfxModeFrequency(mode)` | Refresh rate of a display mode in Hz. |
-| `GfxModeExists(w,h,freq)` | Checks whether a specific graphics mode is supported. |
-| `GetWidth() / GetHeight()` | Current backbuffer resolution in pixels. |
-| `SetVSync(interval)` | VSync: `1=enabled`, `0=disabled`. |
-| `GetVSync()` | Returns the current VSync interval. |
-
-## 4. Entity Management - Position, Rotation, Scaling
-
-All functions in this section work with every entity type: meshes, cameras, and lights. `LPENTITY` is a pointer to `Entity`. All transformation functions are frame-rate independent if they are scaled with `Timer::GetDeltaTime()`.
-
-### 4.1 Positioning
-
-| **Function** | **Description** |
-|---|---|
-| `PositionEntity(e, x, y, z)` | Sets the position absolutely in local coordinates (or world coordinates if there is no parent). |
-| `PositionEntity(e, XMVECTOR)` | Same as above, but with DirectX `XMVECTOR`. |
-| `MoveEntity(e, x, y, z, space=Local)` | Moves relatively by the given vector. `Space::Local` or `Space::World`. |
-| `EntityX/Y/Z(e)` | Returns the world position on the corresponding axis (`float`). |
-| `EntityPosition(e)` | Returns the full world position as `XMVECTOR`. |
-| `EntityLocalX/Y/Z(e)` | Local position without parent influence. |
-| `EntityLocalPosition(e)` | Local position as `XMVECTOR`. |
-
-### 4.2 Rotation and Orientation
-
-| **Function** | **Description** |
-|---|---|
-| `RotateEntity(e, rx, ry, rz, space=Local)` | Sets the rotation absolutely in Euler angles (degrees). Replaces the previous rotation. |
-| `RotateEntity(e, XMVECTOR quat)` | Sets the rotation by quaternion. |
-| `TurnEntity(e, rx, ry, rz, space=Local)` | Rotates incrementally (adds to the existing rotation). Good for continuous rotation in the loop. |
-| `LookAt(e, tx, ty, tz)` | Orients the entity toward a world point. The up vector is always `(0,1,0)`. |
-| `LookAt(e, XMVECTOR target)` | Same as above with an `XMVECTOR` target position. |
-| `ScaleEntity(e, x, y, z)` | Sets non-uniform scaling. All axes are independent. |
-
-### 4.3 Hierarchy
-
-| **Function** | **Description** |
-|---|---|
-| `SetEntityParent(child, parent)` | Attaches `child` as a child of `parent`. `parent=nullptr` corresponds to `DetachEntity`. |
-| `DetachEntity(entity)` | Detaches `entity` from its parent. World matrix calculation then uses only local data. |
-| `GetEntityParent(entity)` | Returns the parent pointer or `nullptr`. |
-
-### 4.4 Visibility and Layers
-
-| **Function** | **Description** |
-|---|---|
-| `EntityActive(e, bool)` | `false`: no update, no physics, no rendering. |
-| `EntityActive(e)` | Returns the active state. |
-| `ShowEntity(e, bool)` | `false`: update continues, only rendering is suppressed. |
-| `EntityVisible(e)` | Returns the visibility state. |
-| `EntityLayer(e, mask)` | Sets the layer bitmask. Combine `LAYER_DEFAULT`, `LAYER_UI`, etc. |
-| `EntityLayer(e)` | Returns the current layer mask. |
-| `EntityCastShadows(e, bool)` | `false`: mesh is skipped in the shadow pass. |
-
-## 5. Camera
-
-| **Function** | **Description** |
-|---|---|
-| `CreateCamera(&camera)` | Creates a camera with standard parameters: FOV 60°, aspect ratio from screen resolution, near 0.1, far 1000. |
-| `SetCamera(camera)` | Sets the camera as the active render camera for the frame. |
-| `CameraCullMask(cam, mask)` | Sets the cull mask: only entities with `(layer & mask) != 0` are rendered. |
-| `CameraCullMask(cam)` | Returns the current cull mask. |
-
-> Note: Camera position and rotation are controlled through the general entity functions `PositionEntity` and `TurnEntity`. `CreateCamera` automatically sets the camera as the active camera.
-
-## 6. Light
-
-| **Function** | **Description** |
-|---|---|
-| `CreateLight(&light, D3DLIGHT_DIRECTIONAL)` | Creates a directional light. Automatically creates constant buffers for light and matrix data. |
-| `LightColor(light, r, g, b, a=1.0)` | Sets the diffuse color of the light. Values above `1.0` are possible for overbrightening. |
-| `SetDirectionalLight(light)` | Registers this light as the shadow caster. Only one directional light can cast shadows. |
-| `SetAmbientColor(r, g, b, a=1.0)` | Global ambient color of the entire scene. Affects all materials. |
-| `MaterialReceiveShadows(mat, bool)` | `false`: material does not evaluate the shadow map (remains bright even in shadow). |
-| `PositionLightAtCamera(light, cam, offset)` | Synchronizes light position and rotation with a camera (e.g. flashlight effect). |
-
-## 7. Mesh and Geometry
-
-### 7.1 Creating a Mesh
-
-| **Function** | **Description** |
-|---|---|
-| `CreateMesh(&mesh)` | Creates an empty mesh entity and its GPU constant buffer. |
-| `CreateSurface(&surf, mesh)` | Creates a new surface (sub-geometry) and adds it to the mesh. |
-| `GetSurface(mesh)` | Returns the first surface. |
-| `GetSurface(mesh, index)` | Returns the surface at index `i`. The index is stable (tombstoning). |
-| `GetSurfaceCount(mesh)` | Number of slots in the `MeshAsset` (including tombstones). |
-| `EntitySurface(mesh, index=0)` | Same as `GetSurface(mesh, index)`, alternative spelling. |
-
-### 7.2 Adding Vertex Data
-
-All `AddVertex`, `VertexNormal`, `VertexColor`, and `VertexTexCoord` calls must happen before `FillBuffer()`. After `FillBuffer()`, the CPU-side arrays still exist, but they can only be transferred to the GPU through `UpdateVertexBuffer()` or `UpdateColorBuffer()`.
-
-| **Function** | **Description** |
-|---|---|
-| `AddVertex(surf, x, y, z)` | Adds a vertex with position (append). |
-| `AddVertex(index, surf, XMFLOAT3)` | Inserts a vertex at a specific index. |
-| `VertexNormal(surf, x, y, z)` | Sets the normal for the last added vertex (append). |
-| `VertexNormal(surf, index, x, y, z)` | Sets the normal for a specific vertex index. |
-| `VertexColor(surf, r, g, b)` | Sets the vertex color (`0-255`). Last vertex (append). |
-| `VertexColor(surf, index, r, g, b)` | Sets the vertex color for a specific index. |
-| `VertexTexCoord(surf, u, v)` | UV coordinate for UV channel 1 (albedo/normal/ORM). Append. |
-| `VertexTexCoord2(surf, u, v)` | UV coordinate for channel 2 (lightmap/detail). Requires `D3DVERTEX_TEX2`. |
-| `AddTriangle(surf, a, b, c)` | Adds a triangle through three vertex indices. |
-| `FillBuffer(surf)` | Transfers all CPU data into GPU vertex and index buffers. Call once. |
-
-### 7.3 Dynamic Buffer Updates
-
-| **Function** | **Description** |
-|---|---|
-| `UpdateVertexBuffer(surf)` | Transfers changed vertex positions to the GPU. Only valid after `FillBuffer()`. |
-| `UpdateColorBuffer(surf)` | Transfers changed vertex colors to the GPU. Only valid after `FillBuffer()`. |
-| `SurfaceWireframe(surf, bool)` | Enables or disables wireframe mode for this surface. |
-| `SurfaceWireframe(surf)` | Returns the current wireframe state. |
-
-### 7.4 Asset Sharing
-
-`ShareMeshAsset(source, target)` lets two meshes share the same geometry. Each instance has its own transform and its own materials. The geometry exists only once in GPU memory.
-
-```cpp
-LPENTITY original = nullptr, copy = nullptr;
-Engine::CreateMesh(&original);
-// ... build geometry for original ...
-
-Engine::CreateMesh(&copy);
-Engine::ShareMeshAsset(original, copy);   // copy uses geometry from original
-
-// Now position them independently:
-Engine::PositionEntity(original, -3.0f, 0.0f, 5.0f);
-Engine::PositionEntity(copy,      3.0f, 0.0f, 5.0f);
-
-// Before DeleteMesh: secure the asset pointer if the other instance stays alive:
-// copy->AsMesh()->meshRenderer.asset = nullptr;
-// Engine::DeleteMesh(&copy);
-```
-
-## 8. Material
-
-### 8.1 Creating and Assigning Materials
-
-| **Function** | **Description** |
-|---|---|
-| `CreateMaterial(&mat, shader=nullptr)` | Creates a material with the standard shader (when `nullptr` is passed) and initializes the GPU constant buffer. |
-| `EntityMaterial(mesh, mat)` | Assigns the material to the entire mesh (all slots). |
-| `SurfaceMaterial(surf, mat)` | Assigns the material to a single surface (per-surface override). |
-| `SetSlotMaterial(mesh, slot, mat)` | Sets a material for a slot index directly in `MeshRenderer`. For asset sharing with different materials per instance. |
-
-### 8.2 Textures
-
-| **Function** | **Description** |
-|---|---|
-| `LoadTexture(&tex, L"path")` | Loads a texture from a file (BMP, PNG, DDS). Checks file existence before loading. |
-| `MaterialSetAlbedo(mat, tex)` | Assigns the albedo texture. Registers the SRV in the `TexturePool` (index `0 = Albedo`). |
-| `MaterialSetNormal(mat, tex)` | Assigns the normal map. Automatically sets `MF_USE_NORMAL_MAP`. |
-| `MaterialSetORM(mat, tex)` | Assigns the ORM texture (`R=Occlusion, G=Roughness, B=Metallic`). Sets `MF_USE_ORM_MAP`. |
-| `MaterialSetDecal(mat, tex)` | Assigns an optional decal texture (slot 3). |
-| `MaterialSetOcclusion(mat, tex)` | Separate occlusion texture (independent of ORM). |
-| `MaterialSetRoughness(mat, tex)` | Separate roughness texture. |
-| `MaterialSetMetallic(mat, tex)` | Separate metallic texture. |
-| `MaterialTexture(mat, tex, slot=0)` | Legacy API: assigns a texture through a slot number. `0=Albedo`, `1=Normal`, `2=ORM`, `3=Decal`. |
-
-### 8.3 Color and Classic Properties
-
-| **Function** | **Description** |
-|---|---|
-| `MaterialColor(mat, r, g, b, a=1.0)` | Base color / tint factor of the material. |
-| `MaterialSpecularColor(mat, r, g, b)` | Specular color in legacy shading mode. |
-| `MaterialShininess(mat, value)` | Shininess / specular exponent in legacy mode. |
-| `MaterialDoubleSided(mat, bool)` | `true`: disables backface culling for this material. |
-
-### 8.4 PBR Parameters
-
-PBR (physically based rendering) must be explicitly enabled with `MaterialUsePBR(mat, true)`. The standard shader then uses Cook-Torrance GGX instead of Blinn-Phong. PBR and legacy mode can be used simultaneously on different materials within the same frame.
-
-| **Function** | **Description** |
-|---|---|
-| `MaterialUsePBR(mat, bool)` | `true`: enables PBR lighting (Cook-Torrance GGX). `false`: Blinn-Phong (standard). |
-| `MaterialMetallic(mat, value)` | Metallic factor `0.0..1.0`. `0=dielectric`, `1=metallic`. |
-| `MaterialRoughness(mat, value)` | Roughness `0.0..1.0`. `0=mirror`, `1=fully diffuse`. |
-| `MaterialNormalScale(mat, scale)` | Scaling of the normal map influence. `1.0=full`, `0.0=flat`. |
-| `MaterialOcclusionStrength(mat, strength)` | Strength of ambient occlusion `0.0..1.0`. |
-| `MaterialEmissiveColor(mat, r,g,b, intensity=1.0)` | Self-emissive emissive color. `intensity` multiplies `rgb`. Added to the final pixel result. |
-
-### 8.5 Transparency and Alpha
-
-| **Function** | **Description** |
-|---|---|
-| `MaterialTransparent(mat, bool)` | `true`: material is placed in the transparent queue and rendered sorted back-to-front (true alpha blending). |
-| `MaterialAlphaTest(mat, bool)` | `true`: alpha test mode. Pixels below `alphaCutoff` are discarded (no blending, no depth-sorting issue). |
-| `MaterialAlphaCutoff(mat, cutoff)` | Alpha threshold `0..1` for `MaterialAlphaTest`. Automatically sets alpha test to `true`. |
-
-## 9. Shader
-
-The standard shader (`VertexShader.hlsl + PixelShader.hlsl`) is loaded automatically by the engine. Custom shaders can be created when special vertex formats or shading effects are required.
-
-| **Function** | **Description** |
-|---|---|
-| `CreateShader(&sh, vsFile, vsEntry, psFile, psEntry, flags)` | Compiles vertex and pixel shaders from HLSL files. `flags` is a `DWORD` combination of the vertex format flags. |
-| `CreateVertexFlags(pos, nrm, clr, uv1, uv2, tng)` | Creates a `DWORD` mask from boolean parameters for position, normal, color, UV1, UV2, tangent. |
-| `CreateMaterial(&mat, shader)` | Creates a material explicitly bound to this shader (instead of the standard shader). |
-
-```cpp
-LPSHADER myShader = nullptr;
-
-DWORD flags = Engine::CreateVertexFlags(
-    true,   // Position (always true)
-    true,   // Normal
-    false,  // Color
-    true,   // UV1
-    true,   // UV2
-    true    // Tangent (for normal mapping)
-);
-
-Engine::CreateShader(&myShader,
-    L"shaders/VertexShader.hlsl", "VS",
-    L"shaders/PixelShader.hlsl",  "PS",
-    flags);
-
-LPMATERIAL mat = nullptr;
-Engine::CreateMaterial(&mat, myShader);
-```
-
-## 10. Textures - Procedural and Pixel Access
-
-| **Function** | **Description** |
-|---|---|
-| `CreateTexture(&tex, width, height)` | Creates an empty writable texture in CPU access mode. |
-| `LockBuffer(tex)` | Locks the texture buffer for CPU write access. Must be called before `SetPixel`. |
-| `SetPixel(tex, x, y, r, g, b, alpha)` | Writes one pixel (`RGBA`, each `0-255`) at position `x,y`. |
-| `GetColor(tex, x, y)` | Reads the pixel color back as a `Color(r,g,b,alpha)` struct. |
-| `UnlockBuffer(tex)` | Releases the lock and transfers the changes to the GPU. |
-
-## 11. Render-to-Texture (RTT)
-
-RTT makes it possible to render an entire scene into a texture, which can then be used as the albedo of another object. Typical use cases are mirrors, security cameras, minimap rendering, or post-processing effects.
-
-| **Function** | **Description** |
-|---|---|
-| `CreateRenderTexture(&rtt, width, height)` | Creates an RTT target with its own D3D11 render target view and depth buffer. |
-| `SetRenderTarget(rtt, camera=nullptr)` | Redirects all subsequent `RenderWorld()` calls into the RTT. `camera=nullptr` uses the active main camera. |
-| `ResetRenderTarget()` | Restores the backbuffer as the active render target. |
-| `GetRTTTexture(rtt)` | Returns an `LPTEXTURE` wrapper for the RTT texture. Can be used directly with `MaterialSetAlbedo`. |
-| `SetRTTClearColor(rtt, r,g,b,a=1.0)` | Sets the clear color of the RTT target (default: black). |
-| `ReleaseRenderTexture(&rtt)` | Releases all D3D11 resources of the RTT. |
-
-```cpp
-// Mirror example:
-LPRENDERTARGET mirrorRTT = nullptr;
-Engine::CreateRenderTexture(&mirrorRTT, 512, 512);
-Engine::SetRTTClearColor(mirrorRTT, 0.1f, 0.1f, 0.15f);
-
-// Material for the mirror surface:
-LPMATERIAL mirrorMat = nullptr;
-Engine::CreateMaterial(&mirrorMat);
-Engine::MaterialSetAlbedo(mirrorMat, Engine::GetRTTTexture(mirrorRTT));
-
-// In the frame loop:
-Engine::SetRenderTarget(mirrorRTT);    // Render into RTT
-Engine::RenderWorld();
-Engine::ResetRenderTarget();           // Back to the backbuffer
-Engine::RenderWorld();                 // Normal frame
-```
-
-## 12. Skeletal Animation
-
-| **Function** | **Description** |
-|---|---|
-| `VertexBoneData(surf, v, b0,b1,b2,b3, w0,w1,w2,w3)` | Sets bone indices and weights for vertex `v`. Call before `FillBuffer()`. The weights should add up to `1.0`. |
-| `SetEntityBoneMatrices(mesh, matrices, count)` | Loads an array of `XMMATRIX` bone transformations onto the GPU (max. 128 bones, register `b4`). Call every frame. |
-
-## 13. Collision
-
-| **Function** | **Description** |
-|---|---|
-| `EntityCollisionMode(mesh, mode)` | Sets the collision mode (`COLLISION` enum). Activates OBB calculation. |
-| `EntityCollision(mesh1, mesh2)` | Checks OBB collision between two meshes. Returns `true` if there is overlap. |
-| `EntityOBB(mesh)` | Returns a pointer to `BoundingOrientedBox`. For direct DirectX collision calculations. |
-
-## 14. Debug Output
-
-| **Function** | **Description** |
-|---|---|
-| `DebugPrintMesh(entity)` | Outputs the internal structure of a mesh entity as a tree: transform, `MeshAsset`, slots, resolved materials. |
-| `DebugPrintScene()` | Calls `DebugPrintMesh` for all meshes in the scene. Useful after scene setup for verification. |
-
-> Note: The engine coding rule requires all `Debug::Log()` calls to begin with the file name. Example: `Debug::Log("game.cpp: Mesh created");`
-
-## 15. Complete Example - PBR Scene with Shadow Mapping
-
-This example shows a complete setup with two PBR materials, a directional light with shadow mapping, a parent/child hierarchy, and frame-rate-independent animation.
+---
+
+## 2. Type Aliases
+
+| Alias | Underlying Type | Description |
+|---|---|---|
+| `LPENTITY` | `Entity*` | Any scene object (mesh, camera, light) |
+| `LPMATERIAL` | `Material*` | Material instance |
+| `LPSHADER` | `Shader*` | Compiled shader pair |
+| `LPSURFACE` | `Surface*` | Geometry surface (sub-mesh) |
+| `LPTEXTURE` | `Texture*` | Loaded or created texture |
+| `LPRENDERTARGET` | `RenderTextureTarget*` | Render-to-texture target |
+| `TEXTURE` | `Texture` | Value type alias |
+| `SURFACE` | `Surface` | Value type alias |
+| `SHADER` | `Shader` | Value type alias |
+
+---
+
+## 3. Application Structure
+
+### Minimum Application
 
 ```cpp
 #include "gidx.h"
-
-void CreateCube(LPENTITY* mesh, LPMATERIAL material);
 
 int main()
 {
     Engine::Graphics(1280, 720);
 
-    // --- Camera ---
     LPENTITY camera = nullptr;
     Engine::CreateCamera(&camera);
-    Engine::PositionEntity(camera, 0.0f, 3.0f, -12.0f);
-    Engine::LookAt(camera, 0.0f, 0.0f, 0.0f);
+    Engine::PositionEntity(camera, 0.0f, 0.0f, -5.0f);
 
-    // --- Light ---
-    LPENTITY dirLight = nullptr;
-    Engine::CreateLight(&dirLight, D3DLIGHT_DIRECTIONAL);
-    Engine::PositionEntity(dirLight, 10.0f, 10.0f, -5.0f);
-    Engine::LookAt(dirLight, 0.0f, 0.0f, 0.0f);
-    Engine::LightColor(dirLight, 1.5f, 1.4f, 1.2f);
-    Engine::SetDirectionalLight(dirLight);
-    Engine::SetAmbientColor(0.2f, 0.2f, 0.25f);
-
-    // --- Textures ---
-    LPTEXTURE albedo = nullptr, normal = nullptr, orm = nullptr;
-    Engine::LoadTexture(&albedo, L"..\\media\\albedo.png");
-    Engine::LoadTexture(&normal, L"..\\media\\normal.png");
-    Engine::LoadTexture(&orm,    L"..\\media\\orm.png");
-
-    // --- Material A (PBR) ---
-    LPMATERIAL matA = nullptr;
-    Engine::CreateMaterial(&matA);
-    Engine::MaterialUsePBR(matA, true);
-    Engine::MaterialSetAlbedo(matA, albedo);
-    Engine::MaterialSetNormal(matA, normal);
-    Engine::MaterialSetORM(matA, orm);
-    Engine::MaterialMetallic(matA, 0.8f);
-    Engine::MaterialRoughness(matA, 0.3f);
-    Engine::MaterialNormalScale(matA, 1.0f);
-
-    // --- Meshes ---
-    LPENTITY parent = nullptr, child = nullptr;
-    CreateCube(&parent, matA);
-    Engine::PositionEntity(parent, -2.0f, 0.0f, 5.0f);
-
-    CreateCube(&child, matA);
-    Engine::SetEntityParent(child, parent);
-    Engine::PositionEntity(child, 3.0f, 0.0f, 0.0f);  // Relative to the parent
-
-    Engine::DebugPrintScene();
-
-    // --- Game loop ---
     while (Windows::MainLoop())
     {
         Core::BeginFrame();
+        Engine::Cls(0, 0, 0);
+        Engine::UpdateWorld();
+        Engine::RenderWorld();
+        Engine::Flip();
+        Core::EndFrame();
+    }
+    return 0;
+}
+```
+
+### Frame Loop Functions
+
+```cpp
+Core::BeginFrame();     // Advances timer, frame counter
+Engine::Cls(r, g, b);  // Clear backbuffer (0–255 integer values)
+Engine::UpdateWorld();  // Update all entity transforms and GPU buffers
+Engine::RenderWorld();  // Execute shadow pass + render pass
+Engine::Flip();         // Present backbuffer to screen
+Core::EndFrame();       // Frame statistics
+```
+
+`Engine::Cls` accepts integer color values in the range 0–255:
+
+```cpp
+Engine::Cls(0, 64, 128);        // Dark blue
+Engine::Cls(0, 0, 0);           // Black
+Engine::Cls(0, 64, 128, 255);   // With explicit alpha
+```
+
+---
+
+## 4. Graphics Device and Display
+
+### Initialize Graphics
+
+```cpp
+unsigned int Graphics(unsigned int width, unsigned int height, bool windowed = true);
+```
+
+Sets the rendering resolution. Call once at startup, after `Core::CreateEngine()`.
+
+```cpp
+Engine::Graphics(1280, 720);           // Windowed
+Engine::Graphics(1920, 1080, false);   // Fullscreen
+```
+
+### Display Query
+
+```cpp
+unsigned int CountGfxDrivers();
+std::string  GfxDriverName();
+void         SetGfxDriver(unsigned int adapter);
+unsigned int CountOutputs();
+void         SetOutput(unsigned int output);
+unsigned int CountGfxModes(unsigned int output);
+unsigned int GfxModeWidth(unsigned int mode);
+unsigned int GfxModeHeight(unsigned int mode);
+unsigned int GetGfxModeFrequency(unsigned int mode);
+unsigned int GfxModeDepth();
+bool         GfxModeExists(int width, int height, int frequency);
+unsigned int GfxColorDepth();
+unsigned int GetWidth();
+unsigned int GetHeight();
+unsigned int GfxGetDirectXVersion();
+unsigned int GetCurrentAdapter();
+int          GetMaxFrequency(unsigned int width, unsigned int height);
+bool         GfxFormatSupported(GXFORMAT format);
+```
+
+Typical adapter selection loop:
+
+```cpp
+for (unsigned int i = 0; i < Engine::CountGfxDrivers(); ++i)
+{
+    Engine::SetGfxDriver(i);
+    // Engine::GfxDriverName() returns name of adapter i
+}
+```
+
+### VSync
+
+```cpp
+void SetVSync(int interval);   // 1 = on, 0 = off
+int  GetVSync();
+```
+
+---
+
+## 5. Camera
+
+### Create Camera
+
+```cpp
+void CreateCamera(LPENTITY* camera);
+```
+
+Creates a perspective camera with a 60° FOV, aspect ratio matching the current window, near plane 0.1, far plane 1000. Sets itself as the active camera automatically.
+
+```cpp
+LPENTITY camera = nullptr;
+Engine::CreateCamera(&camera);
+Engine::PositionEntity(camera, 0.0f, 2.0f, -10.0f);
+```
+
+### Set Active Camera
+
+```cpp
+void SetCamera(LPENTITY camera);
+```
+
+Switches which camera the next `RenderWorld()` uses for the main scene pass.
+
+### Projection Mode
+
+```cpp
+void SetCameraPersp(LPENTITY camera,
+    float fovDegrees = 60.0f,
+    float nearZ = 0.1f,
+    float farZ  = 1000.0f);
+
+void SetCameraOrtho(LPENTITY camera,
+    float width, float height,
+    float nearZ = 0.1f,
+    float farZ  = 1000.0f);
+```
+
+`SetCameraPersp` recalculates the projection matrix using the current window aspect ratio.
+
+### Synchronize Light to Camera
+
+```cpp
+void PositionLightAtCamera(Light* light, Camera* camera,
+    DirectX::XMVECTOR offset = DirectX::XMVectorZero());
+```
+
+Copies the camera's position and orientation to a light, optionally adding an offset. Useful for flashlight effects.
+
+---
+
+## 6. Lighting
+
+### Create Light
+
+```cpp
+void CreateLight(LPENTITY* light, D3DLIGHTTYPE type);
+```
+
+Light types:
+
+| Constant | Value | Meaning |
+|---|---|---|
+| `D3DLIGHT_POINT` | 1 | Omnidirectional point light |
+| `D3DLIGHT_SPOT` | 2 | Cone spotlight |
+| `D3DLIGHT_DIRECTIONAL` | (not shown, added) | Directional light |
+
+```cpp
+LPENTITY sunLight = nullptr;
+Engine::CreateLight(&sunLight, D3DLIGHT_DIRECTIONAL);
+Engine::TurnEntity(sunLight, 45.0f, 0.0f, 0.0f);
+Engine::LightColor(sunLight, 1.0f, 1.0f, 1.0f);
+```
+
+### Light Color
+
+```cpp
+void LightColor(LPENTITY light, float r, float g, float b, float a = 1.0f);
+```
+
+Values are in the range 0.0–1.0. Values above 1.0 increase intensity beyond standard white.
+
+### Global Ambient
+
+```cpp
+void SetAmbientColor(float r, float g, float b, float a = 1.0f);
+```
+
+Sets the scene-wide ambient light that affects all materials.
+
+### Directional Shadow Light
+
+```cpp
+void SetDirectionalLight(LPENTITY light);
+```
+
+Registers a light as the single directional shadow-casting light. Only one light can cast shadows. Must be called before shadows appear.
+
+### Shadow Map Configuration
+
+```cpp
+void LightShadowOrthoSize(LPENTITY light, float size);
+void LightShadowPlanes(LPENTITY light, float nearPlane, float farPlane);
+void LightShadowFov(LPENTITY light, float fovRadians);
+```
+
+`LightShadowOrthoSize` sets the orthographic projection size in world units. Smaller values produce sharper shadows but cover less of the scene. `LightShadowPlanes` sets the near and far clip planes of the shadow camera — a tighter range reduces shadow acne. `LightShadowFov` is for perspective (spotlight) shadow cameras.
+
+For a typical indoor scene spanning about 15 world units:
+
+```cpp
+Engine::LightShadowOrthoSize(sunLight, 15.0f);
+Engine::LightShadowPlanes(sunLight, 0.5f, 25.0f);
+```
+
+### Shadow and Lighting Per Object
+
+```cpp
+void EntityCastShadows(LPENTITY entity, bool enabled);
+void MaterialReceiveShadows(LPMATERIAL material, bool enabled);
+```
+
+---
+
+## 7. Mesh and Surface
+
+### Create Mesh
+
+```cpp
+void CreateMesh(LPENTITY* mesh);
+```
+
+Allocates a mesh entity and its GPU constant buffer. The mesh has no geometry until surfaces are added.
+
+### Create Surface
+
+```cpp
+void CreateSurface(LPSURFACE* surface, LPENTITY entity);
+void CreateSurface(LPSURFACE* surface, LPENTITY entity, unsigned int* outSlot);
+```
+
+Adds a new surface (sub-mesh) to the mesh. `outSlot` receives the slot index assigned to the surface, which is used for per-slot material assignment.
+
+```cpp
+LPENTITY cube = nullptr;
+LPSURFACE surf = nullptr;
+unsigned int slot = 0;
+
+Engine::CreateMesh(&cube);
+Engine::CreateSurface(&surf, cube, &slot);
+// ... add vertex data ...
+Engine::FillBuffer(surf);
+```
+
+### Surface Queries
+
+```cpp
+LPSURFACE   GetSurface(LPENTITY entity);                            // First surface
+LPSURFACE   GetSurface(LPENTITY entity, unsigned int index);        // By slot index
+LPSURFACE   EntitySurface(LPENTITY entity, unsigned int index = 0); // Alias
+unsigned int GetSurfaceCount(LPENTITY entity);
+unsigned int GetSlotCount(LPENTITY entity);                         // Alias
+bool         HasSlot(LPENTITY entity, unsigned int slot);
+bool         GetSurfaceSlot(LPENTITY entity, LPSURFACE surface, unsigned int* outSlot);
+```
+
+### Asset Sharing
+
+Multiple mesh entities can share the same geometry asset, each with different transforms and materials:
+
+```cpp
+LPENTITY original = nullptr;
+LPENTITY copy     = nullptr;
+
+Engine::CreateMesh(&original);
+// ... build geometry on original ...
+
+Engine::CreateMesh(&copy);
+Engine::ShareMeshAsset(original, copy);          // copy now shares original's geometry
+
+Engine::SetSlotMaterial(copy, 0, differentMat);  // each can have its own materials
+```
+
+### Wireframe
+
+```cpp
+void SurfaceWireframe(LPSURFACE surface, bool enabled);
+bool SurfaceWireframe(LPSURFACE surface);
+```
+
+---
+
+## 8. Vertex Building
+
+All vertex data is accumulated into the surface before calling `FillBuffer`. The order is: for each vertex, call `AddVertex` followed by the optional attribute functions in any order.
+
+### Add Vertex
+
+```cpp
+void AddVertex(LPSURFACE surface, float x, float y, float z);
+void AddVertex(LPSURFACE surface, DirectX::XMVECTOR vec);
+void AddVertex(LPSURFACE surface, DirectX::XMFLOAT3 vec);
+void AddVertex(int index, LPSURFACE surface, DirectX::XMVECTOR vec);
+void AddVertex(int index, LPSURFACE surface, DirectX::XMFLOAT3 vec);
+```
+
+The `index` overloads update an existing vertex by index instead of appending.
+
+### Vertex Attributes
+
+```cpp
+void VertexNormal(LPSURFACE surface, float x, float y, float z);
+void VertexNormal(LPSURFACE surface, unsigned int index, float x, float y, float z);
+
+void VertexColor(LPSURFACE surface, unsigned int r, unsigned int g, unsigned int b);
+void VertexColor(LPSURFACE surface, unsigned int index, unsigned int r, unsigned int g, unsigned int b);
+
+void VertexTexCoord(LPSURFACE surface, float u, float v);    // UV channel 1
+void VertexTexCoord2(LPSURFACE surface, float u, float v);   // UV channel 2 (lightmap / detail)
+```
+
+Color values are in the range 0–255 and are converted to 0.0–1.0 internally.
+
+### Add Triangle
+
+```cpp
+void AddTriangle(LPSURFACE surface, unsigned int a, unsigned int b, unsigned int c);
+```
+
+Adds three vertex indices forming one triangle.
+
+### Building a Triangle
+
+```cpp
+LPSURFACE surf = nullptr;
+Engine::CreateSurface(&surf, mesh);
+
+Engine::AddVertex(surf, -1.0f, 0.0f, 0.0f);
+Engine::VertexNormal(surf, 0.0f, 1.0f, 0.0f);
+Engine::VertexTexCoord(surf, 0.0f, 0.0f);
+
+Engine::AddVertex(surf,  1.0f, 0.0f, 0.0f);
+Engine::VertexNormal(surf, 0.0f, 1.0f, 0.0f);
+Engine::VertexTexCoord(surf, 1.0f, 0.0f);
+
+Engine::AddVertex(surf,  0.0f, 2.0f, 0.0f);
+Engine::VertexNormal(surf, 0.0f, 1.0f, 0.0f);
+Engine::VertexTexCoord(surf, 0.5f, 1.0f);
+
+Engine::AddTriangle(surf, 0, 1, 2);
+Engine::FillBuffer(surf);
+```
+
+---
+
+## 9. GPU Upload
+
+### Upload to GPU
+
+```cpp
+void FillBuffer(LPSURFACE surface);
+void FillBuffer(LPENTITY entity, unsigned int slot);
+```
+
+Uploads all CPU-side vertex and index data to GPU buffers. Must be called after all vertex data has been set and before the mesh appears on screen. Tangent vectors are computed automatically if the shader requires them.
+
+### Dynamic Updates
+
+After the initial `FillBuffer`, individual streams can be updated per-frame for dynamic geometry:
+
+```cpp
+void UpdateVertexBuffer(LPSURFACE surface);   // Positions
+void UpdateNormalBuffer(LPSURFACE surface);   // Normals
+void UpdateColorBuffer(LPSURFACE surface);    // Colors
+```
+
+Call the appropriate update function after modifying the CPU-side data. The GPU buffer must have been created as `DYNAMIC` — this is handled automatically by `BufferManager` for dynamically updated surfaces.
+
+---
+
+## 10. Material
+
+### Create Material
+
+```cpp
+void CreateMaterial(LPMATERIAL* material, SHADER* shader = nullptr);
+```
+
+Creates a material and associates it with a shader. If `shader` is `nullptr`, the engine's default standard shader is used.
+
+```cpp
+LPMATERIAL mat = nullptr;
+Engine::CreateMaterial(&mat);
+```
+
+### Create Skinned Material
+
+```cpp
+void CreateSkinnedMaterial(LPMATERIAL* material);
+```
+
+Creates a material using the built-in skinning shader (`ShaderKey::StandardSkinned`). Use this for meshes driven by `SetEntityBoneMatrices`.
+
+### Assign Material to Mesh
+
+```cpp
+void EntityMaterial(LPENTITY entity, LPMATERIAL material);
+void SetSlotMaterial(LPENTITY entity, unsigned int slot, LPMATERIAL material);
+bool SetSurfaceMaterial(LPENTITY entity, LPSURFACE surface, LPMATERIAL material);
+```
+
+`EntityMaterial` assigns the material to the mesh's primary (slot 0) surface. `SetSlotMaterial` targets a specific slot by index. `SetSurfaceMaterial` looks up the slot index for a given surface pointer and assigns the material to that slot.
+
+### Base Color
+
+```cpp
+void MaterialColor(LPMATERIAL material, float r, float g, float b, float a = 1.0f);
+```
+
+Sets the base diffuse / albedo color. Values are 0.0–1.0.
+
+### PBR Mode
+
+```cpp
+void MaterialUsePBR(LPMATERIAL material, bool enabled);
+void MaterialMetallic(LPMATERIAL material, float metallic);
+void MaterialRoughness(LPMATERIAL material, float roughness);
+void MaterialNormalScale(LPMATERIAL material, float scale);
+void MaterialOcclusionStrength(LPMATERIAL material, float strength);
+void MaterialEmissiveColor(LPMATERIAL material, float r, float g, float b, float intensity = 1.0f);
+void MaterialShininess(LPMATERIAL material, float shininess);
+```
+
+PBR mode is opt-in. The default shading path is legacy Blinn-Phong, preserving backward compatibility. Enable PBR explicitly:
+
+```cpp
+Engine::MaterialUsePBR(mat, true);
+Engine::MaterialMetallic(mat, 0.0f);
+Engine::MaterialRoughness(mat, 0.5f);
+```
+
+### UV Tiling and Offset
+
+```cpp
+void MaterialUVTilingOffset(LPMATERIAL material,
+    float tileU, float tileV,
+    float offU = 0.0f, float offV = 0.0f);
+```
+
+### Texture Blend Mode (Secondary Texture)
+
+```cpp
+void MaterialBlendMode(LPMATERIAL material, int mode = 0);
+void MaterialBlendFactor(LPMATERIAL material, float factor);
+```
+
+Blend modes for the secondary texture (decal / detail map):
+
+| Mode | Name | Typical Use |
+|---|---|---|
+| 0 | Off | Single texture only |
+| 1 | Multiply | Lightmap, shadow darkening |
+| 2 | Multiply ×2 | Detail map, brightness correction |
+| 3 | Additive | Glow, fire, light |
+| 4 | Lerp (alpha) | Decal, sticker — uses alpha of texture 2 |
+| 5 | Luminance | Overlay with black background |
+
+`MaterialBlendFactor` controls the blend strength (0.0–1.0).
+
+### Transparency
+
+```cpp
+void MaterialTransparent(LPMATERIAL material, bool enabled);
+void MaterialAlphaCutoff(LPMATERIAL material, float cutoff);
+void MaterialAlphaTest(LPMATERIAL material, bool enabled);
+```
+
+`MaterialTransparent` enables full alpha blending (SRC_ALPHA / INV_SRC_ALPHA) and routes the material into the back-to-front transparent pass. `MaterialAlphaCutoff` enables alpha test discarding — pixels below the cutoff value are discarded. Alpha test is cheaper than full blending and suitable for foliage and similar geometry.
+
+### Shadow Interaction
+
+```cpp
+void MaterialReceiveShadows(LPMATERIAL material, bool enabled);
+```
+
+---
+
+## 11. Texture
+
+### Load from File
+
+```cpp
+void LoadTexture(LPLPTEXTURE texture, const wchar_t* filename);
+```
+
+```cpp
+LPTEXTURE albedo = nullptr;
+Engine::LoadTexture(&albedo, L"..\\media\\brick_albedo.png");
+```
+
+Supported formats depend on the underlying WIC loader (BMP, PNG, JPG, TGA, DDS, and others).
+
+### Assign to Material
+
+The preferred API uses named semantic functions:
+
+```cpp
+void MaterialSetAlbedo(LPMATERIAL material, LPTEXTURE texture);    // Slot t0
+void MaterialSetNormal(LPMATERIAL material, LPTEXTURE texture);    // Slot t1
+void MaterialSetORM(LPMATERIAL material, LPTEXTURE texture);       // Slot t2
+void MaterialSetDecal(LPMATERIAL material, LPTEXTURE texture);     // Slot t3
+void MaterialSetOcclusion(LPMATERIAL material, LPTEXTURE texture); // Slot t4
+void MaterialSetRoughness(LPMATERIAL material, LPTEXTURE texture); // Slot t5
+void MaterialSetMetallic(LPMATERIAL material, LPTEXTURE texture);  // Slot t6
+```
+
+`MaterialSetNormal` automatically activates the `MF_USE_NORMAL_MAP` flag. `MaterialSetORM` automatically activates the `MF_USE_ORM_MAP` flag.
+
+The legacy slot API is also available for backward compatibility:
+
+```cpp
+void MaterialTexture(LPMATERIAL material, LPTEXTURE texture, int slot = 0);
+```
+
+Slot mapping: 0 = Albedo, 1 = Normal, 2 = ORM, 3 = Decal.
+
+### Assign to Entity (convenience)
+
+```cpp
+void EntityTexture(LPENTITY entity, LPTEXTURE texture);
+```
+
+Assigns the texture as the albedo of the material in slot 0 of the entity.
+
+### Create Dynamic Texture
+
+```cpp
+HRESULT CreateTexture(LPLPTEXTURE texture, int width, int height);
+HRESULT LockBuffer(LPTEXTURE texture);
+void    UnlockBuffer(LPTEXTURE texture);
+void    SetPixel(LPTEXTURE texture, int x, int y,
+                 unsigned char r, unsigned char g,
+                 unsigned char b, unsigned char alpha);
+Color   GetColor(LPTEXTURE texture, int x, int y);
+```
+
+```cpp
+LPTEXTURE dynTex = nullptr;
+Engine::CreateTexture(&dynTex, 256, 256);
+
+Engine::LockBuffer(dynTex);
+for (int y = 0; y < 256; ++y)
+    for (int x = 0; x < 256; ++x)
+        Engine::SetPixel(dynTex, x, y, (unsigned char)x, (unsigned char)y, 128, 255);
+Engine::UnlockBuffer(dynTex);
+
+Engine::MaterialSetAlbedo(mat, dynTex);
+```
+
+---
+
+## 12. Shader
+
+### Create Custom Shader
+
+```cpp
+HRESULT CreateShader(LPSHADER* shader,
+    const std::wstring& vertexShaderFile,
+    const std::string&  vertexEntryPoint,
+    const std::wstring& pixelShaderFile,
+    const std::string&  pixelEntryPoint,
+    DWORD flags);
+```
+
+`flags` is a combination of `D3DVERTEX_FLAGS` values describing the vertex format.
+
+```cpp
+LPSHADER myShader = nullptr;
+DWORD flags = Engine::CreateVertexFlags(
+    true,  // position
+    true,  // normal
+    false, // color
+    true,  // texcoord1
+    false, // texcoord2
+    true   // tangent
+);
+
+HRESULT hr = Engine::CreateShader(&myShader,
+    L"..\\..\\shaders\\MyVertex.hlsl",   "VSMain",
+    L"..\\..\\shaders\\MyPixel.hlsl",    "PSMain",
+    flags);
+```
+
+### Vertex Flag Helper
+
+```cpp
+DWORD CreateVertexFlags(
+    bool hasPosition  = true,
+    bool hasNormal    = false,
+    bool hasColor     = false,
+    bool hasTexCoord1 = false,
+    bool hasTexCoord2 = false,
+    bool hasTangent   = false);
+```
+
+---
+
+## 13. Entity Transform
+
+All transform functions work on any entity type (Mesh, Camera, Light).
+
+### Position
+
+```cpp
+void PositionEntity(LPENTITY entity, float x, float y, float z);
+void PositionEntity(LPENTITY entity, DirectX::XMVECTOR pos);
+```
+
+Sets the entity's local position to an absolute value.
+
+### Move
+
+```cpp
+void MoveEntity(LPENTITY entity, float x, float y, float z,
+                Space mode = Space::Local);
+```
+
+Translates the entity by a delta. `Space::Local` moves along the entity's own axes; `Space::World` moves along world axes.
+
+### Rotate
+
+```cpp
+void RotateEntity(LPENTITY entity, float rotX, float rotY, float rotZ,
+                  Space mode = Space::Local);
+void RotateEntity(LPENTITY entity, DirectX::XMVECTOR quaternion);
+```
+
+Sets the entity's rotation to an absolute orientation. Euler angles are in degrees.
+
+### Turn
+
+```cpp
+void TurnEntity(LPENTITY entity, float rotX, float rotY, float rotZ,
+                Space mode = Space::Local);
+```
+
+Applies a rotation delta (incremental rotation), unlike `RotateEntity` which sets an absolute orientation.
+
+### Scale
+
+```cpp
+void ScaleEntity(LPENTITY entity, float x, float y, float z);
+```
+
+### Look At
+
+```cpp
+void LookAt(LPENTITY entity, float targetX, float targetY, float targetZ);
+void LookAt(LPENTITY entity, DirectX::XMVECTOR target);
+```
+
+Orients the entity so that its forward axis (+Z) points toward the target position.
+
+### Position Getters
+
+```cpp
+DirectX::XMVECTOR EntityPosition(LPENTITY entity);   // World position (with parent)
+float EntityX(LPENTITY entity);
+float EntityY(LPENTITY entity);
+float EntityZ(LPENTITY entity);
+
+DirectX::XMVECTOR EntityLocalPosition(LPENTITY entity); // Local position
+float EntityLocalX(LPENTITY entity);
+float EntityLocalY(LPENTITY entity);
+float EntityLocalZ(LPENTITY entity);
+```
+
+`EntityPosition` returns the world-space position including all parent transforms. `EntityLocalPosition` returns the value stored in the local transform.
+
+---
+
+## 14. Entity Properties
+
+### Active and Visible
+
+```cpp
+void EntityActive(LPENTITY entity, bool active);
+bool EntityActive(LPENTITY entity);
+
+void ShowEntity(LPENTITY entity, bool visible);
+bool EntityVisible(LPENTITY entity);
+```
+
+`EntityActive(false)` completely disables the entity — no update, no physics, no rendering. `ShowEntity(false)` keeps the entity updating and simulating but removes it from rendering.
+
+### Shadows
+
+```cpp
+void EntityCastShadows(LPENTITY entity, bool enabled);
+```
+
+Controls whether the entity appears in the shadow pass. Disabling reduces shadow map draw calls.
+
+---
+
+## 15. Scene Hierarchy
+
+```cpp
+void    SetEntityParent(LPENTITY child, LPENTITY parent);
+void    DetachEntity(LPENTITY entity);
+LPENTITY GetEntityParent(LPENTITY entity);
+```
+
+When a parent is set, the child's local transform is preserved. The world matrix is computed as:
+
+```
+worldMatrix = localMatrix * parent->GetWorldMatrix()
+```
+
+Parent relationships are hierarchical and can be nested to any depth. Setting `parent = nullptr` is equivalent to calling `DetachEntity`.
+
+```cpp
+// Car body with attached wheel
+LPENTITY car   = nullptr;
+LPENTITY wheel = nullptr;
+
+Engine::CreateMesh(&car);
+Engine::CreateMesh(&wheel);
+
+Engine::SetEntityParent(wheel, car);           // wheel follows car
+Engine::PositionEntity(wheel, 1.5f, 0.0f, 0.0f); // offset in car's local space
+
+// During update: rotating car also moves the wheel
+Engine::TurnEntity(car, 0.0f, Timer::GetDeltaTime() * 90.0f, 0.0f);
+```
+
+---
+
+## 16. Render Layers and Camera Culling
+
+### Entity Layers
+
+```cpp
+void     EntityLayer(LPENTITY entity, uint32_t layerMask);
+uint32_t EntityLayer(LPENTITY entity);
+```
+
+### Camera Cull Mask
+
+```cpp
+void     CameraCullMask(LPENTITY camera, uint32_t mask);
+uint32_t CameraCullMask(LPENTITY camera);
+```
+
+An entity is visible to a camera only when `(entity->layerMask & camera->cullMask) != 0`.
+
+Available layer constants (`RenderLayers.h`):
+
+```cpp
+LAYER_DEFAULT    // (1 << 0)  Standard objects
+LAYER_UI         // (1 << 1)  HUD / UI
+LAYER_REFLECTION // (1 << 2)  Reflection pass
+LAYER_SHADOW     // (1 << 3)  Shadow-only
+LAYER_FX         // (1 << 4)  Particles and effects
+LAYER_5          // (1 << 5)
+LAYER_6          // (1 << 6)
+LAYER_7          // (1 << 7)
+LAYER_ALL        // 0xFFFFFFFF  Everything
+```
+
+Render a UI mesh only through a dedicated UI camera:
+
+```cpp
+Engine::EntityLayer(uiPanel, LAYER_UI);
+Engine::CameraCullMask(mainCamera, LAYER_DEFAULT | LAYER_FX);  // not UI
+Engine::CameraCullMask(uiCamera, LAYER_UI);
+```
+
+---
+
+## 17. Render-to-Texture
+
+### Create and Release
+
+```cpp
+void CreateRenderTexture(LPRENDERTARGET* rtt, UINT width, UINT height);
+void ReleaseRenderTexture(LPRENDERTARGET* rtt);
+```
+
+### Configure
+
+```cpp
+void SetRTTClearColor(LPRENDERTARGET rtt, float r, float g, float b, float a = 1.0f);
+```
+
+### Activate and Restore
+
+```cpp
+void SetRenderTarget(LPRENDERTARGET rtt, LPENTITY rttCamera = nullptr);
+void ResetRenderTarget();
+```
+
+### Use as Texture
+
+```cpp
+LPTEXTURE GetRTTTexture(LPRENDERTARGET rtt);
+```
+
+### Complete RTT Example
+
+```cpp
+LPRENDERTARGET mirrorRTT = nullptr;
+Engine::CreateRenderTexture(&mirrorRTT, 512, 512);
+Engine::SetRTTClearColor(mirrorRTT, 0.1f, 0.1f, 0.1f);
+
+// Create mirror material
+LPMATERIAL mirrorMat = nullptr;
+Engine::CreateMaterial(&mirrorMat);
+
+// In the render loop:
+Engine::SetRenderTarget(mirrorRTT, reflectionCamera);
+Engine::RenderWorld();                             // renders into texture
+
+Engine::ResetRenderTarget();                       // back to backbuffer
+Engine::MaterialSetAlbedo(mirrorMat, Engine::GetRTTTexture(mirrorRTT));
+
+Engine::Cls(0, 0, 0);
+Engine::RenderWorld();                             // renders main scene
+Engine::Flip();
+```
+
+---
+
+## 18. Skeletal Animation
+
+### Setup Bone Data
+
+Before uploading to the GPU, assign bone indices and weights to each vertex:
+
+```cpp
+void VertexBoneData(LPSURFACE surface, unsigned int vertexIndex,
+    unsigned int b0, unsigned int b1, unsigned int b2, unsigned int b3,
+    float        w0, float        w1, float        w2, float        w3);
+```
+
+The four weights should sum to 1.0. Vertices with fewer than four bone influences should set unused indices to 0 and unused weights to 0.0.
+
+### Upload Bone Transforms
+
+```cpp
+void SetEntityBoneMatrices(LPENTITY entity,
+    const DirectX::XMMATRIX* matrices,
+    uint32_t count);
+```
+
+Call every frame with the current pose. `count` must not exceed 128 (`MAX_BONES`). On the first call, the bone constant buffer is created on the mesh. Subsequent calls update it.
+
+### Complete Skinned Mesh Setup
+
+```cpp
+LPENTITY arm = nullptr;
+LPSURFACE surf = nullptr;
+LPMATERIAL skinMat = nullptr;
+
+Engine::CreateMesh(&arm);
+Engine::CreateSurface(&surf, arm);
+Engine::CreateSkinnedMaterial(&skinMat);
+Engine::SetSlotMaterial(arm, 0, skinMat);
+
+// For each vertex:
+Engine::AddVertex(surf, x, y, z);
+Engine::VertexNormal(surf, nx, ny, nz);
+Engine::VertexTexCoord(surf, u, v);
+Engine::VertexBoneData(surf, vertexIndex, bone0, bone1, 0, 0, w0, w1, 0.0f, 0.0f);
+
+Engine::FillBuffer(surf);
+
+// Per frame:
+DirectX::XMMATRIX poseMatrices[2];
+poseMatrices[0] = /* shoulder transform */;
+poseMatrices[1] = /* elbow transform */;
+Engine::SetEntityBoneMatrices(arm, poseMatrices, 2);
+```
+
+---
+
+## 19. Collision
+
+### Set Collision Mode
+
+```cpp
+void EntityCollisionMode(LPENTITY entity, COLLISION mode);
+```
+
+```cpp
+enum COLLISION { NONE = 0, BOX = 1, SPHERE = 2 };
+```
+
+`BOX` enables OBB (oriented bounding box) collision testing. `SPHERE` enables sphere collision testing.
+
+### Test Collision
+
+```cpp
+bool EntityCollision(LPENTITY entity1, LPENTITY entity2);
+```
+
+Returns `true` if the two entities' collision volumes overlap. Both entities must have a compatible collision mode set.
+
+### Get OBB
+
+```cpp
+DirectX::BoundingOrientedBox* EntityOBB(LPENTITY entity);
+```
+
+Returns a pointer to the entity's oriented bounding box for custom intersection tests.
+
+---
+
+## 20. Render Loop
+
+### Complete Render Loop Structure
+
+```cpp
+while (Windows::MainLoop() && !(GetAsyncKeyState(VK_ESCAPE) & 0x8000))
+{
+    Core::BeginFrame();
+
+    float dt = (float)Timer::GetDeltaTime();
+
+    // Game logic
+    Engine::TurnEntity(cube, 0.0f, dt * 60.0f, 0.0f);
+
+    // Rendering
+    Engine::Cls(0, 0, 0);
+    Engine::UpdateWorld();
+    Engine::RenderWorld();
+    Engine::Flip();
+
+    Core::EndFrame();
+}
+```
+
+### Timer
+
+```cpp
+Timer::GetDeltaTime()    // double — seconds since last frame
+Timer::GetFPS()          // double — current FPS
+Timer::GetFixedStep()    // double — fixed step duration (1/60 s)
+Timer::GetFixedSteps()   // int    — fixed steps to process this frame
+```
+
+Always use `Timer::GetDeltaTime()` for frame-rate independent movement. Never use `Time.DeltaTime()`.
+
+---
+
+## 21. Debug Utilities
+
+### Print Single Mesh
+
+```cpp
+void DebugPrintMesh(LPENTITY entity);
+```
+
+Prints a tree view of the mesh's internal state to the debug console, including the MeshAsset pointer, all slots and surfaces with vertex and index counts, and the resolved material for each slot.
+
+```
+LPENTITY (0x00AABBCC)
++-- Mesh : Entity  active=1  visible=1  layer=1
+      +-- transform   pos=(0.00, 1.00, 5.00)
+      +-- meshRenderer
+            +-- asset --> MeshAsset (0x00DDEEFF)  slots=2  active=2
+            |     +-- m_slots[0] --> Surface (0x...)  verts=24  idx=36  active=1
+            |     +-- m_slots[1] --> Surface (0x...)  verts=16  idx=24  active=1
+            +-- resolved materials per slot
+                  +-- slot[0] --> Material (0x...)  [slotMaterials]
+                  +-- slot[1] --> Material (0x...)  [engineDefaultMaterial]
+```
+
+### Print Entire Scene
+
+```cpp
+void DebugPrintScene();
+```
+
+Calls `DebugPrintMesh` for every mesh registered in the `ObjectManager`.
+
+### Debug Output Convention
+
+All `Debug::Log` calls must begin with the source filename:
+
+```cpp
+Debug::Log("myfile.cpp: object created successfully");
+Debug::LogError("myfile.cpp: failed to allocate buffer");
+Debug::LogWarning("myfile.cpp: unexpected state, continuing");
+Debug::LogHr(__FILE__, __LINE__, hr);
+```
+
+---
+
+## 22. Complete Examples
+
+### Example 1 — Minimal PBR Mesh
+
+```cpp
+#include "gidx.h"
+#include "geometry.h"  // CreateCube()
+
+int main()
+{
+    Engine::Graphics(1280, 720);
+
+    // Camera
+    LPENTITY camera = nullptr;
+    Engine::CreateCamera(&camera);
+    Engine::PositionEntity(camera, 0.0f, 2.0f, -8.0f);
+    Engine::LookAt(camera, 0.0f, 0.0f, 0.0f);
+
+    // Directional light with shadow
+    LPENTITY sunLight = nullptr;
+    Engine::CreateLight(&sunLight, D3DLIGHT_DIRECTIONAL);
+    Engine::TurnEntity(sunLight, 45.0f, -30.0f, 0.0f);
+    Engine::LightColor(sunLight, 1.2f, 1.1f, 1.0f);
+    Engine::SetDirectionalLight(sunLight);
+    Engine::SetAmbientColor(0.15f, 0.15f, 0.2f);
+    Engine::LightShadowOrthoSize(sunLight, 20.0f);
+    Engine::LightShadowPlanes(sunLight, 1.0f, 40.0f);
+
+    // Textures
+    LPTEXTURE albedoTex = nullptr;
+    LPTEXTURE normalTex = nullptr;
+    LPTEXTURE ormTex    = nullptr;
+    Engine::LoadTexture(&albedoTex, L"..\\media\\stone_albedo.png");
+    Engine::LoadTexture(&normalTex, L"..\\media\\stone_normal.png");
+    Engine::LoadTexture(&ormTex,    L"..\\media\\stone_orm.png");
+
+    // Material
+    LPMATERIAL mat = nullptr;
+    Engine::CreateMaterial(&mat);
+    Engine::MaterialUsePBR(mat, true);
+    Engine::MaterialSetAlbedo(mat, albedoTex);
+    Engine::MaterialSetNormal(mat, normalTex);
+    Engine::MaterialSetORM(mat, ormTex);
+    Engine::MaterialRoughness(mat, 0.7f);
+    Engine::MaterialMetallic(mat, 0.0f);
+    Engine::MaterialReceiveShadows(mat, true);
+
+    // Mesh
+    LPENTITY cube = nullptr;
+    CreateCube(&cube, mat);
+    Engine::PositionEntity(cube, 0.0f, 0.0f, 0.0f);
+    Engine::EntityCastShadows(cube, true);
+
+    while (Windows::MainLoop() && !(GetAsyncKeyState(VK_ESCAPE) & 0x8000))
+    {
+        Core::BeginFrame();
+
         float dt = (float)Timer::GetDeltaTime();
+        Engine::TurnEntity(cube, 0.0f, dt * 45.0f, 0.0f);
 
-        Engine::TurnEntity(parent, 0.0f, 30.0f * dt, 0.0f, Space::World);
-
-        Engine::Cls(20, 20, 40);
+        Engine::Cls(10, 10, 15);
         Engine::UpdateWorld();
         Engine::RenderWorld();
         Engine::Flip();
@@ -467,31 +1142,115 @@ int main()
 }
 ```
 
-## 16. Types and Constants
+### Example 2 — Multi-Surface Mesh with Per-Slot Materials
 
-### 16.1 Pointer Types
+```cpp
+LPENTITY vehicle = nullptr;
+Engine::CreateMesh(&vehicle);
 
-| **Type** | **Meaning** |
-|---|---|
-| `LPENTITY` | `Entity*` - general pointer for mesh, camera, light |
-| `LPMATERIAL` | `Material*` - pointer to a material object |
-| `LPSURFACE` | `Surface*` - pointer to a sub-geometry unit |
-| `LPTEXTURE` | `Texture*` - pointer to a loaded or procedurally created texture |
-| `LPSHADER` | `Shader*` - pointer to a compiled shader |
-| `LPRENDERTARGET` | `IRenderTarget*` - pointer to an RTT target or another render target |
-| `LPLPTEXTURE` | `Texture**` - double pointer, used for `LoadTexture` / `CreateTexture` |
+// Surface 0: body
+LPSURFACE bodyS = nullptr;
+unsigned int bodySlot = 0;
+Engine::CreateSurface(&bodyS, vehicle, &bodySlot);
+// ... body vertex data ...
+Engine::FillBuffer(bodyS);
 
-### 16.2 Important Enums and Constants
+// Surface 1: glass
+LPSURFACE glassS = nullptr;
+unsigned int glassSlot = 0;
+Engine::CreateSurface(&glassS, vehicle, &glassSlot);
+// ... glass vertex data ...
+Engine::FillBuffer(glassS);
 
-| **Constant / Enum** | **Values and Meaning** |
-|---|---|
-| `D3DLIGHT_DIRECTIONAL` | Light type: directional light (sun). Only type with shadow mapping support. |
-| `Space::Local / Space::World` | Coordinate system for `MoveEntity` and `TurnEntity`/`RotateEntity`. |
-| `LAYER_DEFAULT` | Standard layer bit (bit 0). All entities are on this layer by default. |
-| `LAYER_ALL` | All bits set: `0xFFFFFFFF`. The camera sees all entities. |
-| `D3DVERTEX_POSITION` | Vertex flag: position (always required). |
-| `D3DVERTEX_NORMAL` | Vertex flag: normals for lighting. |
-| `D3DVERTEX_TEX1` | Vertex flag: first UV coordinate. |
-| `D3DVERTEX_TEX2` | Vertex flag: second UV coordinate (detail/lightmap). |
-| `D3DVERTEX_TANGENT` | Vertex flag: tangents for normal mapping. |
-| `D3DVERTEX_BONE_INDICES/WEIGHTS` | Vertex flags for skeletal animation. |
+// Per-slot materials
+LPMATERIAL bodyMat  = nullptr;
+LPMATERIAL glassMat = nullptr;
+Engine::CreateMaterial(&bodyMat);
+Engine::CreateMaterial(&glassMat);
+Engine::MaterialTransparent(glassMat, true);
+Engine::MaterialColor(glassMat, 0.8f, 0.9f, 1.0f, 0.4f);
+
+Engine::SetSlotMaterial(vehicle, bodySlot,  bodyMat);
+Engine::SetSlotMaterial(vehicle, glassSlot, glassMat);
+```
+
+### Example 3 — Asset Sharing (Instancing)
+
+```cpp
+// Build one mesh with geometry
+LPENTITY source = nullptr;
+Engine::CreateMesh(&source);
+LPSURFACE s = nullptr;
+Engine::CreateSurface(&s, source);
+// ... add vertices ...
+Engine::FillBuffer(s);
+Engine::SetSlotMaterial(source, 0, sharedMat);
+
+// Create many instances sharing the same geometry
+const int COUNT = 50;
+LPENTITY instances[COUNT];
+for (int i = 0; i < COUNT; ++i)
+{
+    Engine::CreateMesh(&instances[i]);
+    Engine::ShareMeshAsset(source, instances[i]);
+    Engine::PositionEntity(instances[i],
+        (i % 10) * 3.0f, 0.0f, (i / 10) * 3.0f);
+    Engine::SetSlotMaterial(instances[i], 0, sharedMat);
+}
+```
+
+### Example 4 — Render-to-Texture Security Camera
+
+```cpp
+LPENTITY secCam = nullptr;
+Engine::CreateCamera(&secCam);
+Engine::PositionEntity(secCam, 10.0f, 5.0f, 0.0f);
+Engine::LookAt(secCam, 0.0f, 0.0f, 0.0f);
+
+LPRENDERTARGET feedRTT = nullptr;
+Engine::CreateRenderTexture(&feedRTT, 256, 256);
+Engine::SetRTTClearColor(feedRTT, 0.0f, 0.1f, 0.0f);
+
+// Monitor mesh showing the feed
+LPMATERIAL monitorMat = nullptr;
+Engine::CreateMaterial(&monitorMat);
+
+// In render loop:
+Engine::SetRenderTarget(feedRTT, secCam);
+Engine::RenderWorld();
+Engine::ResetRenderTarget();
+
+Engine::MaterialSetAlbedo(monitorMat, Engine::GetRTTTexture(feedRTT));
+
+Engine::Cls(0, 0, 0);
+Engine::RenderWorld();
+Engine::Flip();
+```
+
+### Example 5 — Layer-based Multi-Camera Rendering
+
+```cpp
+LPENTITY worldCam = nullptr;
+LPENTITY uiCam    = nullptr;
+Engine::CreateCamera(&worldCam);
+Engine::CreateCamera(&uiCam);
+
+// Main camera sees everything except UI
+Engine::CameraCullMask(worldCam, LAYER_DEFAULT | LAYER_FX | LAYER_SHADOW);
+
+// UI camera sees only UI
+Engine::SetCameraOrtho(uiCam, (float)Engine::GetWidth(), (float)Engine::GetHeight());
+Engine::CameraCullMask(uiCam, LAYER_UI);
+
+// Tag objects
+Engine::EntityLayer(sceneMesh,   LAYER_DEFAULT);
+Engine::EntityLayer(particleFX,  LAYER_FX);
+Engine::EntityLayer(healthBarMesh, LAYER_UI);
+
+// In render loop: render main scene, then UI pass
+Engine::SetCamera(worldCam);
+Engine::RenderWorld();
+
+Engine::SetCamera(uiCam);
+Engine::RenderWorld();
+```

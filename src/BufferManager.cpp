@@ -64,3 +64,13 @@ HRESULT BufferManager::UpdateConstantBuffer(ID3D11Buffer* buffer, const void* da
 }
 
 
+
+void BufferManager::UpdateNormal(ID3D11Buffer* buffer, const DirectX::XMFLOAT3* data, UINT count)
+{
+    if (!buffer || !data || count == 0) {
+        DBLOG("BufferManager.cpp: ERROR: UpdateNormal - invalid input!");
+        return;
+    }
+
+    m_context->UpdateSubresource(buffer, 0, nullptr, data, sizeof(DirectX::XMFLOAT3) * count, 0);
+}

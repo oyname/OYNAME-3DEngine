@@ -1,220 +1,630 @@
-# OYNAME-3DEngine
+# OYNAME-3DEngine — Technical Architecture Documentation
 
-Technical Architecture Documentation
+**Version:** February 2026  
+**Renderer:** DirectX 11, Feature Level 11_0, Shader Model 5.0  
+**Architecture:** Forward Renderer, Manager-based, BlitzBasic-inspired API
 
-DirectX 11 · Feature Level 11_0 · Shader Model 5.0 · Forward Renderer
+---
 
-Status: 2025 · Internal / Development
+## Table of Contents
 
-## 1. Overview and Design Philosophy
+1. [Overview](#1-overview)
+2. [Layer Model](#2-layer-model)
+3. [Startup Sequence](#3-startup-sequence)
+4. [Core Namespace](#4-core-namespace)
+5. [GDXEngine](#5-gdxengine)
+6. [Manager Architecture](#6-manager-architecture)
+7. [Entity System](#7-entity-system)
+8. [Mesh, MeshAsset and MeshRenderer](#8-mesh-meshasset-and-meshrenderer)
+9. [Material and Shader System](#9-material-and-shader-system)
+10. [Surface and Geometry](#10-surface-and-geometry)
+11. [Texture and TexturePool](#11-texture-and-texturepool)
+12. [Rendering Pipeline](#12-rendering-pipeline)
+13. [Shadow Mapping](#13-shadow-mapping)
+14. [Render-to-Texture](#14-render-to-texture)
+15. [Skeletal Animation](#15-skeletal-animation)
+16. [Scene Graph and Hierarchy](#16-scene-graph-and-hierarchy)
+17. [Render Layers and Camera Culling](#17-render-layers-and-camera-culling)
+18. [Timer](#18-timer)
+19. [DirectX Buffer Rules](#19-directx-buffer-rules)
+20. [Coding Rules Summary](#20-coding-rules-summary)
+21. [Known Constraints and Pitfalls](#21-known-constraints-and-pitfalls)
 
-OYNAME-3DEngine is a 3D graphics engine developed in C++ that uses DirectX 11 with Feature Level 11_0 and Shader Model 5.0. The central design goal is a BlitzBasic-inspired user API that hides the entire complexity of DirectX behind clear, direct function calls. Developers do not write DirectX resource management, COM interfaces, or HLSL register configuration - all of that is handled by the engine.
+---
 
-The following core principles shape the architecture:
+## 1. Overview
 
-| **Principle** | **Implementation** |
-|---|---|
-| Intuitive API | All public functions in `gidx.h` are inline wrappers in the `Engine` namespace. No DirectX knowledge required. |
-| Manager architecture | Every system domain (objects, rendering, shaders, buffers, textures) is managed by a dedicated manager class. |
-| Separation of geometry and rendering | `MeshAsset` stores pure geometry data. `MeshRenderer` couples geometry with materials per slot. |
-| Backward compatibility | New systems (PBR, RTT, TexturePool) extend the API as opt-in features. Existing code continues to work unchanged. |
-| Entity type system | Type tags replace `dynamic_cast` in the hot path. `IsMesh`/`IsCamera`/`IsLight` with static cast helper methods. |
+OYNAME-3DEngine is a custom 3D engine written in C++ with a DirectX 11 backend. Its primary design goal is a clean, intuitive public API modeled after BlitzBasic, while keeping all DirectX complexity strictly encapsulated in internal systems. Game code never touches COM interfaces directly.
 
-## 2. System Structure
+The engine uses a manager-based architecture. A central `GDXEngine` instance owns all managers and coordinates their initialization and shutdown. The public API surface is a single header, `gidx.h`, which contains only thin inline wrappers forwarding calls into the engine internals.
 
-### 2.1 Startup Sequence
+---
 
-The engine is initialized in `main.cpp` through two layers. `Core::Init()` sets up the Win32 window, COM, and the timer. `Core::CreateEngine()` instantiates the `GDXEngine` singleton and initializes all manager classes. The actual game loop runs on a separate thread, while the main thread handles the Win32 message loop.
+## 2. Layer Model
 
-```cpp
-// WinMain - initialization order:
-Core::Init(hInst, WindowProc, desc);   // Window + COM + Timer
-Core::CreateEngine();                  // GDXEngine singleton
-std::thread gameThread([]{ main(); }); // Game loop thread
-// Win32 message loop on the main thread
+```
+┌──────────────────────────────────────────────────────────────┐
+│  Game Code                                                   │
+│  (includes only gidx.h)                                      │
+├──────────────────────────────────────────────────────────────┤
+│  Engine:: namespace  (gidx.h)                                │
+│  Thin inline wrappers – zero game-visible DirectX            │
+├──────────────────────────────────────────────────────────────┤
+│  Core:: namespace  (core.h / core.cpp)                       │
+│  Window, COM, Timer, Paths, Shutdown                         │
+├──────────────────────────────────────────────────────────────┤
+│  GDXEngine  (central coordinator)                            │
+│  ├── ObjectManager      creates / destroys all objects       │
+│  ├── RenderManager      scene rendering, shadow, RTT         │
+│  ├── ShaderManager      shader compilation and lookup        │
+│  ├── BufferManager      GPU buffer allocation and updates    │
+│  ├── InputLayoutManager vertex format → D3D input layout     │
+│  └── TexturePool        SRV deduplication and indexing       │
+├──────────────────────────────────────────────────────────────┤
+│  GDXDevice    ID3D11Device / DeviceContext / SwapChain       │
+│  GDXInterface DXGI adapter / output enumeration              │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-### 2.2 GDXEngine (Central Singleton)
+Two namespaces are used:
 
-`GDXEngine` is the core of the engine. It is designed as a singleton and is reachable through `Engine::engine` as a global pointer. `GDXEngine` owns and coordinates all manager instances. No code outside the engine internals communicates directly with the managers - exclusively through the `gidx.h` API.
+- `Engine::` — all public game-facing API functions (e.g. `Engine::CreateMesh()`, `Engine::RenderWorld()`)
+- `Core::` — bootstrap and lifecycle only (window creation, timing, shutdown)
 
-| **Manager Reference** | **Purpose** |
+Internal engine classes carry the `GDX` prefix (`GDXEngine`, `GDXDevice`, `GDXInterface`) and use no namespace. All other domain objects use plain PascalCase (`Mesh`, `Camera`, `Material`, etc.).
+
+---
+
+## 3. Startup Sequence
+
+The application entry point is `WinMain` in `main.cpp`. Startup happens in six steps:
+
+**Step 1 — Core::Init**  
+Creates the Win32 window, initializes COM, starts the `Timer` singleton, resolves the executable directory, and registers the window class. Returns `HWND`.
+
+**Step 2 — Core::CreateEngine**  
+Instantiates `GDXEngine`, which internally creates `GDXDevice`, enumerates DXGI adapters via `GDXInterface`, compiles the built-in standard shaders, and initializes all manager instances.
+
+**Step 3 — Game Thread**  
+The game's `main()` function runs on a dedicated thread, keeping the message pump responsive on the main thread.
+
+**Step 4 — Message Loop**  
+The main thread runs the standard Win32 message loop (`GetMessage` / `DispatchMessage`).
+
+**Step 5 — WM_CLOSE / WM_DESTROY**  
+`Windows::MainLoop(false)` signals the game thread to exit its loop. After `mainThread.join()`, all resources are released.
+
+**Step 6 — Core::Shutdown**  
+Releases `GDXEngine`, then `Timer`, then COM.
+
+---
+
+## 4. Core Namespace
+
+`Core` is the bootstrap and lifecycle layer. It explicitly never includes `ID3D11Device` or `IDXGISwapChain`. Its responsibilities are:
+
+- Creating and managing the application window
+- COM initialization and teardown
+- Providing the `Core::Desc` configuration struct that game code fills at startup
+- Frame timing via `Core::BeginFrame()` and `Core::EndFrame()`
+- Path resolution (`Core::GetExeDir()`, `Core::ResolvePath()`)
+- Orderly shutdown of the entire engine stack
+
+```cpp
+Core::Desc desc;
+desc.vsync       = true;
+desc.debug       = true;
+desc.windowed    = true;
+desc.windowTitle = L"My Game";
+
+HWND hwnd = Core::Init(hInst, WindowProc, desc);
+Core::CreateEngine();
+```
+
+---
+
+## 5. GDXEngine
+
+`GDXEngine` is the central coordinator and the owner of all manager instances. It is a singleton accessible through the `Engine::engine` pointer (defined in `gdxengine.h`), but game code never accesses it directly — the `Engine::` wrappers in `gidx.h` do that internally.
+
+GDXEngine owns by value:
+
+```
+ObjectManager       m_objectManager
+RenderManager       m_renderManager
+ShaderManager       m_shaderManager
+InputLayoutManager  m_inputLayoutManager
+BufferManager       m_bufferManager
+TexturePool         m_texturePool
+```
+
+And by reference (public):
+
+```
+GDXDevice           m_device
+GDXInterface        m_interface
+```
+
+On construction, `GDXEngine` compiles the two built-in standard shader pairs:
+
+- `VertexShader.hlsl` + `PixelShader.hlsl` → registered as `ShaderKey::Standard`
+- `VertexShaderSkinning.hlsl` + `SkinPixelShader.hlsl` → registered as `ShaderKey::StandardSkinned`
+
+Shader file paths are defined as constants in `gdxengine.h`:
+
+```cpp
+#define VERTEX_SHADER_FILE          L"..\\..\\shaders\\VertexShader.hlsl"
+#define PIXEL_SHADER_FILE           L"..\\..\\shaders\\PixelShader.hlsl"
+#define VERTEX_SKINNING_SHADER_FILE L"..\\..\\shaders\\VertexShaderSkinning.hlsl"
+```
+
+Never hardcode shader paths inline.
+
+---
+
+## 6. Manager Architecture
+
+### Dependency Hierarchy
+
+```
+GDXEngine  (central coordination)
+├── ObjectManager      creates / destroys all objects
+├── RenderManager      reads shader list via GetShaders()
+├── ShaderManager      independent
+├── BufferManager      independent
+├── InputLayoutManager independent
+└── TexturePool        independent
+```
+
+**Rules:**
+- Managers do not communicate directly with each other.
+- If a manager needs data from another manager, it receives it through a public getter — never via `friend` or direct member access.
+- If a manager needs a hardware resource (`GDXDevice`), it receives it through the `GDXEngine` constructor — not through another manager.
+
+### ObjectManager
+
+Single owner of all engine objects: `Mesh`, `Camera`, `Light`, `Material`, `Shader`, `Surface`, `MeshAsset`. Every `Create*` function allocates and registers the object. Every `Delete*` function destroys the object and removes it from all internal containers. Game code never calls `new` or `delete` on engine objects directly.
+
+`ObjectManager` maintains monotone `uint32_t` ID counters for `Shader` and `Material` objects. These IDs are used by the `RenderQueue` for state-sorted rendering.
+
+```cpp
+uint32_t m_nextShaderId   = 0;
+uint32_t m_nextMaterialId = 0;
+```
+
+### RenderManager
+
+Drives the two-pass render loop (shadow pass, normal pass). Owns the `RenderQueue` for opaque objects, the transparent frame list, the `ShadowMapTarget`, the `BackbufferTarget`, and the SRV binding cache. Receives the `ObjectManager` reference and `GDXDevice` reference in its constructor.
+
+### ShaderManager
+
+Compiles HLSL shader pairs, creates `Shader` objects, and maintains a map from `ShaderKey` to `LPSHADER`. The `GetShader()` function with no arguments returns the currently active default shader.
+
+### BufferManager
+
+All GPU buffer creation flows through `BufferManager`. It enforces the directx buffer rules: `DYNAMIC` + `Map/Unmap` for constant buffers, `DEFAULT` or `IMMUTABLE` + `UpdateSubresource` for static geometry.
+
+### InputLayoutManager
+
+Creates `ID3D11InputLayout` objects from vertex format flags (`D3DVERTEX_FLAGS`). Keyed on the flag combination so layouts are not duplicated.
+
+### TexturePool
+
+Centralizes `ID3D11ShaderResourceView` management. Every SRV is registered once and receives a stable `uint32_t` index. Duplicate SRVs (same pointer) are deduplicated. Provides three built-in fallback indices accessible at any time:
+
+- `WhiteIndex()` — solid white (default albedo)
+- `FlatNormalIndex()` — flat normal map (0.5, 0.5, 1.0)
+- `OrmIndex()` — default ORM (occlusion=1, roughness=0.5, metallic=0)
+
+---
+
+## 7. Entity System
+
+All scene objects — meshes, cameras, and lights — are `Entity` subclasses. The `Entity` base class provides:
+
+- `Transform transform` — local position, rotation, scale
+- `MatrixSet matrixSet` — view and projection matrices (for cameras and lights)
+- `Viewport viewport` — for cameras and lights
+- `EntityGpuData* gpuData` — pointer to the entity's constant buffer on the GPU
+
+### Type Tag System
+
+`Entity` carries a `EntityType` tag (`Mesh`, `Camera`, `Light`) that enables zero-overhead downcasting in hot paths without `dynamic_cast`:
+
+```cpp
+bool IsMesh()   const noexcept { return m_entityType == EntityType::Mesh; }
+bool IsCamera() const noexcept { return m_entityType == EntityType::Camera; }
+bool IsLight()  const noexcept { return m_entityType == EntityType::Light; }
+
+Mesh*   AsMesh()   noexcept { return reinterpret_cast<Mesh*>(this); }
+Camera* AsCamera() noexcept { return reinterpret_cast<Camera*>(this); }
+Light*  AsLight()  noexcept { return reinterpret_cast<Light*>(this); }
+```
+
+Type tags are set in the constructor of each subclass and are never modified afterward.
+
+### Entity Properties
+
+Every entity carries the following state flags:
+
+| Flag | Default | Meaning |
+|---|---|---|
+| `m_active` | `true` | Inactive entities skip Update, physics, and rendering |
+| `m_visible` | `true` | Invisible entities skip rendering but continue updating |
+| `m_castShadows` | `true` | Controls shadow pass participation |
+| `m_layerMask` | `LAYER_DEFAULT` | Bitmask for camera culling |
+
+### Frame-Update Flag
+
+To avoid redundant constant buffer uploads for meshes with multiple surfaces, each mesh carries a `m_frameUpdated` flag. The first surface draw for a given frame uploads the world matrix buffer; subsequent surfaces of the same mesh skip the upload.
+
+---
+
+## 8. Mesh, MeshAsset and MeshRenderer
+
+A `Mesh` is an entity that represents a renderable object in the scene. Its geometry is separated from its transform and material assignments into two distinct components.
+
+### MeshAsset
+
+`MeshAsset` is a pure geometry container. It holds a list of `Surface*` slots (non-owning pointers). The `ObjectManager` owns all `Surface` objects; `MeshAsset` only references them.
+
+Multiple `Mesh` entities can share the same `MeshAsset` (e.g. for instanced props). Each entity then has its own transform and its own per-slot material assignments.
+
+Tombstoning is used for slot removal (`RemoveSlot`): the slot entry is set to `nullptr` rather than erased, preserving all higher slot indices. This keeps slot indices stable across the lifetime of the asset.
+
+```
+MeshAsset
+└── m_slots[]    (non-owning Surface* vector, may contain nullptr tombstones)
+```
+
+### MeshRenderer
+
+`MeshRenderer` is the per-entity component that bridges the shared asset and the per-instance material state. It is a private member of `Mesh` and is not directly accessible from game code.
+
+```
+MeshRenderer
+├── m_asset*          (non-owning pointer to the shared MeshAsset)
+└── m_slotMaterials[] (per-slot Material* overrides for this entity)
+```
+
+### Three-Level Material Fallback
+
+For every slot during rendering, the resolved material is determined by this priority chain:
+
+1. `MeshRenderer::m_slotMaterials[slot]` — per-instance slot override (set via `SetSlotMaterial`)
+2. `Surface::pMaterial` — material stored directly on the surface
+3. Engine default material — the built-in standard material, always non-null
+
+This chain guarantees that a draw call never submits a null material.
+
+### Asset Co-Deletion
+
+When `ObjectManager::DeleteMesh(mesh)` is called, it also deletes the `MeshAsset` if no other mesh references it. If a `MeshAsset` is shared between multiple meshes, it must be manually detached from the mesh being deleted before calling `DeleteMesh`, to avoid premature deletion. Use `Engine::DetachMeshAsset` before destruction in that case.
+
+---
+
+## 9. Material and Shader System
+
+### Material
+
+`Material` holds the CPU-side parameter state that maps to the `cbuffer MaterialBuffer` (register `b2`) in the pixel shader. It carries no DirectX COM interfaces itself — all GPU resources live in `MaterialGpuData` (a separate object managed by `BufferManager`).
+
+Key material parameters:
+
+| Parameter | Type | Description |
+|---|---|---|
+| `baseColor` | `XMFLOAT4` | Diffuse / albedo base color |
+| `specularColor` | `XMFLOAT4` | Specular color (legacy) |
+| `emissiveColor` | `XMFLOAT4` | Emissive color + intensity |
+| `uvTilingOffset` | `XMFLOAT4` | UV tiling (xy) and offset (zw) |
+| `metallic` | `float` | PBR metallic factor (0–1) |
+| `roughness` | `float` | PBR roughness factor (0–1) |
+| `normalScale` | `float` | Normal map intensity |
+| `occlusionStrength` | `float` | Ambient occlusion strength |
+| `alphaCutoff` | `float` | Threshold for alpha test |
+| `blendMode` | `int` | Secondary texture blend mode (0–5) |
+| `flags` | `uint32_t` | Feature flags (PBR, normal map, ORM, etc.) |
+
+**Material flags** (selected):
+
+| Flag | Meaning |
 |---|---|
-| `m_objectManager (GetOM())` | Central ownership and lifecycle management of all entities, materials, shaders, surfaces, and mesh assets. |
-| `m_renderManager (GetRM())` | Construction and execution of the render queue, shadow pass, transparent pass, RTT support. |
-| `m_shaderManager (GetSM())` | Shader compilation, input layout creation, shader registry. |
-| `m_bufferManager (GetBM())` | Creation and update of all DirectX buffers (vertex, index, constant). |
-| `m_texturePool (GetTP())` | Central SRV deduplication, stable numeric texture indices, default fallback textures. |
-| `m_inputLayoutManager (GetILM())` | Creation of D3D11 input layouts based on vertex format flags. |
-| `m_device (GDXDevice)` | Encapsulates `ID3D11Device`, `ID3D11DeviceContext`, and `IDXGISwapChain`. Access via `m_device.GetDevice()`. |
-| `m_interface (GDXInterface)` | Adapter enumeration, display mode queries, output management. |
+| `MF_USE_PBR` | Enables PBR shading path |
+| `MF_USE_NORMAL_MAP` | Activates normal mapping |
+| `MF_USE_ORM_MAP` | Activates ORM texture lookup |
+| `MF_ALPHA_TEST` | Enables alpha cutoff discarding |
+| `MF_TRANSPARENT` | Routes material to the transparent pass |
+| `MF_RECEIVE_SHADOWS` | Enables shadow map lookup in the pixel shader |
 
-### 2.3 File Structure
+`Material` carries its own `uint32_t id`, assigned by `ObjectManager` from a monotone counter. This ID is used by `RenderQueue::Sort()` for state-sorted batching.
 
-| **Path** | **Content** |
+### Shader
+
+`Shader` compiles a vertex+pixel shader pair and creates the matching `ID3D11InputLayout` from the `D3DVERTEX_FLAGS` combination. After the input layout is created, the shader blobs are released. `Shader` carries its own `uint32_t id` for sort-key batching.
+
+Vertex format flags (`D3DVERTEX_FLAGS`):
+
+| Flag | Meaning |
 |---|---|
-| `include/gidx.h` | Complete public API (`Engine` namespace, all functions inline) |
-| `include/gdxengine.h` | `GDXEngine` class, singleton declaration, all managers |
-| `include/Entity.h` | Base `Entity` class with transform, type system, hierarchy |
-| `include/Mesh.h / MeshAsset.h / MeshRenderer.h` | Mesh component architecture |
-| `include/Material.h` | Material properties, flags, PBR data |
-| `include/RenderManager.h` | Render queue, shadow pass, RTT control |
-| `include/TexturePool.h` | SRV pool with deduplication and default textures |
-| `shaders/` | `VertexShader.hlsl`, `PixelShader.hlsl`, skinning variants |
-| `examples/` | Reference implementations for all engine features |
-| `src/` | Implementation files of all engine systems |
+| `D3DVERTEX_POSITION` | XYZ position |
+| `D3DVERTEX_NORMAL` | Surface normal |
+| `D3DVERTEX_COLOR` | Vertex color (RGBA) |
+| `D3DVERTEX_TEX1` | First UV channel |
+| `D3DVERTEX_TEX2` | Second UV channel |
+| `D3DVERTEX_TANGENT` | Tangent vector (float4 with handedness) |
+| `D3DVERTEX_BONE_INDICES` | Four bone indices per vertex (uint4) |
+| `D3DVERTEX_BONE_WEIGHTS` | Four bone weights per vertex (float4) |
 
-## 3. Entity System
+### Constant Buffer Register Map
 
-### 3.1 Base Class `Entity`
+These assignments are fixed across all shaders. Custom buffers must use `b3` or higher.
 
-All scene-related objects - meshes, cameras, lights - inherit from `Entity`. `Entity` contains a transform (position, rotation, scaling), a viewport structure, `MatrixSet` for constant buffer data, and optional GPU resources via `EntityGpuData`.
+| Register | Buffer | Updated by |
+|---|---|---|
+| `b0` | `MatrixBuffer` | Per entity — world / view / projection matrices |
+| `b1` | `LightBuffer` | Per frame — all active lights (up to 32) |
+| `b2` | `MaterialBuffer` | Per material — PBR parameters and flags |
+| `b4` | `BoneBuffer` | Per skinned mesh — up to 128 bone matrices |
 
-The state of an entity is controlled through three orthogonal flags: `active` (controls update and rendering completely), `visible` (update continues, only rendering is suppressed), and `layerMask` (bitmask for camera culling). `EntityCastShadows` separately controls participation in the shadow pass.
+---
 
-### 3.2 Type System - No `dynamic_cast` in the Hot Path
+## 10. Surface and Geometry
 
-Each entity carries an `EntityType` tag (`Mesh=1`, `Camera=2`, `Light=3`). The methods `IsMesh()`, `IsCamera()`, and `IsLight()` check this tag in `O(1)` without RTTI. `AsMesh()`, `AsCamera()`, and `AsLight()` perform `reinterpret_cast` after `IsMesh()` has returned true. This is safe because the types are set correctly in the construction chain and are never changed.
+A `Surface` is the atomic unit of renderable geometry. It owns CPU-side vertex arrays (positions, normals, tangents, colors, UV1, UV2, bone indices, bone weights) and an index array. All GPU resources are stored in a `SurfaceGpuBuffer` (accessible via `surface->gpu`).
 
-### 3.3 Hierarchy - Parent/Child
+After filling vertex and index data via the `Engine::AddVertex` / `Engine::AddTriangle` API, the game code calls `Engine::FillBuffer(surface)` to upload all data to the GPU. From that point on, the CPU-side arrays remain valid and can be used to update dynamic geometry via `Engine::UpdateVertexBuffer` / `Engine::UpdateNormalBuffer` / `Engine::UpdateColorBuffer`.
 
-Entities can be nested hierarchically without limitation. `SetEntityParent(child, parent)` registers `child` as a child and `parent` as the parent object. The local transform remains unchanged; `GetWorldMatrix()` computes the full world matrix through recursive multiplication along the parent chain. `Space::Local` and `Space::World` control in which coordinate system `MoveEntity` and `RotateEntity` operate.
+`SurfaceGpuBuffer` stores individual `ID3D11Buffer*` objects for each vertex stream (position, normal, tangent, color, UV1, UV2, bone indices, bone weights, index buffer). Multi-stream vertex binding is performed by `Dx11RenderBackend` at draw time.
 
-## 4. Mesh Architecture
+Tangent vectors are computed on the CPU by `Surface::ComputeTangents()`. This function is called automatically by `FillBuffer` when the shader requires tangents (`D3DVERTEX_TANGENT` flag) and the tangent count does not match the vertex count. Shader-side TBN re-orthogonalization is not used — CPU-side computation already orthogonalizes the basis.
 
-### 4.1 Component Model
+### Wireframe Mode
 
-The mesh system is built in three layers. `MeshAsset` contains pure geometry as a vector of surface slots, without transform and without material. `Surface` contains the actual vertex and index data (position, normal, tangent, color, UV1, UV2, bone data) as well as a GPU buffer wrapper. `MeshRenderer` couples a `MeshAsset` with a material array per slot and belongs to the mesh entity.
+Individual surfaces can be rendered in wireframe mode without changing the rasterizer state globally:
 
-| **Class** | **Role and Ownership** |
+```cpp
+surface->gpu->SetWireframe(true);
+```
+
+---
+
+## 11. Texture and TexturePool
+
+Textures are loaded from disk via `Engine::LoadTexture` and returned as `LPTEXTURE` pointers. The texture object (`Texture` class) stores the `ID3D11Texture2D*`, `ID3D11ShaderResourceView*`, and `ID3D11SamplerState*`.
+
+When a texture is assigned to a material via `Engine::MaterialSetAlbedo`, `MaterialSetNormal`, `MaterialSetORM`, or the legacy `MaterialTexture` slot API, the SRV is registered in the `TexturePool`. The pool returns a stable `uint32_t` index that the material stores. The pixel shader receives the active SRV array (bound as a flat array of individual texture slots) and uses these indices to look up the correct textures.
+
+Dynamic textures (procedurally generated pixel data) are created via `Engine::CreateTexture`, modified pixel-by-pixel with `Engine::LockBuffer` / `Engine::SetPixel` / `Engine::UnlockBuffer`, and assigned to materials like any other texture.
+
+---
+
+## 12. Rendering Pipeline
+
+### Frame Structure
+
+Each frame follows this sequence:
+
+```
+Core::BeginFrame()
+Engine::Cls(r, g, b)
+Engine::UpdateWorld()
+Engine::RenderWorld()
+Engine::Flip()
+Core::EndFrame()
+```
+
+### UpdateWorld
+
+Iterates all active entities and calls `Entity::Update()`. This rebuilds each entity's world matrix from its local transform and parent chain, and uploads the updated matrix to the entity's constant buffer (`b0`) on the GPU.
+
+### RenderWorld
+
+`GDXEngine::RenderWorld()` delegates to `RenderManager::RenderScene()`, which runs the full two-pass render:
+
+**Pass 1 — Shadow Pass** (`RenderShadowPass`)  
+Renders all shadow-casting meshes into the `ShadowMapTarget` from the directional light's perspective. Uses a depth-only vertex shader (`ShaderBindMode::VS_ONLY`). The shadow map SRV is explicitly unbound before switching render targets to avoid SRV hazards.
+
+**Pass 2 — Normal Pass** (`RenderNormalPass`)  
+Clears the backbuffer (or active RTT), builds the render queue, sorts it, and flushes it in two sub-passes:
+
+1. **Opaque sub-pass** — draws all non-transparent surfaces in Shader ID → Material ID order (minimizes GPU state changes)
+2. **Transparent sub-pass** — draws transparent surfaces back-to-front (depth sorted)
+
+### RenderQueue
+
+`RenderQueue` is a flat list of `RenderCommand` objects. Each command carries all data needed for a single draw call: `Shader*`, `Material*`, `Mesh*`, `Surface*`, world matrix, and a `IRenderBackend*` pointer for the actual draw dispatch.
+
+`RenderQueue::Sort()` orders commands by `shader->id` first, then `material->id`. This minimizes GPU state changes without pointer-truncation on 64-bit platforms. Both IDs are stable `uint32_t` values assigned by `ObjectManager`.
+
+### SRV Binding Cache
+
+`RenderManager` maintains `m_boundSRVs[7]`, a cached array of the last-bound SRVs for pixel shader slots `t0`–`t6`. Before each draw call, the backend compares the material's required SRVs against the cache and skips `PSSetShaderResources` calls for slots that are already bound with the correct SRV.
+
+### Transparent Pass
+
+Transparent materials (marked with `MF_TRANSPARENT`) are collected into `m_transFrame` as `(float depth, RenderCommand)` pairs. Depth is the world-space Z distance from the camera. After all opaques are drawn, `m_transFrame` is sorted descending by depth and flushed with alpha blending enabled.
+
+---
+
+## 13. Shadow Mapping
+
+The engine supports single directional-light PCF shadow mapping.
+
+`ShadowMapTarget` manages the shadow map render target: a depth-only texture rendered from the light's perspective. The shadow map resolution is configurable. PCF filtering (percentage closer filtering) is applied in the pixel shader via a comparison sampler.
+
+Shadow map coverage is controlled per-light:
+
+- `LightShadowOrthoSize(light, size)` — sets the orthographic projection size (world units). Smaller = sharper shadows, fewer objects covered.
+- `LightShadowPlanes(light, near, far)` — sets the light camera's near and far planes. Tighter range = better depth precision, less shadow acne.
+- `LightShadowFov(light, fovRadians)` — for perspective (spotlight) shadow cameras.
+
+Shadow reception is per-material (`MaterialReceiveShadows`). Shadow casting is per-entity (`EntityCastShadows`).
+
+Only one directional light can cast shadows. It must be registered explicitly:
+
+```cpp
+Engine::SetDirectionalLight(light);
+```
+
+---
+
+## 14. Render-to-Texture
+
+`RenderTextureTarget` encapsulates a full render target: color texture, depth buffer, viewport, and clear color. It implements the `IRenderTarget` interface.
+
+The RTT workflow:
+
+```cpp
+LPRENDERTARGET rtt = nullptr;
+Engine::CreateRenderTexture(&rtt, 512, 512);
+Engine::SetRTTClearColor(rtt, 0.0f, 0.0f, 0.0f);
+
+Engine::SetRenderTarget(rtt, rttCamera);  // all RenderWorld() calls now render here
+Engine::RenderWorld();
+Engine::ResetRenderTarget();              // restore backbuffer
+
+LPTEXTURE rttTex = Engine::GetRTTTexture(rtt);
+Engine::MaterialSetAlbedo(screenMat, rttTex);
+```
+
+A separate `rttCamera` can be supplied to render the RTT pass from a different viewpoint than the main scene camera.
+
+SRV hazards between the RTT and the shadow pass are avoided by explicit unbinding before render target switches.
+
+---
+
+## 15. Skeletal Animation
+
+Skeletal animation uses a separate skinning shader pair (`VertexShaderSkinning.hlsl` / `SkinPixelShader.hlsl`) registered as `ShaderKey::StandardSkinned`.
+
+Bone data is per-vertex: four bone indices (`uint4`) and four bone weights (`float4`) stored in dedicated vertex streams. Bone weights must sum to 1.0.
+
+At runtime, an array of up to 128 `XMMATRIX` bone transforms is uploaded to the GPU via `Engine::SetEntityBoneMatrices`. On first call, the bone constant buffer (`b4`) is created on the mesh. Subsequent calls update it via `Map/Unmap`.
+
+The skinning vertex shader blends vertex positions and normals using the standard linear blend skinning formula. The result is passed to the standard pixel shader (or the skinned pixel shader variant), which handles lighting and material evaluation identically to static meshes.
+
+To create a skinned mesh:
+
+1. Build geometry with `AddVertex` / `VertexNormal` / `VertexTexCoord` as usual.
+2. Call `Engine::VertexBoneData(surface, vertexIndex, b0,b1,b2,b3, w0,w1,w2,w3)` for each vertex.
+3. Call `Engine::FillBuffer(surface)` to upload all streams.
+4. Create the material with `Engine::CreateSkinnedMaterial`.
+5. Each frame, call `Engine::SetEntityBoneMatrices(entity, matrices, count)` with the current pose.
+
+---
+
+## 16. Scene Graph and Hierarchy
+
+`Entity` supports an unlimited parent-child hierarchy. When a parent is assigned, the child's local transform remains stored as-is. `Entity::GetWorldMatrix()` recursively multiplies the local transform with the parent's world matrix.
+
+```
+world = local * parent->GetWorldMatrix()
+```
+
+Children do not own parents, and parents do not own children — the `ObjectManager` owns all entities. Setting a parent does not transfer ownership.
+
+The `Space` enum controls whether move and rotate operations apply in local or world space:
+
+```cpp
+enum class Space { Local, World };
+Engine::MoveEntity(wheel, 1.5f, 0.0f, 0.0f);                 // Local (default)
+Engine::MoveEntity(wheel, 1.5f, 0.0f, 0.0f, Space::World);   // World
+```
+
+---
+
+## 17. Render Layers and Camera Culling
+
+Render layers are 32-bit bitmasks. Each entity carries a `layerMask`; each camera carries a `cullMask`. An entity is visible to a camera only if `(entity->layerMask & camera->cullMask) != 0`.
+
+Predefined layer constants (from `RenderLayers.h`):
+
+| Constant | Bit | Typical use |
+|---|---|---|
+| `LAYER_DEFAULT` | 0 | Standard scene objects |
+| `LAYER_UI` | 1 | HUD / screen-space elements |
+| `LAYER_REFLECTION` | 2 | Reflection pass objects |
+| `LAYER_SHADOW` | 3 | Shadow-only objects |
+| `LAYER_FX` | 4 | Particles and effects |
+| `LAYER_ALL` | all bits | No culling (default camera mask) |
+
+---
+
+## 18. Timer
+
+`Timer` is a singleton (`Timer::GetInstance()`). It supports two time modes:
+
+- `TimeMode::VARIABLE_TIMESTEP` — raw delta time each frame (default)
+- `TimeMode::FIXED_TIMESTEP` — fixed 60 Hz steps with spiral-of-death protection (max 5 steps per frame)
+
+Static getters for game code:
+
+| Function | Description |
 |---|---|
-| `MeshAsset` | Geometry data container. Non-owning pointers to surfaces. Can be shared by multiple `MeshRenderer` instances (`ShareMeshAsset`). |
-| `Surface` | Single sub-geometry with vertex/index arrays and GPU buffer (`SurfaceGpuBuffer`). Ownership lies with the `ObjectManager`. |
-| `MeshRenderer` | Link between `MeshAsset` and materials. `slotMaterials[]` per slot. Material resolution: `slotMaterials[i]` -> engine default material. |
-| `Mesh (Entity)` | Carrier of `MeshRenderer`, transform, OBB, skinning data, collision mode. |
+| `Timer::GetDeltaTime()` | Seconds elapsed since the last frame |
+| `Timer::GetFPS()` | Current frames per second |
+| `Timer::GetFixedStep()` | Fixed step duration (1/60 s) |
+| `Timer::GetFixedSteps()` | Number of fixed steps to process this frame |
 
-### 4.2 Asset Sharing
+Always use `Timer::GetDeltaTime()`, never `Time.DeltaTime()`.
 
-`ShareMeshAsset(source, target)` lets two mesh entities reference the same `MeshAsset` instance. The geometry exists only once in GPU memory. Each instance has its own `MeshRenderer` and therefore its own material per slot, its own visibility, and its own transform. When deleting a mesh that carries a shared asset, `asset` must be set to `nullptr` before calling `DeleteMesh()` to prevent double deletion.
+---
 
-### 4.3 Tombstoning When Removing Slots
+## 19. DirectX Buffer Rules
 
-`RemoveSlot` on a `MeshAsset` replaces the slot with `nullptr` instead of compacting the vector. This keeps all existing slot indices stable as long as the asset is active. `NumActiveSlots()` counts only non-null slots. The renderer skips tombstone slots automatically.
+| Usage Flag | Allowed Update Method | Forbidden |
+|---|---|---|
+| `D3D11_USAGE_DEFAULT` | `UpdateSubresource()` | `Map` / `Unmap` |
+| `D3D11_USAGE_DYNAMIC` + `D3D11_CPU_ACCESS_WRITE` | `Map(WRITE_DISCARD)` + `Unmap` | `UpdateSubresource` |
+| `D3D11_USAGE_IMMUTABLE` | Only at creation time | Everything after creation |
 
-## 5. Material System
+Practical rules:
+- Constant buffers are always `DYNAMIC` + `Map/Unmap`
+- Static vertex / index buffers are `DEFAULT` or `IMMUTABLE` + `UpdateSubresource`
+- Dynamic vertex / index buffers (procedural geometry) are `DYNAMIC` + `Map/Unmap`
 
-### 5.1 `MaterialData` Layout
+---
 
-`MaterialData` is a C struct that exactly matches the `cbuffer MaterialBuffer` (register `b2`) in the pixel shader. It is 16-byte aligned. The struct contains classic fields (`baseColor`, `specularColor`), PBR fields (`metallic`, `roughness`, `normalScale`, `occlusionStrength`), emissive and UV tiling data, as well as a flags bitfield and a transparent `BlendMode` value.
+## 20. Coding Rules Summary
 
-### 5.2 Material Flags
+- Internal engine classes use the `GDX` prefix + PascalCase: `GDXEngine`, `GDXDevice`
+- Domain objects use plain PascalCase: `Mesh`, `Camera`, `Material`, `Surface`
+- Manager classes use PascalCase + `Manager` suffix: `ObjectManager`, `RenderManager`
+- All methods use PascalCase: `CreateMesh()`, `DeleteCamera()`, `GetPosition()`
+- Exception: STL-compatible methods stay lowercase: `begin()`, `end()`, `size()`
+- Instance members: `m_` prefix + camelCase: `m_hwnd`, `m_screenWidth`
+- Static members: `s_` prefix + camelCase: `s_instance`
+- Constants / `#define`: ALL_CAPS: `VERTEX_SHADER_FILE`, `SCREEN_DEPTH`
+- Scoped enums: `enum class` + PascalCase: `enum class RenderQueueType { Opaque, Transparent }`
+- Legacy enums / flags: ALL_CAPS: `D3DLIGHTTYPE`, `COLLISION`
+- `Core::` must never include `ID3D11Device` or `IDXGISwapChain`
+- Never write `using namespace DirectX;` in a header file
+- Shader file paths are defined as constants in `gdxengine.h`, never hardcoded inline
+- Comments are written in English. Existing German comments remain but are not continued
+- One function, one responsibility. If a comment contains the word "and", the function should be split
+- No global variables except `Engine::engine`
+- Per-frame `Debug::Log` output must be guarded by a debug flag
 
-| **Flag** | **Effect** |
-|---|---|
-| `MF_ALPHA_TEST (Bit 0)` | Alpha values below `alphaCutoff` are discarded. For foliage, fences, transparent surfaces without blending. |
-| `MF_USE_NORMAL_MAP (Bit 3)` | The normal map is evaluated in the pixel shader. Set automatically by `MaterialSetNormal`. |
-| `MF_USE_ORM_MAP (Bit 4)` | The ORM texture (occlusion/roughness/metallic combined) is read. Set by `MaterialSetORM`. |
-| `MF_USE_EMISSIVE (Bit 5)` | Emissive color is added. Activated by `MaterialEmissiveColor`. |
-| `MF_TRANSPARENT (Bit 6)` | Material goes into the transparent queue and is rendered sorted back-to-front. |
-| `MF_SHADING_PBR (Bit 10)` | Switches to the PBR lighting model (Cook-Torrance GGX). Opt-in via `MaterialUsePBR()`. |
+---
 
-### 5.3 Texture Slots in the Shader
+## 21. Known Constraints and Pitfalls
 
-The pixel shader reads textures through a global `TexturePool`. Each texture receives a stable `uint32` index when registered. The material stores these indices as `albedoIndex`, `normalIndex`, `ormIndex`, `decalIndex`, and so on. The slot convention for `MaterialTexture` is: `0=Albedo`, `1=Normal`, `2=ORM`, `3=Decal`.
+**Dynamic texture array indexing is unsupported.** `Texture2D gTex[16]` cannot be dynamically indexed in HLSL SM5.0 under Feature Level 11_0. All texture bindings use individual named slots (`t0`–`t6`).
 
-### 5.4 TexturePool
+**Constant buffer register conflicts are silent.** Assigning two buffers to the same register produces no compiler error but corrupts rendering. Verify register assignments across all shaders when adding new buffers. Custom buffers must use `b3` or higher.
 
-The `TexturePool` is a central SRV manager. `GetOrAdd(srv)` returns a stable index; if the SRV already exists, the existing index is returned. Default textures are created at engine startup: `WhiteTexture` (index 0), `FlatNormalTexture` (index 1), `DefaultORM` (index 2). Materials without an explicit texture assignment automatically receive these default values.
+**SRV hazards between passes.** The shadow map SRV and RTT SRVs must be explicitly unbound before switching render targets. Leaving an SRV bound while its underlying texture is also bound as a render target produces undefined behavior in DX11.
 
-## 6. Render Pipeline
+**MeshAsset co-deletion.** `DeleteMesh` deletes the associated `MeshAsset` if no other mesh references it. Shared assets must be detached before deletion. Call `DetachMeshAsset` before `DeleteMesh` when sharing.
 
-### 6.1 Two-Phase Rendering
+**Shader-side TBN re-orthogonalization is redundant.** `Surface::ComputeTangents()` already orthogonalizes the TBN basis on the CPU. Applying Gram-Schmidt in the vertex or pixel shader introduces drift and should be avoided.
 
-Each frame goes through two main phases. Phase 1 is the shadow pass: the scene graph is rendered from the point of view of the directional light, and only depth information is written to the shadow map. Phase 2 is the normal pass: opaque geometry is sorted in the render queue by sort key (shader ID, material ID, depth) and rendered front-to-back. This is followed by the transparent pass with back-to-front sorting.
+**Tombstoning in MeshAsset.** `RemoveSlot` sets the slot pointer to `nullptr` rather than erasing the entry. Slot indices are therefore permanent for the lifetime of the asset. Code iterating `MeshAsset::GetSlots()` must handle `nullptr` entries.
 
-### 6.2 Render Queue and Sort Key
+**Per-camera debug guards.** Debug output guards that track "logged once" state for multiple cameras must use `unordered_map<void*, size_t>` keyed on the camera pointer. A single static bool breaks when multiple cameras are active.
 
-The render queue collects `RenderCommand` objects, each carrying a 64-bit sort key. The sort key encodes shader pointer (upper bits), material pointer, and depth so that state changes are minimized. For the transparent pass, pairs of `(depth, RenderCommand)` are used and sorted by descending depth so that more distant objects are rendered first.
+**F0 calculation for PBR metallic.** The Fresnel base reflectance must be computed from the final composited albedo (after all detail map blending is applied), not from a pre-blend approximation.
 
-### 6.3 Shadow Mapping
+**`UpdateSubresource` is invalid for `DYNAMIC` buffers.** Only `Map/Unmap` (with `D3D11_MAP_WRITE_DISCARD`) is valid for `DYNAMIC` constant buffers and dynamic vertex buffers.
 
-Shadow mapping uses a dedicated shadow map render target (`ShadowMapTarget`). Only one directional light can cast shadows at the same time. The shadow pass renders all shadow-casting meshes from the light's point of view into a depth texture. In the normal pass, this depth buffer is bound as an SRV and evaluated with PCF filtering (percentage closer filtering) for soft shadows. `MaterialReceiveShadows` controls at the material level whether an object receives shadows.
-
-### 6.4 Render-to-Texture (RTT)
-
-`CreateRenderTexture` creates a `RenderTextureTarget` instance. `SetRenderTarget` redirects all subsequent `RenderWorld()` calls into this texture. `GetRTTTexture` returns the resulting texture as `LPTEXTURE` for `MaterialSetAlbedo` or `EntityTexture`. `ResetRenderTarget` restores the backbuffer as the active render target. SRV hazards between the shadow pass and RTT are prevented by explicit unbinding before target switches.
-
-### 6.5 Camera Layer Culling
-
-Each entity carries a `LayerMask` (`uint32`). Each camera carries a `CullMask`. When building the render queue, only entities whose `LayerMask & CullMask != 0` are passed through. This makes separate render passes for UI, reflection, or other effects possible without creating scene copies. Constants such as `LAYER_DEFAULT`, `LAYER_ALL`, and custom bitmasks are defined in `RenderLayers.h`.
-
-## 7. Shader System
-
-### 7.1 Constant Buffer Assignment
-
-Register assignment is fixed and must remain consistent across all shaders. Conflicts on one register are a silent error (no compile error, wrong rendering).
-
-| **Register** | **Buffer / Content** |
-|---|---|
-| `b0 - MatrixBuffer` | World, view, and projection matrix of the current entity. Updated per mesh draw. |
-| `b1 - LightBuffer` | Light data of the active directional light (color, direction, view/proj for shadow map). |
-| `b2 - MaterialBuffer` | `MaterialData` of the current material (color, PBR parameters, flags, blend mode). |
-| `b3+ - Custom Buffers` | Application-specific or feature-specific buffers. Reserved for custom shader extensions. |
-| `b4 - BoneBuffer` | 128 bone matrices for skeletal animation. Updated each frame via `SetEntityBoneMatrices`. |
-
-### 7.2 Vertex Format Flags
-
-The shader compiler and input layout system work with `DWORD` flags from `CreateVertexFlags()`. Each flag activates one vertex stream: `D3DVERTEX_POSITION`, `D3DVERTEX_NORMAL`, `D3DVERTEX_COLOR`, `D3DVERTEX_TEX1`, `D3DVERTEX_TEX2`, `D3DVERTEX_TANGENT`, `D3DVERTEX_BONE_INDICES`, `D3DVERTEX_BONE_WEIGHTS`. `FillBuffer()` reads these flags and creates only the vertex buffers for which the shader actually expects data.
-
-### 7.3 Known Limitations (DX11 / SM5.0)
-
-Dynamic texture array indexing (`Texture2D gTex[16]`) is not compatible with SM5.0. The `TexturePool` therefore uses individual, explicitly named texture bindings. `UpdateSubresource()` is valid only for `DEFAULT` usage buffers; `DYNAMIC` buffers require `Map/Unmap`. Operator overloads for enums must be defined in header files, not in `.cpp` files, so they are visible in all translation units.
-
-## 8. Skeletal Animation
-
-The skinning system transfers up to four bone indices and four bone weights per vertex to the GPU. `VertexBoneData()` sets this data for a single vertex before `FillBuffer()` is called. `SetEntityBoneMatrices()` loads an array of `XMMATRIX` bone transformations into the bone buffer (`b4`) on the GPU. The skinning vertex shader transforms each vertex as a weighted sum of the four bone matrices. `hasSkinning` on the mesh controls which vertex shader path is used.
-
-## 9. Timer and Frame Control
-
-The timer is a singleton. `Core::BeginFrame()` and `Core::EndFrame()` bracket the update step and update the internal timing values. Access is exclusively through static getters.
-
-| **Function** | **Meaning** |
-|---|---|
-| `Timer::GetDeltaTime()` | Elapsed time since the last frame in seconds (`double`). For frame-rate-independent movement. |
-| `Timer::GetFPS()` | Currently measured frames per second. |
-| `Timer::GetFixedStep()` | Fixed time increment for physics-relevant updates. |
-| `Timer::GetFixedSteps()` | Number of fixed-update steps for the current frame. |
-
-## 10. Known Architecture Patterns and Pitfalls
-
-### 10.1 MeshAsset Co-Deletion
-
-`DeleteMesh()` deletes the `MeshAsset` linked to the mesh by default. If two meshes share the same asset via `ShareMeshAsset()`, the asset of the mesh being deleted must be set to `nullptr` before calling `DeleteMesh()`. Otherwise the shared asset will be freed twice.
-
-### 10.2 SRV Hazards Between Passes
-
-DirectX 11 does not allow a texture to be bound as both a render target view and a shader resource view at the same time. Before every render target switch (shadow map -> backbuffer, backbuffer -> RTT), all SRV bindings must be explicitly set to `nullptr`. The `RenderManager` handles this internally, but custom backend extensions must observe this as well.
-
-### 10.3 Memory Leak Through Container Ownership
-
-When deleting resources, the resource must be removed from its owning container in the `ObjectManager`, not merely have its pointer set to null. The `ObjectManager` is the sole owner of all entities, materials, and assets. Pointers held in other structures are non-owning and must not be used for deletion.
-
-### 10.4 F0 Computation in PBR
-
-The F0 computation (Fresnel base reflectivity) for metallic materials must use the final blended albedo, not a pre-blend approximation. If F0 is calculated before detail map blending, visible artifacts occur with high metallic values combined with detail maps.
-
-### 10.5 Debug Output
-
-All `Debug::Log()` calls begin with the file name as the first element, followed by a descriptive message. Example: `Debug::Log("gdxdevice.cpp: Comparison Sampler created")`. This is the binding coding rule of the engine.
-
-## 11. Planned Extensions
-
-| **Feature** | **Status / Dependency** |
-|---|---|
-| Assimp model loader | In preparation. The scene graph foundation (`aiNode` mapping) is implemented. `vcpkg` integration is planned. |
-| Octree spatial partitioning | Planned after RTT stabilization. For scene-level culling. |
-| Per-mesh BVH (collision) | Planned after octree. For triangle-level collision detection. |
-| Bullet physics integration | Preferred. A BlitzBasic-style wrapper API is planned. |
-| SortKey revision (numeric IDs) | Highest-priority render optimization. Replaces pointer truncation with compact numeric IDs in a 64-bit bitfield. |
-| Entity lifecycle (`OnStart`/`OnUpdate`/`OnDestroy`) | Self-registration in `ScriptManager` planned. |
-| Constant buffer ring buffer | Low priority. Depends on profiling results. |
+**Operator overloads for enums must be in headers.** Enum operator overloads defined in `.cpp` files are not visible across translation units and produce linker errors.

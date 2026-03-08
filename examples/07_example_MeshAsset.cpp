@@ -37,7 +37,7 @@ int main()
     Engine::MaterialSetAlbedo(matB, texB);
 
     // ------------------------------------------------------------------
-    // 1) Entity A: Würfel erzeugen -> erzeugt Geometrie (MeshAsset + Slot 0)
+    // 1) Entity A: Wrfel erzeugen -> erzeugt Geometrie (MeshAsset + Slot 0)
     // ------------------------------------------------------------------
     LPENTITY cubeA = nullptr;
     CreateCube(&cubeA, matA);            // erzeugt Mesh + Surface(slot0) + Geometrie
@@ -53,9 +53,9 @@ int main()
     // Asset teilen (beide zeigen auf denselben MeshAsset)
     Mesh* mA = cubeA->AsMesh();
     Mesh* mB = cubeB->AsMesh();
-    mB->meshRenderer.asset = mA->meshRenderer.asset;
+    Engine::engine->GetOM().SetMeshAsset(mB, mA->BorrowMeshAsset());
 
-    // Slot-Materialien pro Instanz setzen (Slot 0, weil Würfel 1 Surface hat)
+    // Slot-Materialien pro Instanz setzen (Slot 0, weil Wrfel 1 Surface hat)
     Engine::engine->GetOM().SetSlotMaterial(mA, 0, matA);
     Engine::engine->GetOM().SetSlotMaterial(mB, 0, matB);
 

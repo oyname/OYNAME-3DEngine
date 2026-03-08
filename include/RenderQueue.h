@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <DirectXMath.h>
 #include "RenderCommand.h"
+#include "Shader.h"
+#include "Material.h"
 
 class Shader;
 class Material;
@@ -42,19 +44,20 @@ struct RenderQueue
         commands.push_back(cmd);
     }
 
-    // Sortiert nach Shader, dann Material -- minimiert GPU-State-Wechsel.
+    // Sortiert nach stabiler Shader-ID, dann Material-ID.
+    // Minimiert GPU-State-Wechsel ohne Pointer-Truncation auf 64-bit Plattformen.
+    // ID 0 bedeutet: Objekt wurde nicht ueber ObjectManager::Create* angelegt –
+    // solche Commands landen ans Ende (nach allen gueltigen Batches).
     void Sort()
     {
         std::sort(commands.begin(), commands.end(),
             [](const RenderCommand& a, const RenderCommand& b) {
-                // Kollisionsfreie, 64-bit sichere Ordnung:
-                // erst Shader-Pointer, dann Material-Pointer (lexikographisch).
-                const auto as = reinterpret_cast<std::uintptr_t>(a.shader);
-                const auto bs = reinterpret_cast<std::uintptr_t>(b.shader);
+                const uint32_t as = a.shader   ? a.shader->id   : 0xFFFFFFFFu;
+                const uint32_t bs = b.shader   ? b.shader->id   : 0xFFFFFFFFu;
                 if (as != bs) return as < bs;
 
-                const auto am = reinterpret_cast<std::uintptr_t>(a.material);
-                const auto bm = reinterpret_cast<std::uintptr_t>(b.material);
+                const uint32_t am = a.material ? a.material->id : 0xFFFFFFFFu;
+                const uint32_t bm = b.material ? b.material->id : 0xFFFFFFFFu;
                 return am < bm;
             });
     }

@@ -50,7 +50,7 @@ static void CreateWaterGrid(
 
     LPSURFACE surface = nullptr;
     Engine::CreateSurface(&surface, *mesh);
-    Engine::SurfaceMaterial(surface, material);   // Material VOR FillBuffer
+    Engine::SetSlotMaterial(*mesh, 0, material);   // Slot-Material VOR FillBuffer
 
     const int vertsX = cellsX + 1;
     const int vertsZ = cellsZ + 1;
@@ -97,7 +97,7 @@ static void CreateWaterGrid(
         }
     }
 
-    Engine::FillBuffer(surface);
+    Engine::FillBuffer(*mesh, 0);
 }
 
 // -----------------------------------------------------------------------
