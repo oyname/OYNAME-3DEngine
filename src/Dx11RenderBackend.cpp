@@ -1,7 +1,11 @@
 #include "Dx11RenderBackend.h"
 #include "Dx11ShadowMap.h"
+#include "Dx11LightManagerGpuData.h"
+#include "LightArrayBuffer.h"
 #include "gdxdevice.h"
 #include "Entity.h"
+#include "Mesh.h"
+#include "Light.h"
 #include "Dx11EntityGpuData.h"
 #include "Dx11MaterialGpuData.h"
 #include "Material.h"
@@ -25,7 +29,9 @@ Dx11RenderBackend::Dx11RenderBackend(GDXDevice& device)
 {
     m_device = &device;
     device.AttachDx11Backend(this);
-    m_shadow = std::make_unique<Dx11ShadowMap>();
+    m_shadow      = std::make_unique<Dx11ShadowMap>();
+    m_lightGpuData = std::make_unique<Dx11LightManagerGpuData>();
+    m_lightCBData  = std::make_unique<LightArrayBuffer>();
 
     CreateFrameStates(device);
 
@@ -124,6 +130,61 @@ void Dx11RenderBackend::BindEntityConstants(GDXDevice& device, const Entity& ent
     if (!device.IsInitialized()) return;
     if (!entity.gpuData) return;
     entity.gpuData->Bind(&device);
+}
+
+void Dx11RenderBackend::BindBoneConstants(GDXDevice& device, const Mesh& mesh)
+{
+    if (!mesh.hasSkinning || !mesh.boneConstantBuffer) return;
+    if (!device.IsInitialized()) return;
+
+    ID3D11DeviceContext* ctx = device.GetDeviceContext();
+    if (!ctx) return;
+
+    // Bone palette lives at VS b4. Slot is fixed; no PS bind needed.
+    ctx->VSSetConstantBuffers(4, 1, &mesh.boneConstantBuffer);
+}
+
+// ---------------------------------------------------------------------------
+// Step 5: light constants + entity frame stats
+// ---------------------------------------------------------------------------
+
+void Dx11RenderBackend::UploadLightConstants(
+    const std::vector<Light*>& lights,
+    const DirectX::XMFLOAT4&  globalAmbient)
+{
+    if (!m_device) return;
+
+    if (!m_lightGpuData->IsReady())
+        m_lightGpuData->Init(m_device, sizeof(LightArrayBuffer));
+
+    for (size_t i = 0; i < lights.size(); ++i)
+    {
+        lights[i]->Update(m_device);
+
+        // Only the first light carries the global ambient; the rest get zero.
+        const DirectX::XMFLOAT4 ambient = (i == 0)
+            ? globalAmbient
+            : DirectX::XMFLOAT4(0.f, 0.f, 0.f, 0.f);
+
+        m_lightCBData->lights[i].lightPosition      = lights[i]->cbLight.lightPosition;
+        m_lightCBData->lights[i].lightDirection     = lights[i]->cbLight.lightDirection;
+        m_lightCBData->lights[i].lightDiffuseColor  = lights[i]->cbLight.lightDiffuseColor;
+        m_lightCBData->lights[i].lightAmbientColor  = ambient;
+    }
+
+    m_lightCBData->lightCount = static_cast<unsigned int>(lights.size());
+    m_lightGpuData->Upload(m_device, *m_lightCBData);
+}
+
+IRenderBackend::EntityStats Dx11RenderBackend::GetEntityFrameStats() const
+{
+    const EntityGpuData::FrameStats s = EntityGpuData::GetFrameStats();
+    return EntityStats{ s.uploads, s.binds, s.ringRotations };
+}
+
+void Dx11RenderBackend::ResetEntityFrameStats()
+{
+    EntityGpuData::ResetFrameStats();
 }
 
 void Dx11RenderBackend::UpdateShadowMatrixBuffer(

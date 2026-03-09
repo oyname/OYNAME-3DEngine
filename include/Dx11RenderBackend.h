@@ -10,14 +10,16 @@ struct ID3D11BlendState;
 struct ID3D11ShaderResourceView;
 
 class Dx11ShadowMap;
+class Dx11LightManagerGpuData;
+struct LightArrayBuffer;
 class GDXDevice;
 
 // DX11 backend (copy + redirect).
-// Houses all DX11 state that was previously scattered in RenderManager:
-//   - default sampler (s0)
-//   - alpha blend state / no-blend state
+// Owns all DX11 state formerly scattered in RenderManager:
+//   - default sampler (s0), blend states
 //   - SRV cache for t0..t6
-// These are created in the constructor once the device is available.
+//   - light array CB (b1) and its CPU-side LightArrayBuffer
+//   - shadow map
 class Dx11RenderBackend : public IRenderBackend
 {
 public:
@@ -27,7 +29,17 @@ public:
     explicit Dx11RenderBackend(GDXDevice& device);
     ~Dx11RenderBackend() override;
 
+    // Step 4
     void BindEntityConstants(GDXDevice& device, const Entity& entity) override;
+    void BindBoneConstants(GDXDevice& device, const Mesh& mesh) override;
+
+    // Step 5
+    void UploadLightConstants(
+        const std::vector<Light*>& lights,
+        const DirectX::XMFLOAT4&  globalAmbient) override;
+
+    EntityStats GetEntityFrameStats() const override;
+    void        ResetEntityFrameStats() override;
 
     // Step 1
     void UpdateShadowMatrixBuffer(
@@ -42,9 +54,7 @@ public:
     // Step 2
     void BeginShadowPass() override;
     void EndShadowPass() override;
-
-    // Legacy (kept)
-    void BeginShadowPass(GDXDevice& device, ShadowMapTarget& shadowTarget) override;
+    void BeginShadowPass(GDXDevice& device, ShadowMapTarget& shadowTarget) override; // legacy
 
     void BeginMainPass(
         GDXDevice& device,
@@ -54,7 +64,6 @@ public:
     void EndMainPass() override;
 
     void BeginRttPass(GDXDevice& device, RenderTextureTarget& rttTarget) override;
-
     void EndRttPass() override;
 
     // Step 3
@@ -63,10 +72,10 @@ public:
     void BindMaterial(const Material* material, const TexturePool* texturePool) override;
     void SetAlphaBlend(bool enable) override;
 
-    // Internal: called by GDXDevice::CreateShadowBuffer (API-stable wrapper).
+    // Internal: called by GDXDevice::CreateShadowBuffer.
     bool EnsureShadowCreated(GDXDevice& device, unsigned int width, unsigned int height);
 
-    Dx11ShadowMap& GetShadow();
+    Dx11ShadowMap&       GetShadow();
     const Dx11ShadowMap& GetShadow() const;
 
 private:
@@ -79,10 +88,15 @@ private:
     ID3D11BlendState*   m_alphaBlendState = nullptr;
     ID3D11BlendState*   m_noBlendState    = nullptr;
 
-    // SRV cache: last-bound set for t0..t6 (7 slots).
-    // Avoids redundant PSSetShaderResources calls between materials.
+    // SRV cache: last-bound set for t0..t6.
     static constexpr int SRV_SLOT_COUNT = 7;
     ID3D11ShaderResourceView* m_boundSRVs[SRV_SLOT_COUNT] = {};
+
+    // Light constant buffer (formerly in RenderManager).
+    // Owned via unique_ptr so Dx11LightManagerGpuData and LightArrayBuffer
+    // remain out of this header (forward-declared above).
+    std::unique_ptr<Dx11LightManagerGpuData> m_lightGpuData;
+    std::unique_ptr<LightArrayBuffer>        m_lightCBData;
 
     void CreateFrameStates(GDXDevice& device);
 };

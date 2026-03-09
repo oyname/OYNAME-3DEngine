@@ -1,11 +1,8 @@
 #include "gdxengine.h"
 #include "RenderManager.h"
-#include "LightArrayBuffer.h"
 #include "Viewport.h"
 #include "Light.h"
 #include "Dx11RenderBackend.h"
-#include "Dx11MaterialGpuData.h"
-#include "Dx11EntityGpuData.h"
 #include <unordered_map>
 
 RenderManager::RenderManager(Scene& scene, AssetManager& assetManager, GDXDevice& device)
@@ -17,8 +14,7 @@ RenderManager::RenderManager(Scene& scene, AssetManager& assetManager, GDXDevice
 
 RenderManager::~RenderManager()
 {
-    // All DX11 state (sampler, blend states, SRV cache) lives in Dx11RenderBackend
-    // and is released there. Nothing to do here beyond the default destructors.
+    // All DX11 state lives in Dx11RenderBackend and is released there.
 }
 
 void RenderManager::SetCamera(LPENTITY camera)
@@ -45,25 +41,27 @@ void RenderManager::UpdateShadowMatrixBuffer(const DirectX::XMMATRIX& viewMatrix
 
 void RenderManager::LogFrameStatsIfChanged()
 {
-    const EntityGpuData::FrameStats entityStats = EntityGpuData::GetFrameStats();
-    m_frameStats.entityUploads       = entityStats.uploads;
-    m_frameStats.entityConstantBinds = entityStats.binds;
-    m_frameStats.entityRingRotations = entityStats.ringRotations;
+    // Entity stats live inside EntityGpuData (backend implementation detail).
+    // Queried through the backend interface to keep RenderManager DX11-free.
+    const IRenderBackend::EntityStats e = m_backend->GetEntityFrameStats();
+    m_frameStats.entityUploads       = e.uploads;
+    m_frameStats.entityConstantBinds = e.binds;
+    m_frameStats.entityRingRotations = e.ringRotations;
 
     if (!m_hasLastLoggedFrameStats || m_frameStats != m_lastLoggedFrameStats)
     {
         DBLOG("RenderManager.cpp: Frame stats"
-            " shadowDrawCalls=",  m_frameStats.shadowDrawCalls,
-            " opaqueDrawCalls=",  m_frameStats.opaqueDrawCalls,
+            " shadowDrawCalls=",      m_frameStats.shadowDrawCalls,
+            " opaqueDrawCalls=",      m_frameStats.opaqueDrawCalls,
             " transparentDrawCalls=", m_frameStats.transparentDrawCalls,
-            " shaderBinds=",      m_frameStats.shaderBinds,
-            " materialBinds=",    m_frameStats.materialBinds,
-            " entityUploads=",    m_frameStats.entityUploads,
-            " entityCBBinds=",    m_frameStats.entityConstantBinds,
-            " ringRotations=",    m_frameStats.entityRingRotations);
+            " shaderBinds=",          m_frameStats.shaderBinds,
+            " materialBinds=",        m_frameStats.materialBinds,
+            " entityUploads=",        m_frameStats.entityUploads,
+            " entityCBBinds=",        m_frameStats.entityConstantBinds,
+            " ringRotations=",        m_frameStats.entityRingRotations);
 
-        m_lastLoggedFrameStats        = m_frameStats;
-        m_hasLastLoggedFrameStats     = true;
+        m_lastLoggedFrameStats    = m_frameStats;
+        m_hasLastLoggedFrameStats = true;
     }
 }
 
@@ -101,7 +99,7 @@ void RenderManager::RenderMainPassAtomic()
 
     const bool isRtt = (m_activeRTT != nullptr);
 
-    // 1) Begin pass (bind RT/DS, viewport, RS)
+    // 1) Bind render target, viewport, rasterizer state
     if (isRtt)
     {
         m_backend->BeginRttPass(m_device, *m_activeRTT);
@@ -113,7 +111,7 @@ void RenderManager::RenderMainPassAtomic()
         m_backend->BeginMainPass(m_device, m_backbufferTarget, m_currentCam->viewport);
     }
 
-    // 2) Bind shadow resources / constants
+    // 2) Shadow resources + matrix constants
     m_backend->BindShadowResourcesPS(m_device, m_shadowTarget);
 
     if (m_directionLight)
@@ -126,31 +124,13 @@ void RenderManager::RenderMainPassAtomic()
         }
     }
 
-    // 3) Per-frame lighting constants
+    // 3) Light array constant buffer (b1)
     {
-        auto& lights = m_scene.GetLights();
-
-        if (!m_lightGpuData.IsReady())
-            m_lightGpuData.Init(&m_device, sizeof(LightArrayBuffer));
-
         DirectX::XMFLOAT4 globalAmbient(0.2f, 0.2f, 0.2f, 1.0f);
         if (GDXEngine::GetInstance())
             globalAmbient = GDXEngine::GetInstance()->GetGlobalAmbient();
 
-        for (size_t i = 0; i < lights.size(); ++i)
-        {
-            lights[i]->Update(&m_device);
-            DirectX::XMFLOAT4 ambient = (i == 0)
-                ? globalAmbient
-                : DirectX::XMFLOAT4(0.f, 0.f, 0.f, 0.f);
-
-            m_lightCBData.lights[i].lightPosition      = lights[i]->cbLight.lightPosition;
-            m_lightCBData.lights[i].lightDirection     = lights[i]->cbLight.lightDirection;
-            m_lightCBData.lights[i].lightDiffuseColor  = lights[i]->cbLight.lightDiffuseColor;
-            m_lightCBData.lights[i].lightAmbientColor  = ambient;
-        }
-        m_lightCBData.lightCount = static_cast<unsigned int>(lights.size());
-        m_lightGpuData.Upload(&m_device, m_lightCBData);
+        m_backend->UploadLightConstants(m_scene.GetLights(), globalAmbient);
     }
 
     // 4) Queue build + draw
@@ -170,9 +150,11 @@ void RenderManager::InvalidateFrame()
     m_opaque.Clear();
     m_shadow.Clear();
     m_transFrame.clear();
-    m_frameStats  = {};
-    m_flushOnce   = false;
-    EntityGpuData::ResetFrameStats();
+    m_frameStats = {};
+    m_flushOnce  = false;
+
+    // Entity frame stats are backend-owned; reset through the interface.
+    m_backend->ResetEntityFrameStats();
 
     for (Mesh* mesh : m_scene.GetMeshes())
         if (mesh) mesh->ResetFrameFlag();
@@ -281,7 +263,7 @@ void RenderManager::BuildRenderQueue()
             Shader* shader = material->pRenderShader;
 
             DBLOG_ONCE("STD_MAT_CHECK",
-                "STD=",    (void*)m_assetManager.GetStandardMaterial(),
+                "STD=",     (void*)m_assetManager.GetStandardMaterial(),
                 " shader=", (void*)(m_assetManager.GetStandardMaterial() ? m_assetManager.GetStandardMaterial()->pRenderShader : nullptr),
                 " gpu=",    (void*)(m_assetManager.GetStandardMaterial() ? m_assetManager.GetStandardMaterial()->gpuData : nullptr));
 
@@ -294,13 +276,13 @@ void RenderManager::BuildRenderQueue()
                 float depth = DirectX::XMVectorGetX(DirectX::XMVector3LengthSq(diff));
 
                 RenderCommand cmd;
-                cmd.mesh       = mesh;
-                cmd.surface    = surface;
-                cmd.world      = world;
-                cmd.shader     = shader;
-                cmd.material   = material;
+                cmd.mesh        = mesh;
+                cmd.surface     = surface;
+                cmd.world       = world;
+                cmd.shader      = shader;
+                cmd.material    = material;
                 cmd.flagsVertex = shader->flagsVertex;
-                cmd.backend    = m_backend.get();
+                cmd.backend     = m_backend.get();
                 m_transFrame.emplace_back(depth, cmd);
             }
             else
@@ -363,9 +345,8 @@ void RenderManager::FlushShadowQueue(const DirectX::XMMATRIX& lightViewMatrix,
     {
         if (!cmd.shader || !cmd.mesh || !cmd.surface) continue;
 
-        // Non-skinned: use dedicated shadow VS (VertexShader_Shadow.hlsl).
-        //   Reads world from b0, light view/proj from b3 (ShadowMatrixBuffer).
-        // Skinned: use material VS in VS_ONLY mode (writes light matrices to b0).
+        // Non-skinned: dedicated shadow VS reads world from b0, light VP from b3.
+        // Skinned: material VS in VS_ONLY mode writes light matrices to b0.
         const bool useShadowVS  = (m_shadowShader != nullptr && !cmd.mesh->hasSkinning);
         Shader*    activeShader = useShadowVS ? m_shadowShader : cmd.shader;
 
@@ -399,7 +380,7 @@ void RenderManager::FlushShadowQueue(const DirectX::XMMATRIX& lightViewMatrix,
         ++drawCalls;
     }
 
-    m_frameStats.shaderBinds    += shaderBinds;
+    m_frameStats.shaderBinds     += shaderBinds;
     m_frameStats.shadowDrawCalls += drawCalls;
 }
 
@@ -412,7 +393,6 @@ void RenderManager::FlushRenderQueue()
     Shader*   lastShader   = nullptr;
     Material* lastMaterial = nullptr;
 
-    // Reset SRV cache and bind the frame-level sampler (s0) once.
     m_backend->ResetMaterialCache();
     m_backend->BindFrameSampler();
 
@@ -447,9 +427,9 @@ void RenderManager::FlushRenderQueue()
         cmd.Execute(&m_device);
     }
 
-    m_frameStats.shaderBinds       += shaderBinds;
-    m_frameStats.materialBinds     += materialBinds;
-    m_frameStats.opaqueDrawCalls   += drawCalls;
+    m_frameStats.shaderBinds     += shaderBinds;
+    m_frameStats.materialBinds   += materialBinds;
+    m_frameStats.opaqueDrawCalls += drawCalls;
 }
 
 void RenderManager::FlushTransparentQueue()
@@ -460,7 +440,6 @@ void RenderManager::FlushTransparentQueue()
     unsigned int materialBinds = 0;
     unsigned int drawCalls     = 0;
 
-    // Reset SRV cache, bind sampler, enable alpha blending.
     m_backend->ResetMaterialCache();
     m_backend->BindFrameSampler();
     m_backend->SetAlphaBlend(true);
@@ -500,7 +479,6 @@ void RenderManager::FlushTransparentQueue()
     m_frameStats.materialBinds        += materialBinds;
     m_frameStats.transparentDrawCalls += drawCalls;
 
-    // Restore opaque blend state.
     m_backend->SetAlphaBlend(false);
 }
 
@@ -508,10 +486,12 @@ void RenderManager::RenderScene()
 {
     if (!m_currentCam) return;
 
-    InvalidateFrame();
-
+    // EnsureBackend first: InvalidateFrame delegates stats reset to the backend,
+    // so the backend must exist before InvalidateFrame is called.
     EnsureBackend();
     if (!m_backend) return;
+
+    InvalidateFrame();
 
     LPENTITY savedCam = m_currentCam;
     if (m_activeRTT && m_rttCamera)
@@ -529,13 +509,11 @@ void RenderManager::EnsureBackend()
 {
     if (m_backend) return;
 
-    if (!m_device.GetDevice() || !m_device.GetDeviceContext())
+    if (!m_device.IsInitialized())
     {
-        DBERROR("RenderManager.cpp: EnsureBackend - device/context not ready");
+        DBERROR("RenderManager.cpp: EnsureBackend - device not ready");
         return;
     }
 
-    // Dx11RenderBackend constructor creates the sampler, blend states, and SRV cache
-    // (formerly created here). EnsureBackend is now a thin factory call.
     m_backend = std::make_unique<Dx11RenderBackend>(m_device);
 }

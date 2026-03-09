@@ -9,29 +9,26 @@ void RenderCommand::Execute(const GDXDevice* device) const
 {
     if (!mesh || !surface || !device) return;
 
-    // The backend is responsible for bindings.
-    // Ohne Backend: wir koennen trotzdem zeichnen, aber dann fehlen ggf. CB-Bindings.
     GDXDevice& dev = *const_cast<GDXDevice*>(device);
 
-    // Upload mesh matrix (only on first occurrence per frame)
+    // Upload the entity matrix CB (b0) on first draw this frame;
+    // for subsequent draws of the same mesh only re-bind the existing buffer.
+    // The ring buffer inside EntityGpuData ensures no GPU hazard between passes.
     if (!mesh->IsUpdatedThisFrame())
     {
-        // MatrixSet is set by RenderManager before the flush --
-        // hier greifen wir direkt auf das bereits korrekt befuellte matrixSet zu.
+        // matrixSet is written by RenderManager before the flush.
         mesh->Update(device, &mesh->matrixSet);
         mesh->MarkUpdated();
     }
     else
     {
-        // Bereits hochgeladen: nur Constant Buffer binden (backend-spezifisch)
         if (backend) backend->BindEntityConstants(dev, *mesh);
     }
 
-    // Bone-Constant-Buffer auf b4 binden wenn Mesh Skinning verwendet
-    if (mesh->hasSkinning && mesh->boneConstantBuffer)
+    // Bone palette CB (b4) — routed through the backend, no DX11 in Execute.
+    if (mesh->hasSkinning)
     {
-        ID3D11DeviceContext* ctx = device->GetDeviceContext();
-        if (ctx) ctx->VSSetConstantBuffers(4, 1, &mesh->boneConstantBuffer);
+        if (backend) backend->BindBoneConstants(dev, *mesh);
     }
 
     surface->gpu->Draw(device, flagsVertex);

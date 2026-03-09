@@ -2,8 +2,6 @@
 #include "Scene.h"
 #include "AssetManager.h"
 #include "TexturePool.h"
-#include "Dx11LightManagerGpuData.h"
-#include "LightArrayBuffer.h"
 #include "RenderQueue.h"
 #include "gdxdevice.h"
 #include "ShadowMapTarget.h"
@@ -11,7 +9,8 @@
 #include "RenderTextureTarget.h"
 #include <memory>
 
-// No <d3d11.h> here. All DX11 types live in Dx11RenderBackend.
+// No <d3d11.h>, no Dx11LightManagerGpuData, no LightArrayBuffer.
+// All GPU work lives in the backend or in RenderCommand::Execute.
 
 class IRenderBackend;
 class Dx11RenderBackend;
@@ -21,14 +20,14 @@ class RenderManager
 public:
     struct FrameStats
     {
-        unsigned int opaqueDrawCalls        = 0;
-        unsigned int transparentDrawCalls   = 0;
-        unsigned int shadowDrawCalls        = 0;
-        unsigned int shaderBinds            = 0;
-        unsigned int materialBinds          = 0;
-        unsigned int entityUploads          = 0;
-        unsigned int entityConstantBinds    = 0;
-        unsigned int entityRingRotations    = 0;
+        unsigned int opaqueDrawCalls      = 0;
+        unsigned int transparentDrawCalls = 0;
+        unsigned int shadowDrawCalls      = 0;
+        unsigned int shaderBinds          = 0;
+        unsigned int materialBinds        = 0;
+        unsigned int entityUploads        = 0;
+        unsigned int entityConstantBinds  = 0;
+        unsigned int entityRingRotations  = 0;
 
         bool operator==(const FrameStats& other) const noexcept
         {
@@ -78,8 +77,6 @@ private:
 
     Scene&        m_scene;
     AssetManager& m_assetManager;
-    Dx11LightManagerGpuData m_lightGpuData;
-    LightArrayBuffer        m_lightCBData;
     GDXDevice&    m_device;
 
     std::unique_ptr<IRenderBackend> m_backend;
@@ -88,14 +85,14 @@ private:
     BackbufferTarget m_backbufferTarget;
 
     // Non-owning pointer to the shared TexturePool (set by GDXEngine after init).
-    TexturePool* m_texturePool = nullptr;
+    TexturePool* m_texturePool  = nullptr;
 
     // Shadow-pass VS (VS-only, b0=world, b3=lightViewProj). Non-owning.
     Shader* m_shadowShader = nullptr;
 
     // RTT support
-    RenderTextureTarget* m_activeRTT  = nullptr;
-    LPENTITY             m_rttCamera  = nullptr;
+    RenderTextureTarget* m_activeRTT = nullptr;
+    LPENTITY             m_rttCamera = nullptr;
 
     bool       m_flushOnce = false;
     FrameStats m_frameStats{};
