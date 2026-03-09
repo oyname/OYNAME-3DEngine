@@ -4,32 +4,21 @@
 #include "Viewport.h"
 #include "Light.h"
 #include "Dx11RenderBackend.h"
-#include "Dx11MaterialGpuData.h" 
+#include "Dx11MaterialGpuData.h"
+#include "Dx11EntityGpuData.h"
+#include <unordered_map>
 
-RenderManager::RenderManager(ObjectManager& objectManager, GDXDevice& device)
-    : m_objectManager(objectManager), m_device(device),
-    m_currentCam(nullptr), m_directionLight(nullptr)
+RenderManager::RenderManager(Scene& scene, AssetManager& assetManager, GDXDevice& device)
+    : m_scene(scene), m_assetManager(assetManager), m_device(device),
+      m_currentCam(nullptr), m_directionLight(nullptr)
 {
     DBLOG("RenderManager.cpp: RenderManager created");
 }
 
 RenderManager::~RenderManager()
 {
-    if (m_defaultSampler)
-    {
-        m_defaultSampler->Release();
-        m_defaultSampler = nullptr;
-    }
-    if (m_alphaBlendState)
-    {
-        m_alphaBlendState->Release();
-        m_alphaBlendState = nullptr;
-    }
-    if (m_noBlendState)
-    {
-        m_noBlendState->Release();
-        m_noBlendState = nullptr;
-    }
+    // All DX11 state (sampler, blend states, SRV cache) lives in Dx11RenderBackend
+    // and is released there. Nothing to do here beyond the default destructors.
 }
 
 void RenderManager::SetCamera(LPENTITY camera)
@@ -44,81 +33,64 @@ void RenderManager::SetDirectionalLight(LPENTITY dirLight)
 
 void RenderManager::SetRTTTarget(RenderTextureTarget* rtt, LPENTITY rttCamera)
 {
-    m_activeRTT = rtt;
-    m_rttCamera = rttCamera;
+    m_activeRTT  = rtt;
+    m_rttCamera  = rttCamera;
 }
 
 void RenderManager::UpdateShadowMatrixBuffer(const DirectX::XMMATRIX& viewMatrix,
-    const DirectX::XMMATRIX& projMatrix)
+                                              const DirectX::XMMATRIX& projMatrix)
 {
     if (m_backend) m_backend->UpdateShadowMatrixBuffer(m_device, viewMatrix, projMatrix);
 }
 
+void RenderManager::LogFrameStatsIfChanged()
+{
+    const EntityGpuData::FrameStats entityStats = EntityGpuData::GetFrameStats();
+    m_frameStats.entityUploads       = entityStats.uploads;
+    m_frameStats.entityConstantBinds = entityStats.binds;
+    m_frameStats.entityRingRotations = entityStats.ringRotations;
+
+    if (!m_hasLastLoggedFrameStats || m_frameStats != m_lastLoggedFrameStats)
+    {
+        DBLOG("RenderManager.cpp: Frame stats"
+            " shadowDrawCalls=",  m_frameStats.shadowDrawCalls,
+            " opaqueDrawCalls=",  m_frameStats.opaqueDrawCalls,
+            " transparentDrawCalls=", m_frameStats.transparentDrawCalls,
+            " shaderBinds=",      m_frameStats.shaderBinds,
+            " materialBinds=",    m_frameStats.materialBinds,
+            " entityUploads=",    m_frameStats.entityUploads,
+            " entityCBBinds=",    m_frameStats.entityConstantBinds,
+            " ringRotations=",    m_frameStats.entityRingRotations);
+
+        m_lastLoggedFrameStats        = m_frameStats;
+        m_hasLastLoggedFrameStats     = true;
+    }
+}
 
 void RenderManager::RenderShadowPass()
 {
-    if (!m_currentCam || !m_directionLight || !m_device.IsInitialized())
+    if (!m_currentCam || !m_directionLight || !m_device.IsInitialized() || !m_backend)
         return;
 
     Light* light = (m_directionLight->IsLight() ? m_directionLight->AsLight() : nullptr);
     if (!light) return;
 
-    if (m_backend) m_backend->BeginShadowPass();
+    m_backend->BeginShadowPass();
 
     const DirectX::XMMATRIX lightViewMatrix = light->GetLightViewMatrix();
     const DirectX::XMMATRIX lightProjMatrix = light->GetLightProjectionMatrix();
     UpdateShadowMatrixBuffer(lightViewMatrix, lightProjMatrix);
+    m_backend->BindShadowMatrixConstantBufferVS(m_device);
 
-    if (m_backend) m_backend->BindShadowMatrixConstantBufferVS(m_device);
+    BuildShadowQueue();
+    FlushShadowQueue(lightViewMatrix, lightProjMatrix);
 
-    for (Mesh* mesh : m_objectManager.GetMeshes())
-    {
-        if (!mesh || !mesh->HasMeshAsset()) continue;
-        if (mesh->GetSurfaces().empty()) continue;
-        if (!mesh->IsActive()) continue;
-        if (!mesh->IsVisible()) continue;
-
-        if (!mesh->GetCastShadows()) continue;
-
-        MatrixSet ms = m_currentCam->matrixSet;
-        ms.viewMatrix = lightViewMatrix;
-        ms.projectionMatrix = lightProjMatrix;
-        ms.worldMatrix = mesh->GetWorldMatrix();
-        mesh->Update(&m_device, &ms);
-
-        const auto& shadowSlots = mesh->GetSurfaces();
-        for (unsigned int si = 0; si < static_cast<unsigned int>(shadowSlots.size()); ++si)
-        {
-            Surface* s = shadowSlots[si];
-            if (!s) continue;
-
-            //Material* mat = mesh->meshRenderer.GetMaterial(si, s, m_objectManager.GetStandardMaterial());
-            Material* mat = mesh->GetResolvedMaterial(si,
-                                                     m_objectManager.GetStandardMaterial());
-
-            if (!mat || !mat->GetCastShadows()) continue;
-
-            Shader* shader = mat->pRenderShader;
-            if (!shader) continue;
-
-            if (!shader->IsValid(ShaderBindMode::VS_ONLY))
-            {
-                DBERROR("RenderManager.cpp: RenderShadowPass - invalid shader, draw skipped");
-                continue;
-            }
-            shader->UpdateShader(&m_device, ShaderBindMode::VS_ONLY);
-            s->gpu->Draw(&m_device, shader->flagsVertex);
-        }
-    }
-
-    if (m_backend) m_backend->EndShadowPass();
-
+    m_backend->EndShadowPass();
 }
 
 void RenderManager::RenderNormalPass()
 {
-    // Kept for compatibility: historically this only did setup.
-    // Now it executes the full (atomic) main pass.
+    // Kept for compatibility: delegates to the atomic main pass.
     RenderMainPassAtomic();
 }
 
@@ -129,7 +101,7 @@ void RenderManager::RenderMainPassAtomic()
 
     const bool isRtt = (m_activeRTT != nullptr);
 
-    // 1) Begin pass (bind RT/DS, viewport, RS etc.)
+    // 1) Begin pass (bind RT/DS, viewport, RS)
     if (isRtt)
     {
         m_backend->BeginRttPass(m_device, *m_activeRTT);
@@ -141,7 +113,7 @@ void RenderManager::RenderMainPassAtomic()
         m_backend->BeginMainPass(m_device, m_backbufferTarget, m_currentCam->viewport);
     }
 
-    // 2) Bind shadow resources / constants (unchanged slots + order)
+    // 2) Bind shadow resources / constants
     m_backend->BindShadowResourcesPS(m_device, m_shadowTarget);
 
     if (m_directionLight)
@@ -156,7 +128,7 @@ void RenderManager::RenderMainPassAtomic()
 
     // 3) Per-frame lighting constants
     {
-        auto& lights = m_objectManager.GetLights();
+        auto& lights = m_scene.GetLights();
 
         if (!m_lightGpuData.IsReady())
             m_lightGpuData.Init(&m_device, sizeof(LightArrayBuffer));
@@ -172,21 +144,21 @@ void RenderManager::RenderMainPassAtomic()
                 ? globalAmbient
                 : DirectX::XMFLOAT4(0.f, 0.f, 0.f, 0.f);
 
-            m_lightCBData.lights[i].lightPosition = lights[i]->cbLight.lightPosition;
-            m_lightCBData.lights[i].lightDirection = lights[i]->cbLight.lightDirection;
-            m_lightCBData.lights[i].lightDiffuseColor = lights[i]->cbLight.lightDiffuseColor;
-            m_lightCBData.lights[i].lightAmbientColor = ambient;
+            m_lightCBData.lights[i].lightPosition      = lights[i]->cbLight.lightPosition;
+            m_lightCBData.lights[i].lightDirection     = lights[i]->cbLight.lightDirection;
+            m_lightCBData.lights[i].lightDiffuseColor  = lights[i]->cbLight.lightDiffuseColor;
+            m_lightCBData.lights[i].lightAmbientColor  = ambient;
         }
         m_lightCBData.lightCount = static_cast<unsigned int>(lights.size());
         m_lightGpuData.Upload(&m_device, m_lightCBData);
     }
 
-    // 4) Queue build + draw (kept)
+    // 4) Queue build + draw
     BuildRenderQueue();
     FlushRenderQueue();
     FlushTransparentQueue();
 
-    // 5) End pass (optional restore hooks)
+    // 5) End pass
     if (isRtt)
         m_backend->EndRttPass();
     else
@@ -196,7 +168,76 @@ void RenderManager::RenderMainPassAtomic()
 void RenderManager::InvalidateFrame()
 {
     m_opaque.Clear();
+    m_shadow.Clear();
     m_transFrame.clear();
+    m_frameStats  = {};
+    m_flushOnce   = false;
+    EntityGpuData::ResetFrameStats();
+
+    for (Mesh* mesh : m_scene.GetMeshes())
+        if (mesh) mesh->ResetFrameFlag();
+}
+
+void RenderManager::BuildShadowQueue()
+{
+    m_shadow.Clear();
+
+    uint32_t cameraCullMask = LAYER_ALL;
+    if (Camera* cam = (m_currentCam->IsCamera() ? m_currentCam->AsCamera() : nullptr))
+        cameraCullMask = cam->cullMask;
+
+    for (Mesh* mesh : m_scene.GetMeshes())
+    {
+        if (!mesh || !mesh->HasMeshAsset()) continue;
+        if (mesh->GetSurfaces().empty())    continue;
+        if (!mesh->IsActive())              continue;
+        if (!mesh->IsVisible())             continue;
+        if (!mesh->GetCastShadows())        continue;
+        if (!(mesh->GetLayerMask() & cameraCullMask)) continue;
+
+        const DirectX::XMMATRIX world = mesh->GetWorldMatrix();
+
+        const auto& shadowSlots = mesh->GetSurfaces();
+        for (unsigned int si = 0; si < static_cast<unsigned int>(shadowSlots.size()); ++si)
+        {
+            Surface* surface = shadowSlots[si];
+            if (!surface) continue;
+
+            Material* material = mesh->GetResolvedMaterial(si,
+                m_assetManager.GetStandardMaterial());
+            if (!material || !material->GetCastShadows()) continue;
+
+            Shader* shader = material->pRenderShader;
+            if (!shader) continue;
+
+            if (!shader->IsValid(ShaderBindMode::VS_ONLY))
+            {
+                DBERROR("RenderManager.cpp: BuildShadowQueue - invalid shader, draw skipped");
+                continue;
+            }
+
+            m_shadow.Submit(shader, shader->flagsVertex, material, mesh, surface, world, m_backend.get());
+        }
+    }
+
+    m_shadow.Sort();
+
+    static size_t s_lastShadowCount = static_cast<size_t>(-1);
+    if (m_shadow.Count() != s_lastShadowCount)
+    {
+        s_lastShadowCount = m_shadow.Count();
+        DBLOG("RenderManager.cpp: BuildShadowQueue count=", m_shadow.Count());
+
+        for (size_t i = 0; i < m_shadow.commands.size(); ++i)
+        {
+            const RenderCommand& cmd = m_shadow.commands[i];
+            DBLOG("RenderManager.cpp:   shadow[", (int)i, "]"
+                " shader=", (void*)cmd.shader,
+                " mat=",    (void*)cmd.material,
+                " mesh=",   (void*)cmd.mesh,
+                " surface=",(void*)cmd.surface);
+        }
+    }
 }
 
 void RenderManager::BuildRenderQueue()
@@ -204,27 +245,28 @@ void RenderManager::BuildRenderQueue()
     m_opaque.Clear();
     m_transFrame.clear();
 
-    // Reset frame-update flags for all meshes
-    for (Mesh* mesh : m_objectManager.GetMeshes())
-        if (mesh) mesh->ResetFrameFlag();
+    // Skinned meshes: reset frame flag because their shadow pass writes light
+    // matrices to b0. Non-skinned meshes keep the flag (camera matrices are
+    // already correct from the shadow VS pass).
+    for (Mesh* mesh : m_scene.GetMeshes())
+        if (mesh && mesh->hasSkinning) mesh->ResetFrameFlag();
 
     uint32_t cameraCullMask = LAYER_ALL;
     if (Camera* cam = (m_currentCam->IsCamera() ? m_currentCam->AsCamera() : nullptr))
         cameraCullMask = cam->cullMask;
 
-    // Camera position for depth calculation (transparent sorting)
     DirectX::XMVECTOR camPos = m_currentCam->GetWorldMatrix().r[3];
 
-    for (Mesh* mesh : m_objectManager.GetMeshes())
+    for (Mesh* mesh : m_scene.GetMeshes())
     {
         if (!mesh || !mesh->HasMeshAsset()) continue;
-        if (mesh->GetSurfaces().empty()) continue;
-        if (!mesh->IsActive()) continue;
-        if (!mesh->IsVisible()) continue;
+        if (mesh->GetSurfaces().empty())    continue;
+        if (!mesh->IsActive())              continue;
+        if (!mesh->IsVisible())             continue;
         if (!(mesh->GetLayerMask() & cameraCullMask)) continue;
 
         const DirectX::XMMATRIX world = mesh->GetWorldMatrix();
-        mesh->matrixSet.worldMatrix = world;
+        mesh->matrixSet.worldMatrix   = world;
 
         const auto& queueSlots = mesh->GetSurfaces();
         for (unsigned int qi = 0; qi < static_cast<unsigned int>(queueSlots.size()); ++qi)
@@ -233,33 +275,32 @@ void RenderManager::BuildRenderQueue()
             if (!surface) continue;
 
             Material* material = mesh->GetResolvedMaterial(qi,
-                                                       m_objectManager.GetStandardMaterial());
+                m_assetManager.GetStandardMaterial());
             if (!material) continue;
 
             Shader* shader = material->pRenderShader;
 
             DBLOG_ONCE("STD_MAT_CHECK",
-                "STD=", (void*)m_objectManager.GetStandardMaterial(),
-                " shader=", (void*)(m_objectManager.GetStandardMaterial() ? m_objectManager.GetStandardMaterial()->pRenderShader : nullptr),
-                " gpu=", (void*)(m_objectManager.GetStandardMaterial() ? m_objectManager.GetStandardMaterial()->gpuData : nullptr));
+                "STD=",    (void*)m_assetManager.GetStandardMaterial(),
+                " shader=", (void*)(m_assetManager.GetStandardMaterial() ? m_assetManager.GetStandardMaterial()->pRenderShader : nullptr),
+                " gpu=",    (void*)(m_assetManager.GetStandardMaterial() ? m_assetManager.GetStandardMaterial()->gpuData : nullptr));
 
             if (!shader) continue;
 
             if (material->IsTransparent())
             {
-                // Depth = distance camera -> mesh center (for back-to-front sorting)
                 DirectX::XMVECTOR meshPos = world.r[3];
-                DirectX::XMVECTOR diff = DirectX::XMVectorSubtract(meshPos, camPos);
+                DirectX::XMVECTOR diff    = DirectX::XMVectorSubtract(meshPos, camPos);
                 float depth = DirectX::XMVectorGetX(DirectX::XMVector3LengthSq(diff));
 
                 RenderCommand cmd;
-                cmd.mesh = mesh;
-                cmd.surface = surface;
-                cmd.world = world;
-                cmd.shader = shader;
-                cmd.material = material;
+                cmd.mesh       = mesh;
+                cmd.surface    = surface;
+                cmd.world      = world;
+                cmd.shader     = shader;
+                cmd.material   = material;
                 cmd.flagsVertex = shader->flagsVertex;
-                cmd.backend = m_backend.get();
+                cmd.backend    = m_backend.get();
                 m_transFrame.emplace_back(depth, cmd);
             }
             else
@@ -269,14 +310,11 @@ void RenderManager::BuildRenderQueue()
         }
     }
 
-    // Opaque: sort by shader/material
     m_opaque.Sort();
 
-    // Transparent: sort by depth descending (back to front)
     std::sort(m_transFrame.begin(), m_transFrame.end(),
         [](const auto& a, const auto& b) { return a.first > b.first; });
 
-    // Debug guard: one entry per camera pointer, works for any number of cameras.
     static std::unordered_map<void*, size_t> s_lastOpaque;
     static std::unordered_map<void*, size_t> s_lastTrans;
 
@@ -286,59 +324,102 @@ void RenderManager::BuildRenderQueue()
         m_transFrame.size() != s_lastTrans[camKey])
     {
         s_lastOpaque[camKey] = m_opaque.Count();
-        s_lastTrans[camKey] = m_transFrame.size();
+        s_lastTrans[camKey]  = m_transFrame.size();
 
         DBLOG("RenderManager.cpp: BuildRenderQueue [cam=", camKey, "]"
-            " opaque=", m_opaque.Count(),
+            " opaque=",      m_opaque.Count(),
             " transparent=", m_transFrame.size());
 
-        // Opaque order: shader -> material -> mesh
         for (size_t i = 0; i < m_opaque.commands.size(); ++i)
         {
             const RenderCommand& cmd = m_opaque.commands[i];
             DBLOG("RenderManager.cpp:   opaque[", (int)i, "]"
                 " shader=", (void*)cmd.shader,
-                " mat=", (void*)cmd.material,
-                " mesh=", (void*)cmd.mesh,
-                " surface=", (void*)cmd.surface);
+                " mat=",    (void*)cmd.material,
+                " mesh=",   (void*)cmd.mesh,
+                " surface=",(void*)cmd.surface);
         }
 
-        // Transparent order: depth (large = far = first)
         for (size_t i = 0; i < m_transFrame.size(); ++i)
         {
             const RenderCommand& cmd = m_transFrame[i].second;
             DBLOG("RenderManager.cpp:   trans[", (int)i, "]"
                 " depth=", m_transFrame[i].first,
-                " mat=", (void*)cmd.material,
-                " mesh=", (void*)cmd.mesh);
+                " mat=",   (void*)cmd.material,
+                " mesh=",  (void*)cmd.mesh);
         }
     }
 }
 
-void RenderManager::FlushRenderQueue()
+void RenderManager::FlushShadowQueue(const DirectX::XMMATRIX& lightViewMatrix,
+                                      const DirectX::XMMATRIX& lightProjMatrix)
 {
-    int shaderBinds = 0;
-    int materialBinds = 0;
-    int drawCalls = 0;
+    unsigned int shaderBinds = 0;
+    unsigned int drawCalls   = 0;
 
     Shader* lastShader = nullptr;
+
+    for (auto& cmd : m_shadow.commands)
+    {
+        if (!cmd.shader || !cmd.mesh || !cmd.surface) continue;
+
+        // Non-skinned: use dedicated shadow VS (VertexShader_Shadow.hlsl).
+        //   Reads world from b0, light view/proj from b3 (ShadowMatrixBuffer).
+        // Skinned: use material VS in VS_ONLY mode (writes light matrices to b0).
+        const bool useShadowVS  = (m_shadowShader != nullptr && !cmd.mesh->hasSkinning);
+        Shader*    activeShader = useShadowVS ? m_shadowShader : cmd.shader;
+
+        if (activeShader != lastShader)
+        {
+            if (!activeShader->IsValid(ShaderBindMode::VS_ONLY))
+            {
+                DBERROR("RenderManager.cpp: FlushShadowQueue - invalid shader, draw skipped");
+                continue;
+            }
+
+            activeShader->UpdateShader(&m_device, ShaderBindMode::VS_ONLY);
+            lastShader = activeShader;
+            ++shaderBinds;
+        }
+
+        if (useShadowVS)
+        {
+            cmd.mesh->matrixSet = m_currentCam->matrixSet;
+            cmd.mesh->matrixSet.worldMatrix = cmd.world;
+        }
+        else
+        {
+            cmd.mesh->matrixSet = m_currentCam->matrixSet;
+            cmd.mesh->matrixSet.viewMatrix       = lightViewMatrix;
+            cmd.mesh->matrixSet.projectionMatrix = lightProjMatrix;
+            cmd.mesh->matrixSet.worldMatrix      = cmd.world;
+        }
+
+        cmd.Execute(&m_device);
+        ++drawCalls;
+    }
+
+    m_frameStats.shaderBinds    += shaderBinds;
+    m_frameStats.shadowDrawCalls += drawCalls;
+}
+
+void RenderManager::FlushRenderQueue()
+{
+    unsigned int shaderBinds   = 0;
+    unsigned int materialBinds = 0;
+    unsigned int drawCalls     = 0;
+
+    Shader*   lastShader   = nullptr;
     Material* lastMaterial = nullptr;
-    ID3D11DeviceContext* ctx = m_device.GetDeviceContext();
 
-    // Reset SRV cache at the start of each flush.
-    // BeginRttPass/BeginShadowPass koennen GPU-Slots geleert haben ohne den Cache
-    // zu invalidieren – staelter Cache verhindert dann das Rebinden der Texturen.
-    memset(m_boundSRVs, 0, sizeof(m_boundSRVs));
-
-    // Bind sampler s0 once (applies to all materials / gSampler in PS)
-    if (m_defaultSampler && ctx)
-        ctx->PSSetSamplers(0, 1, &m_defaultSampler);
+    // Reset SRV cache and bind the frame-level sampler (s0) once.
+    m_backend->ResetMaterialCache();
+    m_backend->BindFrameSampler();
 
     for (auto& cmd : m_opaque.commands)
     {
         if (!cmd.shader || !cmd.material || !cmd.mesh || !cmd.surface) continue;
 
-        // Bind shader only on change
         if (cmd.shader != lastShader)
         {
             if (!cmd.shader->IsValid(ShaderBindMode::VS_PS))
@@ -346,133 +427,51 @@ void RenderManager::FlushRenderQueue()
                 DBERROR("RenderManager.cpp: FlushRenderQueue - invalid shader, draw skipped");
                 continue;
             }
+
             cmd.shader->UpdateShader(&m_device);
             lastShader = cmd.shader;
-
             ++shaderBinds;
-            if (!m_flushOnce) {
-                DBLOG("RenderManager.cpp: FlushRenderQueue - SHADER BIND shader=",
-                    (void*)cmd.shader);
-            }
         }
 
-        // Bind material only on change
         if (cmd.material != lastMaterial)
         {
-            // --- TexturePool-Pfad: feste Slots t0..t6 aus Pool-Indizes ---
-            if (m_texturePool && ctx)
-            {
-                // Fixed slot bindings (DX11/SM5.0): shader samples from fixed t# slots.
-                ID3D11ShaderResourceView* srvs[7] = {
-                    m_texturePool->GetSRV(cmd.material->albedoIndex),
-                    m_texturePool->GetSRV(cmd.material->normalIndex),
-                    m_texturePool->GetSRV(cmd.material->ormIndex),
-                    m_texturePool->GetSRV(cmd.material->decalIndex),
-                    m_texturePool->GetSRV(cmd.material->occlusionIndex),
-                    m_texturePool->GetSRV(cmd.material->roughnessIndex),
-                    m_texturePool->GetSRV(cmd.material->metallicIndex)
-                };
-
-                // Fallback to white/flat-normal/ORM/white if index is out of pool range
-                if (!srvs[0]) srvs[0] = m_texturePool->GetSRV(m_texturePool->WhiteIndex());
-                if (!srvs[1]) srvs[1] = m_texturePool->GetSRV(m_texturePool->FlatNormalIndex());
-                if (!srvs[2]) srvs[2] = m_texturePool->GetSRV(m_texturePool->OrmIndex());
-                if (!srvs[3]) srvs[3] = m_texturePool->GetSRV(m_texturePool->WhiteIndex());
-                // Separate maps: default = white (AO=1, roughness=1, metallic=1; flags control usage)
-                if (!srvs[4]) srvs[4] = m_texturePool->GetSRV(m_texturePool->WhiteIndex());
-                if (!srvs[5]) srvs[5] = m_texturePool->GetSRV(m_texturePool->WhiteIndex());
-                if (!srvs[6]) srvs[6] = m_texturePool->GetSRV(m_texturePool->WhiteIndex());
-
-                // Rebind only if slots have changed (state cache)
-                if (memcmp(srvs, m_boundSRVs, sizeof(srvs)) != 0)
-                {
-                    ctx->PSSetShaderResources(0, 7, srvs);
-                    memcpy(m_boundSRVs, srvs, sizeof(srvs));
-                }
-            }
-            else
-            {
-                // Fallback: legacy slot path (no pool active)
-                if (cmd.material->gpuData) cmd.material->gpuData->SetTexture(&m_device);
-            }
-
-            if (cmd.material->gpuData) cmd.material->gpuData->UpdateConstantBuffer(
-                m_device.GetDeviceContext(),
-                cmd.material->properties.baseColor,
-                cmd.material->properties.specularColor,
-                cmd.material->properties.emissiveColor,
-                cmd.material->properties.uvTilingOffset,
-                cmd.material->properties.metallic,
-                cmd.material->properties.roughness,
-                cmd.material->properties.normalScale,
-                cmd.material->properties.occlusionStrength,
-                cmd.material->properties.shininess,
-                cmd.material->properties.transparency,
-                cmd.material->properties.alphaCutoff,
-                cmd.material->properties.receiveShadows,
-                cmd.material->albedoIndex,
-                cmd.material->normalIndex,
-                cmd.material->ormIndex,
-                cmd.material->decalIndex,
-                cmd.material->properties.blendMode,
-                cmd.material->properties.blendFactor,
-                cmd.material->properties.flags
-            );
+            m_backend->BindMaterial(cmd.material, m_texturePool);
             lastMaterial = cmd.material;
-
             ++materialBinds;
-            if (!m_flushOnce) {
-                DBLOG("RenderManager.cpp:   MATERIAL BIND mat=",
-                    (void*)cmd.material);
-            }
         }
 
         ++drawCalls;
-        if (!m_flushOnce) {
-            DBLOG("RenderManager.cpp:      DRAW mesh=",
-                (void*)cmd.mesh, " surface=", (void*)cmd.surface);
-        }
 
-        // Write camera MatrixSet into the command and execute
         cmd.mesh->matrixSet = m_currentCam->matrixSet;
         cmd.mesh->matrixSet.worldMatrix = cmd.world;
         cmd.Execute(&m_device);
     }
 
-    if (!m_flushOnce) {
-        DBLOG("RenderManager.cpp:SUMMARY"
-            " shaderBinds=", shaderBinds,
-            " materialBinds=", materialBinds,
-            " drawCalls=", drawCalls);
-        m_flushOnce = true;
-    }
+    m_frameStats.shaderBinds       += shaderBinds;
+    m_frameStats.materialBinds     += materialBinds;
+    m_frameStats.opaqueDrawCalls   += drawCalls;
 }
 
 void RenderManager::FlushTransparentQueue()
 {
     if (m_transFrame.empty()) return;
 
-    ID3D11DeviceContext* ctx = m_device.GetDeviceContext();
-    if (!ctx) return;
+    unsigned int shaderBinds   = 0;
+    unsigned int materialBinds = 0;
+    unsigned int drawCalls     = 0;
 
-    // SRV-Cache invalidieren: Blend-State-Wechsel und BeginMainPass koennen
-    // GPU-Slots leeren ohne den Cache zu invalidieren.
-    memset(m_boundSRVs, 0, sizeof(m_boundSRVs));
+    // Reset SRV cache, bind sampler, enable alpha blending.
+    m_backend->ResetMaterialCache();
+    m_backend->BindFrameSampler();
+    m_backend->SetAlphaBlend(true);
 
-    // Enable alpha blending
-    const float blendFactor[4] = { 0.f, 0.f, 0.f, 0.f };
-    if (m_alphaBlendState)
-        ctx->OMSetBlendState(m_alphaBlendState, blendFactor, 0xFFFFFFFF);
-
-    // Bind sampler (same as in opaque pass)
-    if (m_defaultSampler)
-        ctx->PSSetSamplers(0, 1, &m_defaultSampler);
-
-    Shader* lastShader = nullptr;
+    Shader*   lastShader   = nullptr;
     Material* lastMaterial = nullptr;
 
     for (auto& [depth, cmd] : m_transFrame)
     {
+        (void)depth;
+
         if (!cmd.shader || !cmd.material || !cmd.mesh || !cmd.surface) continue;
 
         if (cmd.shader != lastShader)
@@ -480,86 +479,40 @@ void RenderManager::FlushTransparentQueue()
             if (!cmd.shader->IsValid(ShaderBindMode::VS_PS)) continue;
             cmd.shader->UpdateShader(&m_device);
             lastShader = cmd.shader;
+            ++shaderBinds;
         }
 
         if (cmd.material != lastMaterial)
         {
-            if (m_texturePool && ctx)
-            {
-                ID3D11ShaderResourceView* srvs[7] = {
-                    m_texturePool->GetSRV(cmd.material->albedoIndex),
-                    m_texturePool->GetSRV(cmd.material->normalIndex),
-                    m_texturePool->GetSRV(cmd.material->ormIndex),
-                    m_texturePool->GetSRV(cmd.material->decalIndex),
-                    m_texturePool->GetSRV(cmd.material->occlusionIndex),
-                    m_texturePool->GetSRV(cmd.material->roughnessIndex),
-                    m_texturePool->GetSRV(cmd.material->metallicIndex)
-                };
-                if (!srvs[0]) srvs[0] = m_texturePool->GetSRV(m_texturePool->WhiteIndex());
-                if (!srvs[1]) srvs[1] = m_texturePool->GetSRV(m_texturePool->FlatNormalIndex());
-                if (!srvs[2]) srvs[2] = m_texturePool->GetSRV(m_texturePool->OrmIndex());
-                if (!srvs[3]) srvs[3] = m_texturePool->GetSRV(m_texturePool->WhiteIndex());
-                if (!srvs[4]) srvs[4] = m_texturePool->GetSRV(m_texturePool->WhiteIndex());
-                if (!srvs[5]) srvs[5] = m_texturePool->GetSRV(m_texturePool->WhiteIndex());
-                if (!srvs[6]) srvs[6] = m_texturePool->GetSRV(m_texturePool->WhiteIndex());
-
-                // Rebind nur wenn sich SRVs geaendert haben (state cache)
-                if (memcmp(srvs, m_boundSRVs, sizeof(srvs)) != 0)
-                {
-                    ctx->PSSetShaderResources(0, 7, srvs);
-                    memcpy(m_boundSRVs, srvs, sizeof(srvs));
-                }
-            }
-            else if (cmd.material->gpuData)
-            {
-                cmd.material->gpuData->SetTexture(&m_device);
-            }
-
-            if (cmd.material->gpuData) cmd.material->gpuData->UpdateConstantBuffer(
-                m_device.GetDeviceContext(),
-                cmd.material->properties.baseColor,
-                cmd.material->properties.specularColor,
-                cmd.material->properties.emissiveColor,
-                cmd.material->properties.uvTilingOffset,
-                cmd.material->properties.metallic,
-                cmd.material->properties.roughness,
-                cmd.material->properties.normalScale,
-                cmd.material->properties.occlusionStrength,
-                cmd.material->properties.shininess,
-                cmd.material->properties.transparency,
-                cmd.material->properties.alphaCutoff,
-                cmd.material->properties.receiveShadows,
-                cmd.material->albedoIndex,
-                cmd.material->normalIndex,
-                cmd.material->ormIndex,
-                cmd.material->decalIndex,
-                cmd.material->properties.blendMode,
-                cmd.material->properties.blendFactor,
-                cmd.material->properties.flags
-            );
+            m_backend->BindMaterial(cmd.material, m_texturePool);
             lastMaterial = cmd.material;
+            ++materialBinds;
         }
+
+        ++drawCalls;
 
         cmd.mesh->matrixSet = m_currentCam->matrixSet;
         cmd.mesh->matrixSet.worldMatrix = cmd.world;
         cmd.Execute(&m_device);
     }
 
-    // Disable blending
-    if (m_noBlendState)
-        ctx->OMSetBlendState(m_noBlendState, blendFactor, 0xFFFFFFFF);
+    m_frameStats.shaderBinds          += shaderBinds;
+    m_frameStats.materialBinds        += materialBinds;
+    m_frameStats.transparentDrawCalls += drawCalls;
+
+    // Restore opaque blend state.
+    m_backend->SetAlphaBlend(false);
 }
 
 void RenderManager::RenderScene()
 {
-    if (!m_currentCam)
-        return;
+    if (!m_currentCam) return;
+
+    InvalidateFrame();
 
     EnsureBackend();
-    if (!m_backend)
-        return;
+    if (!m_backend) return;
 
-    // If RTT is active, temporarily switch to the RTT camera (if set)
     LPENTITY savedCam = m_currentCam;
     if (m_activeRTT && m_rttCamera)
         m_currentCam = m_rttCamera;
@@ -567,71 +520,22 @@ void RenderManager::RenderScene()
     RenderShadowPass();
     RenderNormalPass();
 
-    // Restore camera
     m_currentCam = savedCam;
+
+    LogFrameStatsIfChanged();
 }
 
 void RenderManager::EnsureBackend()
 {
-    if (m_backend)
-        return;
+    if (m_backend) return;
 
-    // Device muss bereits existieren (nach InitializeDirectX)
     if (!m_device.GetDevice() || !m_device.GetDeviceContext())
     {
-        DBERROR("RenderManager::EnsureBackend - device/context not ready.");
+        DBERROR("RenderManager.cpp: EnsureBackend - device/context not ready");
         return;
     }
 
+    // Dx11RenderBackend constructor creates the sampler, blend states, and SRV cache
+    // (formerly created here). EnsureBackend is now a thin factory call.
     m_backend = std::make_unique<Dx11RenderBackend>(m_device);
-
-    // Default sampler for gSampler (s0): linear, wrap, aniso 1
-    if (!m_defaultSampler && m_device.GetDevice())
-    {
-        D3D11_SAMPLER_DESC sd{};
-        sd.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-        sd.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-        sd.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-        sd.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-        sd.MaxAnisotropy = 1;
-        sd.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
-        sd.MaxLOD = D3D11_FLOAT32_MAX;
-        HRESULT hr = m_device.GetDevice()->CreateSamplerState(&sd, &m_defaultSampler);
-        if (SUCCEEDED(hr))
-            DBLOG("RenderManager.cpp: Default sampler for s0 created");
-        else
-            DBERROR("RenderManager.cpp: Failed to create default sampler");
-    }
-
-    // Alpha blend state: SRC_ALPHA / INV_SRC_ALPHA
-    if (!m_alphaBlendState && m_device.GetDevice())
-    {
-        D3D11_BLEND_DESC bd{};
-        bd.RenderTarget[0].BlendEnable = TRUE;
-        bd.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
-        bd.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
-        bd.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
-        bd.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
-        bd.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
-        bd.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
-        bd.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
-        HRESULT hr2 = m_device.GetDevice()->CreateBlendState(&bd, &m_alphaBlendState);
-        if (SUCCEEDED(hr2))
-            DBLOG("RenderManager.cpp: Alpha blend state created");
-        else
-            DBERROR("RenderManager.cpp: Failed to create alpha blend state");
-    }
-
-    // No-blend state: blending disabled (restores default)
-    if (!m_noBlendState && m_device.GetDevice())
-    {
-        D3D11_BLEND_DESC bd{};
-        bd.RenderTarget[0].BlendEnable = FALSE;
-        bd.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
-        HRESULT hr3 = m_device.GetDevice()->CreateBlendState(&bd, &m_noBlendState);
-        if (SUCCEEDED(hr3))
-            DBLOG("RenderManager.cpp: No-blend state created");
-        else
-            DBERROR("RenderManager.cpp: Failed to create no-blend state");
-    }
 }

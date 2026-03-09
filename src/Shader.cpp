@@ -21,7 +21,7 @@ Shader::~Shader() {
     Memory::SafeRelease(blobPS);
 
     // materials Vector wird automatisch aufgeräumt
-    // The material objects themselves are managed by ObjectManager, do not delete here.
+    // The material objects themselves are managed by AssetManager, do not delete here.
     materials.clear();
 }
 

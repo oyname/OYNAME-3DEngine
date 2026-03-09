@@ -5,8 +5,8 @@
 #include <string>
 #include <list>
 #include <unordered_map>
-#include "ObjectManager.h"
 #include "gdxutil.h"
+#include "Shader.h"
 
 #define SHADER_FOLDER L"shaders\\"
 
@@ -14,6 +14,7 @@ enum class ShaderKey
 {
     Standard = 0,
     StandardSkinned = 1,
+    Shadow = 2,          // VS-only shadow pass shader (reads b0 world + b3 light view/proj)
 };
 
 struct ShaderKeyHash
@@ -39,6 +40,5 @@ public:
 
 private:
     ID3D11Device* m_device;
-    ObjectManager* m_objectManager; // Reference to the ObjectManager
     std::unordered_map<ShaderKey, LPSHADER, ShaderKeyHash> m_shaders;
 };

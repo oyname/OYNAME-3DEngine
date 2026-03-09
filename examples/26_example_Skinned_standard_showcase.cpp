@@ -182,6 +182,8 @@ int main()
     const XMMATRIX T0 = XMMatrixTranslation(0.f, 0.f, 0.f);
     const XMMATRIX T1 = XMMatrixTranslation(0.f, 0.f, 0.f);
 
+    Engine::DebugPrintScene();
+
     while (Windows::MainLoop())
     {
         Core::BeginFrame();

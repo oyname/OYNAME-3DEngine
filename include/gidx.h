@@ -9,6 +9,8 @@
 #include "Dx11LightGpuData.h"
 #include "Dx11EntityGpuData.h"
 #include "SurfaceGpuBuffer.h"
+#include "Surface.h"
+#include "MeshAsset.h"
 
 namespace Engine
 {
@@ -224,7 +226,7 @@ namespace Engine
             return;
         }
 
-        Camera* cam = engine->GetOM().CreateCamera();
+        Camera* cam = engine->GetScene().CreateCamera();
         if (cam == nullptr) {
             Debug::Log("gidx.h: ERROR: CreateCamera - Failed to create camera");
             return;
@@ -320,7 +322,7 @@ namespace Engine
             return;
         }
 
-        Light* l = engine->GetOM().CreateLight(type);
+        Light* l = engine->GetScene().CreateLight(type);
         if (l == nullptr) {
             Debug::Log("gidx.h: ERROR: CreateLight - Failed to create light");
             return;
@@ -358,20 +360,9 @@ namespace Engine
             return;
         }
 
-        // Matrix-Buffer (b0): geerbt von Entity
-        if (!l->gpuData) l->gpuData = new EntityGpuData();
-        hr = engine->GetBM().CreateBuffer(
-            &l->matrixSet,
-            sizeof(MatrixSet),
-            1,
-            D3D11_BIND_CONSTANT_BUFFER,
-            &l->gpuData->constantBuffer
-        );
-        if (FAILED(hr))
-        {
-            Debug::LogHr(__FILE__, __LINE__, hr);
-            return;
-        }
+        // Lights do not need an entity CB (b0). The renderer reads cbLight
+        // (position, direction, color) via Dx11LightGpuData, not a world-matrix CB.
+        // gpuData stays nullptr for lights intentionally.
 
         *light = l;
     }
@@ -468,7 +459,7 @@ namespace Engine
             return;
         }
 
-        Mesh* m = engine->GetOM().CreateMesh();
+        Mesh* m = engine->GetAM().CreateManagedMesh(engine->GetScene());
         if (m == nullptr) {
             Debug::Log("gidx.h: ERROR: CreateMesh - Failed to create mesh");
             return;
@@ -485,7 +476,7 @@ namespace Engine
         if (FAILED(hr))
         {
             Debug::LogHr(__FILE__, __LINE__, hr);
-            engine->GetOM().DeleteMesh(m);
+            engine->GetAM().DeleteManagedMesh(engine->GetScene(), m);
             return;
         }
 
@@ -520,7 +511,7 @@ namespace Engine
         }
 
         // 2. Erstelle Shader-Objekt
-        *shader = engine->GetOM().CreateShader();
+        *shader = engine->GetAM().CreateShader();
         if (*shader == nullptr) {
             Debug::Log("gidx.h: ERROR: Engine::CreateShader - Failed to create shader object");
             return E_OUTOFMEMORY;
@@ -537,7 +528,7 @@ namespace Engine
         {
             Debug::LogHr(__FILE__, __LINE__, hr);
 
-            engine->GetOM().DeleteShader(*shader);
+            engine->GetAM().DeleteShader(*shader);
             return hr;
         }
 
@@ -599,7 +590,7 @@ namespace Engine
             return;
         }
 
-        *material = engine->GetOM().CreateMaterial();
+        *material = engine->GetAM().CreateMaterial();
         if (*material == nullptr) {
             Debug::Log("gidx.h: ERROR: CreateMaterial - Failed to create material");
             return;
@@ -610,19 +601,19 @@ namespace Engine
 
         if (shader == nullptr) {
             Debug::Log("gidx.h: ERROR: CreateMaterial - No valid shader available");
-            engine->GetOM().DeleteMaterial(*material);
+            engine->GetAM().DeleteMaterial(engine->GetScene(), *material);
             *material = nullptr;
             return;
         }
 
-        engine->GetOM().AddMaterialToShader(shader, *material);
+        engine->GetAM().AddMaterialToShader(shader, *material);
 
         // Buffer-Anlage gehört in die Engine, nicht in den Wrapper
         HRESULT hr = engine->InitMaterialBuffer(*material);
         if (FAILED(hr))
         {
             Debug::LogHr(__FILE__, __LINE__, hr);
-            engine->GetOM().DeleteMaterial(*material);
+            engine->GetAM().DeleteMaterial(engine->GetScene(), *material);
             *material = nullptr;
             return;
         }
@@ -675,13 +666,13 @@ namespace Engine
 
         const unsigned int newSlot = mesh->GetSlotCount();
 
-        *surface = engine->GetOM().CreateSurface();
+        *surface = engine->GetAM().CreateSurface();
         if (*surface == nullptr) {
             Debug::Log("gidx.h: ERROR: CreateSurface - Failed to create surface");
             return;
         }
 
-        engine->GetOM().AddSurfaceToMesh(mesh, *surface);
+        engine->GetAM().AddSurfaceToMesh(mesh, *surface);
         if (outSlot) *outSlot = newSlot;
     }
 
@@ -703,7 +694,7 @@ namespace Engine
             return nullptr;
         }
 
-        return engine->GetOM().GetSurface(mesh);
+        return engine->GetAM().GetSurface(mesh);
     }
 
     // Anzahl der Surfaces abfragen
@@ -800,64 +791,89 @@ namespace Engine
     {
         if (!surface) { Debug::Log("gidx.h: ERROR: FillBuffer - surface is nullptr"); return; }
 
-        Shader* shader = engine->GetOM().GetShader(*engine->GetOM().GetStandardMaterial());
+        Shader* shader = engine->GetAM().GetShader(*engine->GetAM().GetStandardMaterial());
         if (!shader) { Debug::Log("gidx.h: ERROR: FillBuffer - standard shader missing"); return; }
 
         SurfaceGpuBuffer* gpuDX11 = static_cast<SurfaceGpuBuffer*>(surface->gpu.get());
         if (!gpuDX11) { Debug::Log("gidx.h: ERROR: FillBuffer - gpu ist kein SurfaceGpuBuffer"); return; }
 
-        gpuDX11->stridePosition = sizeof(DirectX::XMFLOAT3);
-        gpuDX11->strideNormal = sizeof(DirectX::XMFLOAT3);
-        gpuDX11->strideTangent = sizeof(DirectX::XMFLOAT4);
-        gpuDX11->strideColor = sizeof(DirectX::XMFLOAT4);
-        gpuDX11->strideUV1 = sizeof(DirectX::XMFLOAT2);
-        gpuDX11->strideUV2 = sizeof(DirectX::XMFLOAT2);
-        gpuDX11->indexCount = surface->CountIndices();
+        gpuDX11->Release();
+        gpuDX11->stridePosition = 0;
+        gpuDX11->strideNormal = 0;
+        gpuDX11->strideTangent = 0;
+        gpuDX11->strideColor = 0;
+        gpuDX11->strideUV1 = 0;
+        gpuDX11->strideUV2 = 0;
+        gpuDX11->indexCount = 0;
 
-        if (shader->flagsVertex & D3DVERTEX_POSITION && surface->CountVertices() > 0) {
-            engine->GetBM().CreateBuffer(surface->GetPositions().data(), sizeof(DirectX::XMFLOAT3),
-                surface->CountVertices(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->positionBuffer);
+        if ((shader->flagsVertex & D3DVERTEX_POSITION) != 0 && surface->CountVertices() > 0) {
+            if (SUCCEEDED(engine->GetBM().CreateBuffer(surface->GetPositions().data(), sizeof(DirectX::XMFLOAT3),
+                surface->CountVertices(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->positionBuffer)))
+            {
+                gpuDX11->stridePosition = sizeof(DirectX::XMFLOAT3);
+            }
         }
-        if (shader->flagsVertex & D3DVERTEX_NORMAL && surface->CountNormals() > 0) {
-            engine->GetBM().CreateBuffer(surface->GetNormals().data(), sizeof(DirectX::XMFLOAT3),
-                surface->CountNormals(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->normalBuffer);
+        if ((shader->flagsVertex & D3DVERTEX_NORMAL) != 0 && surface->CountNormals() > 0) {
+            if (SUCCEEDED(engine->GetBM().CreateBuffer(surface->GetNormals().data(), sizeof(DirectX::XMFLOAT3),
+                surface->CountNormals(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->normalBuffer)))
+            {
+                gpuDX11->strideNormal = sizeof(DirectX::XMFLOAT3);
+            }
         }
 
-        if (shader->flagsVertex & D3DVERTEX_TANGENT)
+        if ((shader->flagsVertex & D3DVERTEX_TANGENT) != 0)
         {
             if (surface->CountTangents() != surface->CountVertices())
                 surface->ComputeTangents();
 
             if (surface->CountTangents() > 0)
             {
-                engine->GetBM().CreateBuffer(surface->GetTangents().data(), sizeof(DirectX::XMFLOAT4),
-                    surface->CountTangents(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->tangentBuffer);
+                if (SUCCEEDED(engine->GetBM().CreateBuffer(surface->GetTangents().data(), sizeof(DirectX::XMFLOAT4),
+                    surface->CountTangents(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->tangentBuffer)))
+                {
+                    gpuDX11->strideTangent = sizeof(DirectX::XMFLOAT4);
+                }
             }
         }
 
-        if (shader->flagsVertex & D3DVERTEX_COLOR && surface->CountColors() > 0) {
-            engine->GetBM().CreateBuffer(surface->GetColors().data(), sizeof(DirectX::XMFLOAT4),
-                surface->CountColors(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->colorBuffer);
+        if ((shader->flagsVertex & D3DVERTEX_COLOR) != 0 && surface->CountColors() > 0) {
+            if (SUCCEEDED(engine->GetBM().CreateBuffer(surface->GetColors().data(), sizeof(DirectX::XMFLOAT4),
+                surface->CountColors(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->colorBuffer)))
+            {
+                gpuDX11->strideColor = sizeof(DirectX::XMFLOAT4);
+            }
         }
-        if (shader->flagsVertex & D3DVERTEX_TEX1 && surface->CountUV1() > 0) {
-            engine->GetBM().CreateBuffer(surface->GetUV1().data(), sizeof(DirectX::XMFLOAT2),
-                surface->CountUV1(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->uv1Buffer);
+        if ((shader->flagsVertex & D3DVERTEX_TEX1) != 0 && surface->CountUV1() > 0) {
+            if (SUCCEEDED(engine->GetBM().CreateBuffer(surface->GetUV1().data(), sizeof(DirectX::XMFLOAT2),
+                surface->CountUV1(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->uv1Buffer)))
+            {
+                gpuDX11->strideUV1 = sizeof(DirectX::XMFLOAT2);
+            }
         }
-        if (shader->flagsVertex & D3DVERTEX_TEX2 && surface->CountUV2() > 0) {
-            engine->GetBM().CreateBuffer(surface->GetUV2().data(), sizeof(DirectX::XMFLOAT2),
-                surface->CountUV2(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->uv2Buffer);
+        if ((shader->flagsVertex & D3DVERTEX_TEX2) != 0 && surface->CountUV2() > 0) {
+            if (SUCCEEDED(engine->GetBM().CreateBuffer(surface->GetUV2().data(), sizeof(DirectX::XMFLOAT2),
+                surface->CountUV2(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->uv2Buffer)))
+            {
+                gpuDX11->strideUV2 = sizeof(DirectX::XMFLOAT2);
+            }
         }
-        if (shader->flagsVertex & D3DVERTEX_BONE_INDICES && surface->CountBoneData() > 0) {
+        if ((shader->flagsVertex & D3DVERTEX_BONE_INDICES) != 0 && surface->CountBoneData() > 0) {
             engine->GetBM().CreateBuffer(surface->GetBoneIndices().data(), sizeof(DirectX::XMUINT4),
                 surface->CountBoneData(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->boneIndexBuffer);
         }
-        if (shader->flagsVertex & D3DVERTEX_BONE_WEIGHTS && surface->CountBoneData() > 0) {
+        if ((shader->flagsVertex & D3DVERTEX_BONE_WEIGHTS) != 0 && surface->CountBoneData() > 0) {
             engine->GetBM().CreateBuffer(surface->GetBoneWeights().data(), sizeof(DirectX::XMFLOAT4),
                 surface->CountBoneData(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->boneWeightBuffer);
         }
 
-        engine->GetBM().CreateBuffer(surface->GetIndices().data(), sizeof(UINT),
-            surface->CountIndices(), D3D11_BIND_INDEX_BUFFER, &gpuDX11->indexBuffer);
+        if (surface->CountIndices() > 0)
+        {
+            if (SUCCEEDED(engine->GetBM().CreateBuffer(surface->GetIndices().data(), sizeof(UINT),
+                surface->CountIndices(), D3D11_BIND_INDEX_BUFFER, &gpuDX11->indexBuffer)))
+            {
+                gpuDX11->indexCount = surface->CountIndices();
+            }
+        }
     }
 
     inline void FillBuffer(LPENTITY entity, unsigned int slot)
@@ -868,30 +884,48 @@ namespace Engine
         LPSURFACE surface = mesh->GetSurface(slot);
         if (!surface) { Debug::Log("gidx.h: ERROR: FillBuffer(entity) - invalid slot"); return; }
 
-        Material* material = mesh->GetResolvedMaterial(slot, engine->GetOM().GetStandardMaterial());
+        Material* material = mesh->GetResolvedMaterial(slot, engine->GetAM().GetStandardMaterial());
         Shader* shader = material ? material->pRenderShader : nullptr;
         if (!shader) { Debug::Log("gidx.h: ERROR: FillBuffer(entity) - cannot resolve shader"); return; }
 
         SurfaceGpuBuffer* gpuDX11 = static_cast<SurfaceGpuBuffer*>(surface->gpu.get());
         if (!gpuDX11) { Debug::Log("gidx.h: ERROR: FillBuffer(entity) - gpu ist kein SurfaceGpuBuffer"); return; }
 
-        gpuDX11->stridePosition = sizeof(DirectX::XMFLOAT3);
-        gpuDX11->strideNormal = sizeof(DirectX::XMFLOAT3);
-        gpuDX11->strideTangent = sizeof(DirectX::XMFLOAT4);
-        gpuDX11->strideColor = sizeof(DirectX::XMFLOAT4);
-        gpuDX11->strideUV1 = sizeof(DirectX::XMFLOAT2);
-        gpuDX11->strideUV2 = sizeof(DirectX::XMFLOAT2);
-        gpuDX11->indexCount = surface->CountIndices();
+        gpuDX11->Release();
+        gpuDX11->stridePosition = 0;
+        gpuDX11->strideNormal = 0;
+        gpuDX11->strideTangent = 0;
+        gpuDX11->strideColor = 0;
+        gpuDX11->strideUV1 = 0;
+        gpuDX11->strideUV2 = 0;
+        gpuDX11->indexCount = 0;
 
-        if (shader->flagsVertex & D3DVERTEX_POSITION && surface->CountVertices() > 0) engine->GetBM().CreateBuffer(surface->GetPositions().data(), sizeof(DirectX::XMFLOAT3), surface->CountVertices(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->positionBuffer);
-        if (shader->flagsVertex & D3DVERTEX_NORMAL && surface->CountNormals() > 0) engine->GetBM().CreateBuffer(surface->GetNormals().data(), sizeof(DirectX::XMFLOAT3), surface->CountNormals(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->normalBuffer);
-        if (shader->flagsVertex & D3DVERTEX_TANGENT) { if (surface->CountTangents() != surface->CountVertices()) surface->ComputeTangents(); if (surface->CountTangents() > 0) engine->GetBM().CreateBuffer(surface->GetTangents().data(), sizeof(DirectX::XMFLOAT4), surface->CountTangents(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->tangentBuffer); }
-        if (shader->flagsVertex & D3DVERTEX_COLOR && surface->CountColors() > 0) engine->GetBM().CreateBuffer(surface->GetColors().data(), sizeof(DirectX::XMFLOAT4), surface->CountColors(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->colorBuffer);
-        if (shader->flagsVertex & D3DVERTEX_TEX1 && surface->CountUV1() > 0) engine->GetBM().CreateBuffer(surface->GetUV1().data(), sizeof(DirectX::XMFLOAT2), surface->CountUV1(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->uv1Buffer);
-        if (shader->flagsVertex & D3DVERTEX_TEX2 && surface->CountUV2() > 0) engine->GetBM().CreateBuffer(surface->GetUV2().data(), sizeof(DirectX::XMFLOAT2), surface->CountUV2(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->uv2Buffer);
-        if (shader->flagsVertex & D3DVERTEX_BONE_INDICES && surface->CountBoneData() > 0) engine->GetBM().CreateBuffer(surface->GetBoneIndices().data(), sizeof(DirectX::XMUINT4), surface->CountBoneData(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->boneIndexBuffer);
-        if (shader->flagsVertex & D3DVERTEX_BONE_WEIGHTS && surface->CountBoneData() > 0) engine->GetBM().CreateBuffer(surface->GetBoneWeights().data(), sizeof(DirectX::XMFLOAT4), surface->CountBoneData(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->boneWeightBuffer);
-        engine->GetBM().CreateBuffer(surface->GetIndices().data(), sizeof(UINT), surface->CountIndices(), D3D11_BIND_INDEX_BUFFER, &gpuDX11->indexBuffer);
+        if ((shader->flagsVertex & D3DVERTEX_POSITION) != 0 && surface->CountVertices() > 0) {
+            if (SUCCEEDED(engine->GetBM().CreateBuffer(surface->GetPositions().data(), sizeof(DirectX::XMFLOAT3), surface->CountVertices(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->positionBuffer))) gpuDX11->stridePosition = sizeof(DirectX::XMFLOAT3);
+        }
+        if ((shader->flagsVertex & D3DVERTEX_NORMAL) != 0 && surface->CountNormals() > 0) {
+            if (SUCCEEDED(engine->GetBM().CreateBuffer(surface->GetNormals().data(), sizeof(DirectX::XMFLOAT3), surface->CountNormals(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->normalBuffer))) gpuDX11->strideNormal = sizeof(DirectX::XMFLOAT3);
+        }
+        if ((shader->flagsVertex & D3DVERTEX_TANGENT) != 0) {
+            if (surface->CountTangents() != surface->CountVertices()) surface->ComputeTangents();
+            if (surface->CountTangents() > 0) {
+                if (SUCCEEDED(engine->GetBM().CreateBuffer(surface->GetTangents().data(), sizeof(DirectX::XMFLOAT4), surface->CountTangents(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->tangentBuffer))) gpuDX11->strideTangent = sizeof(DirectX::XMFLOAT4);
+            }
+        }
+        if ((shader->flagsVertex & D3DVERTEX_COLOR) != 0 && surface->CountColors() > 0) {
+            if (SUCCEEDED(engine->GetBM().CreateBuffer(surface->GetColors().data(), sizeof(DirectX::XMFLOAT4), surface->CountColors(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->colorBuffer))) gpuDX11->strideColor = sizeof(DirectX::XMFLOAT4);
+        }
+        if ((shader->flagsVertex & D3DVERTEX_TEX1) != 0 && surface->CountUV1() > 0) {
+            if (SUCCEEDED(engine->GetBM().CreateBuffer(surface->GetUV1().data(), sizeof(DirectX::XMFLOAT2), surface->CountUV1(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->uv1Buffer))) gpuDX11->strideUV1 = sizeof(DirectX::XMFLOAT2);
+        }
+        if ((shader->flagsVertex & D3DVERTEX_TEX2) != 0 && surface->CountUV2() > 0) {
+            if (SUCCEEDED(engine->GetBM().CreateBuffer(surface->GetUV2().data(), sizeof(DirectX::XMFLOAT2), surface->CountUV2(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->uv2Buffer))) gpuDX11->strideUV2 = sizeof(DirectX::XMFLOAT2);
+        }
+        if ((shader->flagsVertex & D3DVERTEX_BONE_INDICES) != 0 && surface->CountBoneData() > 0) engine->GetBM().CreateBuffer(surface->GetBoneIndices().data(), sizeof(DirectX::XMUINT4), surface->CountBoneData(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->boneIndexBuffer);
+        if ((shader->flagsVertex & D3DVERTEX_BONE_WEIGHTS) != 0 && surface->CountBoneData() > 0) engine->GetBM().CreateBuffer(surface->GetBoneWeights().data(), sizeof(DirectX::XMFLOAT4), surface->CountBoneData(), D3D11_BIND_VERTEX_BUFFER, &gpuDX11->boneWeightBuffer);
+        if (surface->CountIndices() > 0) {
+            if (SUCCEEDED(engine->GetBM().CreateBuffer(surface->GetIndices().data(), sizeof(UINT), surface->CountIndices(), D3D11_BIND_INDEX_BUFFER, &gpuDX11->indexBuffer))) gpuDX11->indexCount = surface->CountIndices();
+        }
     }
 
     inline bool SetSurfaceMaterial(LPENTITY entity, LPSURFACE surface, LPMATERIAL material)
@@ -907,7 +941,7 @@ namespace Engine
 
         Mesh* mesh = (entity->IsMesh() ? entity->AsMesh() : nullptr);
         if (!mesh) { Debug::Log("gidx.h: SetSlotMaterial - Entity ist kein Mesh"); return false; }
-        engine->GetOM().SetSlotMaterial(mesh, slot, material);
+        engine->GetAM().SetSlotMaterial(mesh, slot, material);
 
         return true;
     }
@@ -1483,7 +1517,7 @@ namespace Engine
         Mesh* mesh = (entity->IsMesh() ? entity->AsMesh() : nullptr);
         if (!mesh) { Debug::Log("gidx.h: EntityMaterial - Entity ist kein Mesh"); return; }
         if (!material) { Debug::Log("gidx.h: EntityMaterial - material nullptr"); return; }
-        engine->GetOM().AddMeshToMaterial(material, mesh);
+        engine->GetAM().AddMeshToMaterial(material, mesh);
     }
 
     inline void MaterialBlendFactor(LPMATERIAL material, float factor)
@@ -1513,12 +1547,12 @@ namespace Engine
         if (!material) { Debug::Log("gidx.h: SetSlotMaterial - material nullptr"); return; }
         Mesh* mesh = (entity->IsMesh() ? entity->AsMesh() : nullptr);
         if (!mesh) { Debug::Log("gidx.h: SetSlotMaterial - Entity ist kein Mesh"); return; }
-        engine->GetOM().SetSlotMaterial(mesh, slot, material);
+        engine->GetAM().SetSlotMaterial(mesh, slot, material);
     }
 
     // Teilt das MeshAsset von source mit target.
     //
-    // MeshAssets werden zentral vom ObjectManager besessen. Meshes sind
+    // MeshAssets werden zentral vom AssetManager besessen. Meshes sind
     // nur Nutzer dieser Assets. Das bisherige Ziel-Asset wird daher vor
     // dem Umhaengen zuerst vom target getrennt und erst danach zentral
     // geloescht. Danach zeigen beide Meshes auf dasselbe MeshAsset.
@@ -1539,7 +1573,7 @@ namespace Engine
             return;
         }
 
-        if (!engine->GetOM().SetMeshAsset(mDst, mSrc->BorrowMeshAsset(), true))
+        if (!engine->GetAM().SetMeshAsset(engine->GetScene(), mDst, mSrc->BorrowMeshAsset(), true))
         {
             Debug::Log("gidx.h: ShareMeshAsset - SetMeshAsset fehlgeschlagen");
             return;
@@ -1557,7 +1591,7 @@ namespace Engine
         // Texture auf das Material in Slot 0 setzen.
         // Slot 0 ist immer die erste Surface – bei einem einfachen Mesh
         // der einzige Slot.
-        Material* mat = mesh->GetResolvedMaterial(0, engine->GetOM().GetStandardMaterial());
+        Material* mat = mesh->GetResolvedMaterial(0, engine->GetAM().GetStandardMaterial());
         if (!mat)
         {
             Debug::Log("gidx.h: EntityTexture - kein Material in Slot 0");
@@ -1970,7 +2004,7 @@ namespace Engine
             DirectX::XMVectorGetY(pos), ", ",
             DirectX::XMVectorGetZ(pos), ")");
 
-        Debug::Log("gidx.h:       +-- engineDefaultMaterial   ", (void*)engine->GetOM().GetStandardMaterial(), "  [global]");
+        Debug::Log("gidx.h:       +-- engineDefaultMaterial   ", (void*)engine->GetAM().GetStandardMaterial(), "  [global]");
 
         // -- MeshRenderer / Asset
         const MeshAsset* asset = mesh->GetMeshAsset();
@@ -2010,7 +2044,7 @@ namespace Engine
         // -- Aufgeloeste Materialien pro Slot (was der Renderer tatsaechlich bekommt)
         // slotMaterials[i] wenn gesetzt, sonst immer das Engine-Standard-Material.
         Debug::Log("gidx.h:             +-- resolved materials per slot");
-        Material* standardMat = engine->GetOM().GetStandardMaterial();
+        Material* standardMat = engine->GetAM().GetStandardMaterial();
         const auto& mats = mesh->GetSlotMaterials();
         for (unsigned int i = 0; i < (unsigned int)slots.size(); ++i)
         {
@@ -2044,7 +2078,7 @@ namespace Engine
     {
         if (!engine) { Debug::Log("gidx.h: DebugPrintScene - engine nullptr"); return; }
 
-        const auto& meshes = engine->GetOM().GetMeshes();
+        const auto& meshes = engine->GetScene().GetMeshes();
 
         Debug::Log("gidx.h: ===== DebugPrintScene  meshes=", (int)meshes.size(), " =====");
 

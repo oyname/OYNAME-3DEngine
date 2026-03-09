@@ -60,7 +60,7 @@ void Light::SetShadowPlanes(float nearPlane, float farPlane)
     if (nearPlane < 0.001f) nearPlane = 0.001f;
     if (farPlane <= nearPlane + 0.001f) farPlane = nearPlane + 0.001f;
     m_shadowNear = nearPlane;
-    m_shadowFar  = farPlane;
+    m_shadowFar = farPlane;
 }
 
 void Light::SetShadowFov(float fovRadians)
@@ -77,7 +77,13 @@ void Light::Update(const GDXDevice* device)
     std::string key = "Light.cpp: ";
     DBLOG_ONCE(key.c_str(), "Update Light: ", Ptr(this).c_str());
 
-    Entity::Update(device);
+    // Lights do not use the entity constant buffer - the renderer reads cbLight
+    // (position, direction, color) via Dx11LightGpuData, never the entity world
+    // matrix CB. Calling Entity::Update(device) would upload a useless CB and
+    // increment EntityGpuData::FrameStats, inflating entityUploads/ringRotations.
+    // Only the CPU-side world matrix needs refreshing so GetWorldMatrix() stays valid.
+    if (m_active)
+        matrixSet.worldMatrix = GetWorldMatrix();
 
     DirectX::XMVECTOR direction = transform.GetLookAt();
     DirectX::XMStoreFloat4(&cbLight.lightDirection, direction);

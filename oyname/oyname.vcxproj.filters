@@ -37,9 +37,6 @@
     <Filter Include="01 Engine\shader\Unlite">
       <UniqueIdentifier>{2a338c23-658e-4771-9430-ef50cf531017}</UniqueIdentifier>
     </Filter>
-    <Filter Include="01 Engine\scene\manager">
-      <UniqueIdentifier>{136b666b-6917-4534-9028-c6b1dcc8b4bd}</UniqueIdentifier>
-    </Filter>
     <Filter Include="01 Engine\app\10_example_MultiShader">
       <UniqueIdentifier>{3022191d-48bc-4207-b23e-8df35bf97e9b}</UniqueIdentifier>
     </Filter>
@@ -134,9 +131,6 @@
     </ClCompile>
     <ClCompile Include="..\src\Texture.cpp">
       <Filter>01 Engine\backend</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ObjectManager.cpp">
-      <Filter>01 Engine\scene\manager</Filter>
     </ClCompile>
     <ClCompile Include="..\src\gdxengine.cpp">
       <Filter>01 Engine\core</Filter>
@@ -249,6 +243,18 @@
     <ClCompile Include="..\examples\26_example_Skinned_standard_showcase.cpp">
       <Filter>01 Engine\app</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\Scene.cpp">
+      <Filter>01 Engine\scene</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\AssetManager.cpp">
+      <Filter>01 Engine\core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ObjectManager.cpp">
+      <Filter>01 Engine\core</Filter>
+    </ClCompile>
+    <ClCompile Include="08_example_ChangeSharedMesh.cpp">
+      <Filter>01 Engine\app</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\examples\Neontimebuffer.h">
@@ -353,9 +359,6 @@
     <ClInclude Include="..\include\Texture.h">
       <Filter>01 Engine\backend</Filter>
     </ClInclude>
-    <ClInclude Include="..\include\ObjectManager.h">
-      <Filter>01 Engine\scene\manager</Filter>
-    </ClInclude>
     <ClInclude Include="..\include\gdxengine.h">
       <Filter>01 Engine\core</Filter>
     </ClInclude>
@@ -400,6 +403,15 @@
     </ClInclude>
     <ClInclude Include="..\include\EntityGpuData.h">
       <Filter>01 Engine\render</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\Scene.h">
+      <Filter>01 Engine\scene</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\AssetManager.h">
+      <Filter>01 Engine\core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\ObjectManager.h">
+      <Filter>01 Engine\core</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -33,7 +33,7 @@ public:
 
     bool isActive;
 
-    // Stabiler numerischer Bezeichner – wird von ObjectManager::CreateShader vergeben.
+    // Stable numeric identifier assigned by AssetManager::CreateShader.
     // Wird in RenderQueue::Sort() als SortKey genutzt (ersetzt Pointer-Truncation).
     // 0 = nicht initialisiert (Shader nicht ueber CreateShader erstellt).
     uint32_t id = 0;

@@ -1,5 +1,6 @@
 #pragma once
-#include "ObjectManager.h"
+#include "Scene.h"
+#include "AssetManager.h"
 #include "TexturePool.h"
 #include "Dx11LightManagerGpuData.h"
 #include "LightArrayBuffer.h"
@@ -8,8 +9,9 @@
 #include "ShadowMapTarget.h"
 #include "BackbufferTarget.h"
 #include "RenderTextureTarget.h"
-#include <d3d11.h>
 #include <memory>
+
+// No <d3d11.h> here. All DX11 types live in Dx11RenderBackend.
 
 class IRenderBackend;
 class Dx11RenderBackend;
@@ -17,77 +19,101 @@ class Dx11RenderBackend;
 class RenderManager
 {
 public:
-    RenderManager(ObjectManager& objectManager, GDXDevice& device);
+    struct FrameStats
+    {
+        unsigned int opaqueDrawCalls        = 0;
+        unsigned int transparentDrawCalls   = 0;
+        unsigned int shadowDrawCalls        = 0;
+        unsigned int shaderBinds            = 0;
+        unsigned int materialBinds          = 0;
+        unsigned int entityUploads          = 0;
+        unsigned int entityConstantBinds    = 0;
+        unsigned int entityRingRotations    = 0;
+
+        bool operator==(const FrameStats& other) const noexcept
+        {
+            return opaqueDrawCalls      == other.opaqueDrawCalls      &&
+                   transparentDrawCalls == other.transparentDrawCalls &&
+                   shadowDrawCalls      == other.shadowDrawCalls      &&
+                   shaderBinds          == other.shaderBinds          &&
+                   materialBinds        == other.materialBinds        &&
+                   entityUploads        == other.entityUploads        &&
+                   entityConstantBinds  == other.entityConstantBinds  &&
+                   entityRingRotations  == other.entityRingRotations;
+        }
+
+        bool operator!=(const FrameStats& other) const noexcept
+        {
+            return !(*this == other);
+        }
+    };
+
+    RenderManager(Scene& scene, AssetManager& assetManager, GDXDevice& device);
     ~RenderManager();
 
     void SetCamera(LPENTITY camera);
     void SetDirectionalLight(LPENTITY dirLight);
     void RenderScene();
 
-    // Phase 4: Shadow Mapping 2-Pass
     void RenderShadowPass();
     void RenderNormalPass();
 
-    // RTT: Render-to-Texture Unterstützung
-    // Setzt den aktiven RTT-Target und optional eine andere Kamera für den Pass.
-    // Wenn rtt == nullptr, wird bei RenderNormalPass wieder der Backbuffer verwendet.
+    // Sets the active RTT target and optional camera for the pass.
+    // Pass nullptr to render to the backbuffer again.
     void SetRTTTarget(RenderTextureTarget* rtt, LPENTITY rttCamera = nullptr);
 
     void EnsureBackend();
     void SetTexturePool(TexturePool* pool) noexcept { m_texturePool = pool; }
+    void SetShadowShader(Shader* shader)   noexcept { m_shadowShader = shader; }
+    const FrameStats& GetFrameStats() const noexcept { return m_frameStats; }
 
 private:
     RenderQueue m_opaque;
+    RenderQueue m_shadow;
 
-    // Transparent-Queue: vorbereitet, noch nicht aktiv
-    // Transparent-Queue: nach Tiefe sortiert (depth, RenderCommand)
     std::vector<std::pair<float, RenderCommand>> m_transFrame;
 
-    // Objekte im 3D-Raum
     LPENTITY m_currentCam;
     LPENTITY m_directionLight;
 
-    // Manager-Klassen (Referenzen)
-    ObjectManager& m_objectManager;
+    Scene&        m_scene;
+    AssetManager& m_assetManager;
     Dx11LightManagerGpuData m_lightGpuData;
     LightArrayBuffer        m_lightCBData;
-    GDXDevice& m_device;
+    GDXDevice&    m_device;
 
     std::unique_ptr<IRenderBackend> m_backend;
 
-    // Render Targets
     ShadowMapTarget  m_shadowTarget;
     BackbufferTarget m_backbufferTarget;
 
-    // TexturePool (non-owning, gesetzt von GDXEngine nach Init)
+    // Non-owning pointer to the shared TexturePool (set by GDXEngine after init).
     TexturePool* m_texturePool = nullptr;
 
-    // Default-Sampler fuer gSampler (s0) – linear wrap
-    ID3D11SamplerState* m_defaultSampler = nullptr;
+    // Shadow-pass VS (VS-only, b0=world, b3=lightViewProj). Non-owning.
+    Shader* m_shadowShader = nullptr;
 
-    // Blend States fuer Transparenz
-    ID3D11BlendState* m_alphaBlendState = nullptr;  // SRC_ALPHA / INV_SRC_ALPHA
-    ID3D11BlendState* m_noBlendState = nullptr;  // Standard: Blending aus
+    // RTT support
+    RenderTextureTarget* m_activeRTT  = nullptr;
+    LPENTITY             m_rttCamera  = nullptr;
 
-    // Caching: zuletzt gebundene SRVs fuer feste PS-Slots.
-    // t0=Albedo, t1=Normal, t2=ORM, t3=Decal, t4=Occlusion, t5=Roughness, t6=Metallic
-    // (Separate PBR-Maps sind optional; Shader nutzt weiterhin ORM, wenn MF_USE_ORM_MAP gesetzt ist.)
-    ID3D11ShaderResourceView* m_boundSRVs[7] = {};
+    bool       m_flushOnce = false;
+    FrameStats m_frameStats{};
+    FrameStats m_lastLoggedFrameStats{};
+    bool       m_hasLastLoggedFrameStats = false;
 
-    // RTT-Support: wenn gesetzt, rendert RenderNormalPass in dieses Target (statt Backbuffer)
-    RenderTextureTarget* m_activeRTT = nullptr;
-    LPENTITY             m_rttCamera = nullptr;  // optionale RTT-Kamera (non-owning)
-
-    // Debug: ersetzt static bool once in FlushRenderQueue – als Member resetbar.
-    bool m_flushOnce = false;
-
-    // Helper Functions
+    // Helper functions
     void RenderMainPassAtomic();
     void BuildRenderQueue();
+    void BuildShadowQueue();
     void FlushRenderQueue();
+    void FlushShadowQueue(const DirectX::XMMATRIX& lightViewMatrix,
+                          const DirectX::XMMATRIX& lightProjMatrix);
     void FlushTransparentQueue();
     void UpdateShadowMatrixBuffer(const DirectX::XMMATRIX& viewMatrix,
-        const DirectX::XMMATRIX& projMatrix);
+                                  const DirectX::XMMATRIX& projMatrix);
     void InvalidateFrame();
+    void LogFrameStatsIfChanged();
+
     RenderManager() = delete;
 };

@@ -107,7 +107,7 @@ public:
     }
     inline bool IsDoubleSided() const { return (properties.flags & MF_DOUBLE_SIDED) != 0; }
 
-    // Stabiler numerischer Bezeichner – wird von ObjectManager::CreateMaterial vergeben.
+    // Stable numeric identifier assigned by AssetManager::CreateMaterial.
     // Wird in RenderQueue::Sort() als SortKey genutzt (ersetzt Pointer-Truncation).
     // 0 = nicht initialisiert (Material nicht ueber CreateMaterial erstellt).
     uint32_t id = 0;

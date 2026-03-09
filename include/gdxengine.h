@@ -7,6 +7,8 @@
 #include "gdxinterface.h"
 #include "gdxdevice.h"
 #include "InputLayoutManager.h"
+#include "Scene.h"
+#include "AssetManager.h"
 #include "ObjectManager.h"
 #include "BufferManager.h"
 #include "ShaderManager.h"
@@ -20,6 +22,7 @@
 #define VERTEX_SHADER_FILE L"..\\..\\shaders\\VertexShader.hlsl"
 #define PIXEL_SHADER_FILE L"..\\..\\shaders\\PixelShader.hlsl"
 #define VERTEX_SKINNING_SHADER_FILE L"..\\..\\shaders\\VertexShaderSkinning.hlsl"
+#define VERTEX_SHADOW_SHADER_FILE   L"..\\..\\shaders\\VertexShader_Shadow.hlsl"
 
 // Forward declaration
 class GDXEngine;
@@ -50,6 +53,8 @@ private:
 	std::wstring ps;
 
 	// Manager classes
+	Scene               m_scene;
+	AssetManager        m_assetManager;
 	ObjectManager       m_objectManager;
 	RenderManager		m_renderManager;
 	ShaderManager		m_shaderManager;
@@ -87,7 +92,9 @@ public:
 	unsigned int GetColorDepth();
 
 	BufferManager& GetBM();			// BufferManager
-	ObjectManager& GetOM();			// ObjectManager
+	ObjectManager& GetOM();            // Legacy compatibility shim only. Use GetScene() / GetAM() for new code.
+	Scene& GetScene();
+	AssetManager& GetAM();
 	ShaderManager& GetSM();			// ShaderManager
 	InputLayoutManager& GetILM();	// InputManager
 	TexturePool& GetTP();			// TexturePool

@@ -10,13 +10,14 @@
 class Surface;
 class Material;
 class MeshAsset;
-class ObjectManager;
 
 enum COLLISION {
     NONE = 0,
     BOX = 1,
     SPHERE = 2,
 };
+
+class AssetManager;
 
 class Mesh : public Entity
 {
@@ -30,6 +31,8 @@ public:
 public:
     Mesh();
     ~Mesh();
+
+    friend class AssetManager;
 
     void Update(const GDXDevice* device) override;
     void Update(const GDXDevice* device, const MatrixSet* matrixSet);
@@ -61,8 +64,6 @@ public:
     void  operator delete(void* p) noexcept { _aligned_free(p); }
 
 private:
-    friend class ObjectManager;
-
     void SetMeshAssetInternal(MeshAsset* asset) noexcept { m_meshRenderer.SetAsset(asset); }
     void DetachMeshAssetInternal() noexcept { m_meshRenderer.ClearAsset(); }
     MeshAsset* AccessMeshAssetInternal() noexcept { return m_meshRenderer.AccessAsset(); }

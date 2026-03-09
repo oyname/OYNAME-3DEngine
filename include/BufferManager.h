@@ -3,7 +3,6 @@
 #include <d3d11.h>
 #include <vector>
 #include "gdxutil.h"
-#include "ObjectManager.h"
 
 class BufferManager
 {

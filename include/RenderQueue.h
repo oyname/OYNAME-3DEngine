@@ -46,7 +46,7 @@ struct RenderQueue
 
     // Sortiert nach stabiler Shader-ID, dann Material-ID.
     // Minimiert GPU-State-Wechsel ohne Pointer-Truncation auf 64-bit Plattformen.
-    // ID 0 bedeutet: Objekt wurde nicht ueber ObjectManager::Create* angelegt –
+    // ID 0 bedeutet: Objekt wurde nicht ueber AssetManager::Create* angelegt –
     // solche Commands landen ans Ende (nach allen gueltigen Batches).
     void Sort()
     {

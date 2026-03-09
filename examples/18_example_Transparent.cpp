@@ -129,6 +129,8 @@ void main()
     // ---- Hauptschleife ----------------------------------------------
     float rotY = 0.0f;
 
+    Engine::DebugPrintScene();
+
     while (Windows::MainLoop())
     {
         Core::BeginFrame();

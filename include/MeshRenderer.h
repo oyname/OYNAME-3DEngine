@@ -9,7 +9,7 @@ class Mesh;
 
 // MeshRenderer: interne Renderdaten eines Meshs.
 // Das MeshRenderer-Objekt selbst ist kein oeffentlicher Umbiegepunkt mehr.
-// Asset- und Materialzuweisung laufen kontrolliert ueber Mesh/ObjectManager.
+// Asset- and material assignment is controlled through Mesh/AssetManager.
 class MeshRenderer
 {
 public:

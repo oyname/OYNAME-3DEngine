@@ -124,7 +124,7 @@ static void BuildTailMesh(LPENTITY* outMesh, LPMATERIAL mat)
 // ---------------------------------------------------------------------------
 // main
 // ---------------------------------------------------------------------------
-void main(LPVOID hwnd)
+int main(LPVOID hwnd)
 {
     Debug::Log("bone_animation_showcase.cpp: main() gestartet");
     Engine::Graphics(1280, 720, true);

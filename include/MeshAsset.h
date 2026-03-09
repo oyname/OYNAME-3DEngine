@@ -11,7 +11,7 @@ class Surface;
 // Surface-Slots (Sub-Geometrien), die jeweils eigene Vertex-/Indexdaten
 // und einen GPU-Puffer besitzen.
 //
-// Ownership: MeshAsset besitzt seine Slots NICHT. Der ObjectManager
+// Ownership: MeshAsset besitzt seine Slots NICHT. Der AssetManager
 // verwaltet alle Surface-Instanzen zentral. MeshAsset haelt nur
 // nicht-owning Zeiger.
 //
@@ -25,7 +25,7 @@ public:
     ~MeshAsset() = default;
 
     // Fuegt einen Surface-Slot hinzu (non-owning).
-    // Wird vom ObjectManager beim Aufbau des Meshes aufgerufen.
+    // Wird vom AssetManager beim Aufbau des Meshes aufgerufen.
     void AddSlot(Surface* surface);
 
     // Entfernt einen Slot aus der Liste (loescht ihn nicht).

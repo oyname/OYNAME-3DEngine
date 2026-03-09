@@ -50,8 +50,10 @@ std::chrono::high_resolution_clock::time_point GDXEngine::lastFrameTime = std::c
 GDXEngine* GDXEngine::s_instance = nullptr;
 
 GDXEngine::GDXEngine(HWND hwnd, HINSTANCE hinst, unsigned int bpp, unsigned int screenX, unsigned int screenY, int* result) :
-	m_objectManager(),
-	m_renderManager(m_objectManager, m_device)
+	m_scene(),
+	m_assetManager(),
+	m_objectManager(m_scene, m_assetManager),
+	m_renderManager(m_scene, m_assetManager, m_device)
 {
 	m_colorDepth = bpp;
 	m_screenWidth = screenX;
@@ -203,9 +205,12 @@ HRESULT GDXEngine::Graphic(unsigned int width, unsigned int height, bool windowe
 
 	// 1. Initialize objects
 	//
-	// Object manager
-	m_objectManager.Init();
-	DBLOG("gdxengine.cpp: Graphic - ObjectManager initialized");
+	// Scene / Asset system
+	m_scene.Init();
+	DBLOG("gdxengine.cpp: Graphic - Scene initialized");
+	m_assetManager.Init();
+	DBLOG("gdxengine.cpp: Graphic - AssetManager initialized");
+	// ObjectManager::Init() is intentionally a no-op. It exists only as a compatibility stub.
 
 	m_bufferManager.Init(m_device.GetDevice(), m_device.GetDeviceContext());
 	DBLOG("gdxengine.cpp: Graphic - BufferManager initialized");
@@ -217,7 +222,7 @@ HRESULT GDXEngine::Graphic(unsigned int width, unsigned int height, bool windowe
 	DBLOG("gdxengine.cpp: Graphic - InputLayoutManager initialized");
 
 	{
-		Shader* stdShader = m_objectManager.CreateShader();
+		Shader* stdShader = m_assetManager.CreateShader();
 		DBLOG("gdxengine.cpp: Graphic - Standard Shader object created (id=", stdShader ? stdShader->id : 0u, ")");
 		GetSM().SetShader(stdShader);
 		DBLOG("gdxengine.cpp: Graphic - SetShader done");
@@ -234,7 +239,7 @@ HRESULT GDXEngine::Graphic(unsigned int width, unsigned int height, bool windowe
 	DBLOG("gdxengine.cpp: Graphic - standard shader compiled OK");
 
 	DBLOG("gdxengine.cpp: Graphic - creating standard material...");
-	GetOM().AddMaterialToShader(GetSM().GetShader(), GetOM().CreateMaterial());
+	m_assetManager.AddMaterialToShader(GetSM().GetShader(), m_assetManager.CreateMaterial());
 	DBLOG("gdxengine.cpp: Graphic - AddMaterialToShader done, materials.size=",
 		(int)GetSM().GetShader()->materials.size());
 
@@ -268,9 +273,9 @@ HRESULT GDXEngine::Graphic(unsigned int width, unsigned int height, bool windowe
 	// Default material (light grey, no texture).
 	// Returned by GetStandardMaterial() when CreateMesh is called without a material.
 	{
-		Material* defaultMat = GetOM().CreateMaterial();
+		Material* defaultMat = GetAM().CreateMaterial();
 		defaultMat->SetDiffuseColor(0.8f, 0.8f, 0.8f, 1.0f);
-		GetOM().AddMaterialToShader(GetSM().GetShader(), defaultMat);
+		GetAM().AddMaterialToShader(GetSM().GetShader(), defaultMat);
 		hr = InitMaterialBuffer(defaultMat);
 		if (FAILED(hr))
 		{
@@ -279,7 +284,7 @@ HRESULT GDXEngine::Graphic(unsigned int width, unsigned int height, bool windowe
 		}
 		else
 		{
-			GetOM().SetDefaultMaterial(defaultMat);
+			GetAM().SetDefaultMaterial(defaultMat);
 			DBLOG("gdxengine.cpp: Default material created (light grey 0.75/0.75/0.75)");
 		}
 	}
@@ -287,7 +292,7 @@ HRESULT GDXEngine::Graphic(unsigned int width, unsigned int height, bool windowe
 	hr = GetILM().CreateInputLayoutVertex(&GetSM().GetShader()->inputlayoutVertex,	// Store the layout
 		GetSM().GetShader(),														// The shader object
 		GetSM().GetShader()->flagsVertex,											// Store the flag
-		D3DVERTEX_POSITION | D3DVERTEX_COLOR | D3DVERTEX_NORMAL | D3DVERTEX_TANGENT | D3DVERTEX_TEX1 | D3DVERTEX_TEX2);
+		D3DVERTEX_POSITION | D3DVERTEX_COLOR | D3DVERTEX_NORMAL | D3DVERTEX_TEX1);
 
 	if (FAILED(hr))
 	{
@@ -298,7 +303,7 @@ HRESULT GDXEngine::Graphic(unsigned int width, unsigned int height, bool windowe
 	// Optionaler interner Skinned-Standardshader: eigener VS, gleicher PS.
 	{
 		std::wstring vsSkin = Core::ResolvePath(VERTEX_SKINNING_SHADER_FILE);
-		Shader* skinnedShader = GetOM().CreateShader();
+		Shader* skinnedShader = GetAM().CreateShader();
 
 		if (skinnedShader == nullptr)
 		{
@@ -307,8 +312,8 @@ HRESULT GDXEngine::Graphic(unsigned int width, unsigned int height, bool windowe
 		else
 		{
 			const DWORD skinnedFlags =
-				D3DVERTEX_POSITION | D3DVERTEX_NORMAL | D3DVERTEX_TANGENT |
-				D3DVERTEX_COLOR | D3DVERTEX_TEX1 | D3DVERTEX_TEX2 |
+				D3DVERTEX_POSITION | D3DVERTEX_NORMAL |
+				D3DVERTEX_COLOR | D3DVERTEX_TEX1 |
 				D3DVERTEX_BONE_INDICES | D3DVERTEX_BONE_WEIGHTS;
 
 			HRESULT hrSkin = GetSM().CreateShader(skinnedShader, vsSkin.c_str(), "main", ps.c_str(), "main");
@@ -332,6 +337,68 @@ HRESULT GDXEngine::Graphic(unsigned int width, unsigned int height, bool windowe
 				{
 					GetSM().SetShader(ShaderKey::StandardSkinned, skinnedShader);
 					DBLOG("gdxengine.cpp: internal skinned standard shader registered");
+				}
+			}
+		}
+	}
+
+	// Shadow-Pass VS: liest World aus b0, Light-View/Proj aus b3.
+	// Gleiche Vertex-Signatur wie Standard-VS (kein Skinning).
+	// PS wird nicht benoetigt (depth-only).
+	{
+		std::wstring vsShadow = Core::ResolvePath(VERTEX_SHADOW_SHADER_FILE);
+		Shader* shadowShader = GetAM().CreateShader();
+
+		if (!shadowShader)
+		{
+			DBERROR("gdxengine.cpp: Shadow-VS Shader-Objekt konnte nicht erstellt werden");
+		}
+		else
+		{
+			const DWORD shadowFlags =
+				D3DVERTEX_POSITION;
+
+			HRESULT hrShadow = GetSM().CompileShaderFromFile(
+				vsShadow, "main", "vs_5_0", &shadowShader->blobVS);
+
+			if (FAILED(hrShadow))
+			{
+				DBERROR("gdxengine.cpp: Shadow-VS Kompilierung fehlgeschlagen");
+				DBLOG_HR(hrShadow);
+			}
+			else
+			{
+				hrShadow = m_device.GetDevice()->CreateVertexShader(
+					shadowShader->blobVS->GetBufferPointer(),
+					shadowShader->blobVS->GetBufferSize(),
+					nullptr,
+					&shadowShader->vertexShader);
+
+				if (FAILED(hrShadow))
+				{
+					DBERROR("gdxengine.cpp: Shadow-VS CreateVertexShader fehlgeschlagen");
+					DBLOG_HR(hrShadow);
+				}
+				else
+				{
+					hrShadow = GetILM().CreateInputLayoutVertex(
+						&shadowShader->inputlayoutVertex,
+						shadowShader,
+						shadowShader->flagsVertex,
+						shadowFlags);
+
+					if (FAILED(hrShadow))
+					{
+						DBERROR("gdxengine.cpp: Shadow-VS InputLayout fehlgeschlagen");
+						DBLOG_HR(hrShadow);
+					}
+					else
+					{
+						// PS bleibt nullptr: depth-only pass.
+						GetSM().SetShader(ShaderKey::Shadow, shadowShader);
+						m_renderManager.SetShadowShader(shadowShader);
+						DBLOG("gdxengine.cpp: Shadow-VS registriert (b0=world, b3=lightViewProj)");
+					}
 				}
 			}
 		}
@@ -448,6 +515,14 @@ BufferManager& GDXEngine::GetBM() {
 
 ObjectManager& GDXEngine::GetOM() {
 	return m_objectManager;
+}
+
+Scene& GDXEngine::GetScene() {
+	return m_scene;
+}
+
+AssetManager& GDXEngine::GetAM() {
+	return m_assetManager;
 }
 
 ShaderManager& GDXEngine::GetSM() {

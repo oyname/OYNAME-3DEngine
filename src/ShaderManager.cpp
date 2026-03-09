@@ -1,7 +1,7 @@
 #include "ShaderManager.h"
 #include <fstream>
 
-ShaderManager::ShaderManager() : m_device(nullptr), m_objectManager(nullptr)
+ShaderManager::ShaderManager() : m_device(nullptr)
 {
 }
 
